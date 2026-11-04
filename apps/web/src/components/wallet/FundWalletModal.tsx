@@ -9,7 +9,7 @@ interface FundWalletModalProps {
 }
 
 export const FundWalletModal: React.FC<FundWalletModalProps> = ({ isOpen, onClose }) => {
-  const { fundWallet } = useApp();
+  const { fundWallet, formatPrice, currency } = useApp();
   const [step, setStep] = useState<'input' | 'transfer' | 'success'>('input');
   const [amount, setAmount] = useState<number>(25000);
   const [customAmount, setCustomAmount] = useState<string>('25000');
@@ -115,7 +115,7 @@ export const FundWalletModal: React.FC<FundWalletModalProps> = ({ isOpen, onClos
                             : 'bg-oj-surface-alt dark:bg-oj-dark-surface-alt border-oj-border dark:border-oj-dark-border text-oj-midnight dark:text-white hover:border-oj-primary/50'
                         }`}
                       >
-                        ₦{(val / 1000).toFixed(0)}k
+                        {formatPrice(val)}
                       </button>
                     ))}
                   </div>
@@ -138,7 +138,7 @@ export const FundWalletModal: React.FC<FundWalletModalProps> = ({ isOpen, onClos
                     />
                   </div>
                   <p className="text-[11px] text-oj-muted mt-1">
-                    Minimum deposit: ₦100 · Zero funding fee
+                    Minimum deposit: ₦100 {currency !== 'NGN' && `(${formatPrice(100)})`} · Zero funding fee
                   </p>
                 </div>
 
@@ -146,17 +146,17 @@ export const FundWalletModal: React.FC<FundWalletModalProps> = ({ isOpen, onClos
                   <div className="flex justify-between text-oj-muted">
                     <span>Deposit Amount:</span>
                     <span className="font-mono font-bold text-oj-midnight dark:text-white">
-                      ₦{amount.toLocaleString()}
+                      {formatPrice(amount)} {currency !== 'NGN' && <span className="text-[11px] font-normal text-oj-muted">(₦{amount.toLocaleString()})</span>}
                     </span>
                   </div>
                   <div className="flex justify-between text-oj-muted">
                     <span>Provider Gateway Fee:</span>
-                    <span className="font-mono font-bold text-emerald-600">₦0.00 (Free)</span>
+                    <span className="font-mono font-bold text-emerald-600">Free</span>
                   </div>
                   <div className="border-t border-oj-border dark:border-oj-dark-border pt-1.5 flex justify-between font-bold text-oj-midnight dark:text-white">
                     <span>You Receive:</span>
                     <span className="font-mono text-oj-primary dark:text-oj-cyan">
-                      ₦{amount.toLocaleString()}
+                      {formatPrice(amount)} {currency !== 'NGN' && <span className="text-[11px] font-normal text-oj-muted">(₦{amount.toLocaleString()})</span>}
                     </span>
                   </div>
                 </div>
@@ -215,7 +215,7 @@ export const FundWalletModal: React.FC<FundWalletModalProps> = ({ isOpen, onClos
                   <div className="flex justify-between items-center text-xs pt-1 border-t border-oj-border dark:border-oj-dark-border">
                     <span className="text-oj-muted">Exact Amount:</span>
                     <span className="font-mono font-bold text-base text-oj-midnight dark:text-white">
-                      ₦{amount.toLocaleString()}
+                      {formatPrice(amount)} {currency !== 'NGN' && <span className="text-xs font-normal text-oj-muted">(₦{amount.toLocaleString()})</span>}
                     </span>
                   </div>
 
@@ -267,7 +267,7 @@ export const FundWalletModal: React.FC<FundWalletModalProps> = ({ isOpen, onClos
                     Payment Verified & Credited!
                   </h4>
                   <p className="text-xs text-oj-muted max-w-xs mx-auto">
-                    Your NGN wallet has been atomically credited with ₦{amount.toLocaleString()} via append-only ledger reference <span className="font-mono text-oj-primary font-bold">{fundingRef}</span>.
+                    Your wallet has been atomically credited with {formatPrice(amount)} via append-only ledger reference <span className="font-mono text-oj-primary font-bold">{fundingRef}</span>.
                   </p>
                 </div>
 

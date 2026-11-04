@@ -9,7 +9,7 @@ interface StatementModalProps {
 }
 
 export const StatementModal: React.FC<StatementModalProps> = ({ isOpen, onClose }) => {
-  const { user, wallet, ledger, showToast } = useApp();
+  const { user, wallet, ledger, showToast, formatPrice } = useApp();
 
   const handleDownloadCsv = () => {
     const headers = ['Transaction ID', 'Reference', 'Type', 'Category', 'Amount (NGN)', 'Balance After (NGN)', 'Status', 'Date', 'Description'];
@@ -106,7 +106,7 @@ export const StatementModal: React.FC<StatementModalProps> = ({ isOpen, onClose 
               <div>
                 <span className="text-oj-muted block">Available Balance:</span>
                 <span className="font-mono font-bold text-oj-primary dark:text-oj-cyan">
-                  ₦{wallet.balanceNgn.toLocaleString()}
+                  {formatPrice(wallet.balanceNgn)}
                 </span>
               </div>
               <div>
@@ -149,10 +149,10 @@ export const StatementModal: React.FC<StatementModalProps> = ({ isOpen, onClose 
                         <td className={`py-2 px-3 text-right font-mono font-bold ${
                           tx.type === 'credit' ? 'text-emerald-600' : 'text-rose-600'
                         }`}>
-                          {tx.type === 'credit' ? '+' : '-'}₦{tx.amountNgn.toLocaleString()}
+                          {tx.type === 'credit' ? '+' : '-'}{formatPrice(tx.amountNgn)}
                         </td>
                         <td className="py-2 px-3 text-right font-mono text-oj-midnight dark:text-white font-medium">
-                          ₦{tx.balanceAfterNgn.toLocaleString()}
+                          {formatPrice(tx.balanceAfterNgn)}
                         </td>
                       </tr>
                     ))}

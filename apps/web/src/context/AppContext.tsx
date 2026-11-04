@@ -9,7 +9,9 @@ import {
   LedgerTransaction,
   VirtualNumberSession,
   Order,
-  SupportedCurrency
+  SupportedCurrency,
+  formatCurrencyAmount,
+  convertNgnToCurrency
 } from '@ojalogs/shared';
 import {
   initialMockUser,
@@ -35,6 +37,8 @@ interface AppContextType {
   toggleHideBalance: () => void;
   currency: SupportedCurrency;
   setCurrency: (c: SupportedCurrency) => void;
+  formatPrice: (amountNgn: number, options?: { showSymbol?: boolean; showCode?: boolean; decimals?: number }) => string;
+  convertPrice: (amountNgn: number) => number;
   role: 'customer' | 'admin';
   setRole: (r: 'customer' | 'admin') => void;
 
@@ -162,6 +166,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const setCurrency = (c: SupportedCurrency) => {
     setCurrencyState(c);
   };
+
+  const formatPrice = useCallback(
+    (amountNgn: number, options?: { showSymbol?: boolean; showCode?: boolean; decimals?: number }) => {
+      return formatCurrencyAmount(amountNgn, currency, options);
+    },
+    [currency]
+  );
+
+  const convertPrice = useCallback(
+    (amountNgn: number) => {
+      return convertNgnToCurrency(amountNgn, currency);
+    },
+    [currency]
+  );
 
   const logout = async () => {
     await signOutUser();
@@ -314,7 +332,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       origin: { y: 0.6 }
     });
 
-    showToast(`Successfully credited ₦${amount.toLocaleString()} to your wallet!`);
+    showToast(`Successfully credited ${formatPrice(amount)} to your wallet!`);
     return { reference, checkoutUrl };
   };
 
@@ -338,7 +356,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const checkoutWithWallet = async (): Promise<Order> => {
     if (wallet.balanceNgn < cart.totalAmountNgn) {
-      throw new Error(`Insufficient wallet balance. Please add at least ₦${(cart.totalAmountNgn - wallet.balanceNgn).toLocaleString()}`);
+      throw new Error(`Insufficient wallet balance. Please add at least ${formatPrice(cart.totalAmountNgn - wallet.balanceNgn)}`);
     }
 
     const checkoutPayload = cart.items.map(item => ({
@@ -545,7 +563,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
           setWallet(w => ({ ...w, balanceNgn: newBalance }));
           setLedger(l => [refundTx, ...l]);
-          showToast(`No SMS received. 100% refund of ₦${refundAmount.toLocaleString()} credited to your wallet.`);
+          showToast(`No SMS received. 100% refund of ${formatPrice(refundAmount)} credited to your wallet.`);
 
           // Trigger server-side cron reconciliation as well
           apiClient.triggerRentalReconciliation().catch(() => {});
@@ -577,7 +595,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const price = rentalType === 'long_term_rental' ? service.priceNgn * 5 : service.priceNgn;
 
     if (wallet.balanceNgn < price) {
-      throw new Error(`Insufficient wallet funds. Number costs ₦${price.toLocaleString()}. Current balance: ₦${wallet.balanceNgn.toLocaleString()}`);
+      throw new Error(`Insufficient wallet funds. Number costs ${formatPrice(price)}. Current balance: ${formatPrice(wallet.balanceNgn)}`);
     }
 
     let session: VirtualNumberSession;
@@ -660,7 +678,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setLedger(prev => [refundTx, ...prev]);
     setActiveNumbers(prev => prev.map(s => s.id === sessionId ? { ...s, status: 'cancelled', canCancel: false } : s));
 
-    showToast(`Allocation cancelled. ₦${refundAmount.toLocaleString()} refunded to your wallet.`);
+    showToast(`Allocation cancelled. ${formatPrice(refundAmount)} refunded to your wallet.`);
   };
 
   const simulateIncomingSms = async (sessionId: string) => {
@@ -721,6 +739,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toggleHideBalance,
         currency,
         setCurrency,
+        formatPrice,
+        convertPrice,
         role,
         setRole,
         isAuthModalOpen,

@@ -10,7 +10,7 @@ interface CartDrawerProps {
 }
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
-  const { cart, removeFromCart, updateQuantity, wallet, checkoutWithWallet, checkoutWithGateway } = useApp();
+  const { cart, removeFromCart, updateQuantity, wallet, checkoutWithWallet, checkoutWithGateway, formatPrice, currency } = useApp();
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -125,7 +125,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                       </p>
                       <div className="flex items-center justify-between">
                         <span className="font-mono font-bold text-xs text-oj-primary dark:text-oj-cyan">
-                          ₦{item.product.priceNgn.toLocaleString()}
+                          {formatPrice(item.product.priceNgn)}
                         </span>
                         
                         {/* Stepper */}
@@ -172,13 +172,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                 <div className="flex items-center justify-between text-xs text-oj-muted dark:text-oj-dark-muted">
                   <span>Subtotal</span>
                   <span className="font-mono font-medium text-oj-midnight dark:text-white">
-                    ₦{cart.totalAmountNgn.toLocaleString()}
+                    {formatPrice(cart.totalAmountNgn)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-sm font-bold text-oj-midnight dark:text-white">
                   <span>Total Amount</span>
                   <span className="font-mono text-base text-oj-primary dark:text-oj-cyan">
-                    ₦{cart.totalAmountNgn.toLocaleString()}
+                    {formatPrice(cart.totalAmountNgn)}
                   </span>
                 </div>
 
@@ -186,10 +186,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                 <div className="p-2.5 rounded-xl bg-oj-surface dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <Wallet className="w-4 h-4 text-oj-primary" />
-                    <span className="text-oj-muted dark:text-oj-dark-muted">NGN Wallet Balance:</span>
+                    <span className="text-oj-muted dark:text-oj-dark-muted">{currency} Wallet Balance:</span>
                   </div>
                   <span className="font-mono font-bold text-oj-midnight dark:text-white">
-                    ₦{wallet.balanceNgn.toLocaleString()}
+                    {formatPrice(wallet.balanceNgn)}
                   </span>
                 </div>
 

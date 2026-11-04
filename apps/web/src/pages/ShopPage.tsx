@@ -20,7 +20,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { APPROVED_CATEGORIES } from '@ojalogs/shared';
 
 export const ShopPage: React.FC = () => {
-  const { products, favourites, toggleFavourite, addToCart } = useApp();
+  const { products, favourites, toggleFavourite, addToCart, formatPrice } = useApp();
   const navigate = useNavigate();
 
   // Search & Filters State
@@ -333,7 +333,7 @@ export const ShopPage: React.FC = () => {
                     <div>
                       <span className="text-[10px] text-oj-muted block">Price</span>
                       <span className="font-heading font-extrabold text-base text-oj-midnight dark:text-white">
-                        ₦{product.priceNgn.toLocaleString()}
+                        {formatPrice(product.priceNgn)}
                       </span>
                     </div>
 

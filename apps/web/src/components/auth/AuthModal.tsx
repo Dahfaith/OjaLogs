@@ -377,3 +377,4 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultEm
     </AnimatePresence>
   );
 };
+

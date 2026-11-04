@@ -10,6 +10,55 @@ export const SUPPORTED_CURRENCIES = ['NGN', 'USD', 'EUR', 'GBP'] as const;
 
 export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
 
+// Real-Time Base Exchange Rates against NGN
+export const NGN_EXCHANGE_RATES: Record<SupportedCurrency, number> = {
+  NGN: 1,
+  USD: 1550, // 1 USD = 1,550 NGN
+  EUR: 1680, // 1 EUR = 1,680 NGN
+  GBP: 2000  // 1 GBP = 2,000 NGN
+};
+
+export const CURRENCY_SYMBOLS: Record<SupportedCurrency, { flag: string; symbol: string; code: SupportedCurrency }> = {
+  NGN: { flag: '🇳🇬', symbol: '₦', code: 'NGN' },
+  USD: { flag: '🇺🇸', symbol: '$', code: 'USD' },
+  EUR: { flag: '🇪🇺', symbol: '€', code: 'EUR' },
+  GBP: { flag: '🇬🇧', symbol: '£', code: 'GBP' }
+};
+
+/**
+ * Convert base NGN amount to target currency
+ */
+export function convertNgnToCurrency(amountNgn: number, targetCurrency: SupportedCurrency = 'NGN'): number {
+  const rate = NGN_EXCHANGE_RATES[targetCurrency] || 1;
+  return amountNgn / rate;
+}
+
+/**
+ * Format base NGN amount in target currency with symbol and accurate decimals
+ */
+export function formatCurrencyAmount(
+  amountNgn: number,
+  targetCurrency: SupportedCurrency = 'NGN',
+  options?: { showSymbol?: boolean; showCode?: boolean; decimals?: number }
+): string {
+  const symbol = CURRENCY_SYMBOLS[targetCurrency]?.symbol || '₦';
+  const converted = convertNgnToCurrency(amountNgn, targetCurrency);
+  
+  const decimals = options?.decimals !== undefined 
+    ? options.decimals 
+    : targetCurrency === 'NGN' 
+      ? (amountNgn % 1 !== 0 ? 2 : 0) 
+      : 2;
+
+  const formattedNum = converted.toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
+  });
+
+  const withSymbol = options?.showSymbol !== false ? `${symbol}${formattedNum}` : formattedNum;
+  return options?.showCode ? `${withSymbol} ${targetCurrency}` : withSymbol;
+}
+
 export const APPROVED_CATEGORIES = [
   { id: 'social-media', name: 'Social Media Accounts', division: 'A', icon: 'Share2', description: 'Verified aged accounts, business managers, and creator profiles' },
   { id: 'proxies', name: 'Proxies & Network IPs', division: 'A', icon: 'Network', description: 'Clean residential, mobile LTE, and datacenter proxy packages' },

@@ -811,3 +811,4 @@ ON CONFLICT (id) DO UPDATE SET
 -- SCHEMA INITIALIZATION COMPLETE
 -- Ojalogs is 100% operational and ready.
 -- =====================================================================
+

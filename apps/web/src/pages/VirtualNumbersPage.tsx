@@ -20,7 +20,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { mockCountries, mockServices } from '../lib/mockData';
 
 export const VirtualNumbersPage: React.FC = () => {
-  const { activeNumbers, requestNumber, cancelNumber, simulateIncomingSms, wallet, showToast, setIsSupportOpen } = useApp();
+  const { activeNumbers, requestNumber, cancelNumber, simulateIncomingSms, wallet, showToast, setIsSupportOpen, formatPrice } = useApp();
 
   const [selectedCountryCode, setSelectedCountryCode] = useState<string>('US');
   const [selectedServiceId, setSelectedServiceId] = useState<string>('whatsapp');
@@ -151,7 +151,7 @@ export const VirtualNumbersPage: React.FC = () => {
                     )}
                   </div>
                   <div className="flex items-center justify-between text-[11px]">
-                    <span className="font-mono font-bold">₦{s.priceNgn.toLocaleString()}</span>
+                    <span className="font-mono font-bold">{formatPrice(s.priceNgn)}</span>
                     <span className={`text-[10px] ${isSelected ? 'text-cyan-300' : 'text-emerald-600'}`}>
                       {s.successRate}% Success
                     </span>
@@ -202,10 +202,10 @@ export const VirtualNumbersPage: React.FC = () => {
             <span className="text-xs text-oj-muted block">Total Wallet Charge</span>
             <div className="flex items-baseline gap-2">
               <span className="font-heading font-extrabold text-xl text-oj-midnight dark:text-white">
-                ₦{price.toLocaleString()}
+                {formatPrice(price)}
               </span>
               <span className="text-xs text-oj-muted">
-                (Wallet Balance: ₦{wallet.balanceNgn.toLocaleString()})
+                (Wallet Balance: {formatPrice(wallet.balanceNgn)})
               </span>
             </div>
           </div>

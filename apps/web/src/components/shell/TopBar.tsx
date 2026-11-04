@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Moon, Sun, ShoppingBag, Bell, Shield, ChevronDown, Check, User, LogOut, PhoneCall, Mail } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SupportedCurrency, SUPPORTED_CURRENCIES } from '@ojalogs/shared';
+import { SupportedCurrency, SUPPORTED_CURRENCIES, CURRENCY_SYMBOLS } from '@ojalogs/shared';
 import { Link, useLocation } from 'react-router-dom';
 
 interface TopBarProps {
@@ -15,12 +15,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenCart }) => {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const location = useLocation();
 
-  const currencySymbols: Record<SupportedCurrency, { flag: string; symbol: string }> = {
-    NGN: { flag: '🇳🇬', symbol: '₦' },
-    USD: { flag: '🇺🇸', symbol: '$' },
-    EUR: { flag: '🇪🇺', symbol: '€' },
-    GBP: { flag: '🇬🇧', symbol: '£' },
-  };
+  const currencySymbols = CURRENCY_SYMBOLS;
 
   return (
     <header className="sticky top-0 z-40 w-full glass-panel border-b border-oj-border dark:border-oj-dark-border px-4 py-2.5 transition-colors duration-200">

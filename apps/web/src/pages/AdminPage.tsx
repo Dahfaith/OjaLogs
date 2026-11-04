@@ -23,7 +23,7 @@ import { motion } from 'framer-motion';
 import { mockAdminMetrics } from '../lib/mockData';
 
 export const AdminPage: React.FC = () => {
-  const { products, ledger, activeNumbers, showToast } = useApp();
+  const { products, ledger, activeNumbers, showToast, formatPrice } = useApp();
   const [activeTab, setActiveTab] = useState<'kpi' | 'catalog' | 'fulfilment' | 'numbers' | 'ledger' | 'audit'>('kpi');
   const [metrics] = useState(mockAdminMetrics);
 
@@ -99,7 +99,7 @@ export const AdminPage: React.FC = () => {
             <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
               <span className="text-xs text-oj-muted block">Total Processed Volume</span>
               <p className="font-heading font-extrabold text-xl text-oj-midnight dark:text-white mt-1">
-                ₦{metrics.totalRevenueNgn.toLocaleString()}
+                {formatPrice(metrics.totalRevenueNgn)}
               </p>
               <span className="text-[10px] text-emerald-600 font-semibold mt-0.5 block">
                 +14.8% vs last month
@@ -109,7 +109,7 @@ export const AdminPage: React.FC = () => {
             <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
               <span className="text-xs text-oj-muted block">Wallet Liabilities (Held Balances)</span>
               <p className="font-heading font-extrabold text-xl text-amber-600 mt-1">
-                ₦{metrics.walletLiabilitiesNgn.toLocaleString()}
+                {formatPrice(metrics.walletLiabilitiesNgn)}
               </p>
               <span className="text-[10px] text-oj-muted mt-0.5 block">
                 Backed 1:1 by BACH Gateway
@@ -213,7 +213,7 @@ export const AdminPage: React.FC = () => {
                     </td>
                     <td className="py-2.5 px-3 font-mono text-[11px] text-oj-primary">{p.serverCluster}</td>
                     <td className="py-2.5 px-3 text-oj-muted">{p.category}</td>
-                    <td className="py-2.5 px-3 text-right font-mono font-bold">₦{p.priceNgn.toLocaleString()}</td>
+                    <td className="py-2.5 px-3 text-right font-mono font-bold">{formatPrice(p.priceNgn)}</td>
                     <td className="py-2.5 px-3 text-center">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                         p.inStock ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
@@ -319,7 +319,7 @@ export const AdminPage: React.FC = () => {
               </p>
             </div>
             <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-md border border-emerald-200">
-              Balanced: ₦0.00 Variance
+              Balanced: 0.00 Variance
             </span>
           </div>
 
@@ -341,8 +341,8 @@ export const AdminPage: React.FC = () => {
                     <td className="py-2.5 px-3 font-mono text-[11px] text-oj-muted">{t.id}</td>
                     <td className="py-2.5 px-3 font-mono font-bold text-oj-midnight dark:text-white">{t.reference}</td>
                     <td className="py-2.5 px-3 uppercase text-[10px] font-bold">{t.type}</td>
-                    <td className="py-2.5 px-3 text-right font-mono font-bold">₦{t.amountNgn.toLocaleString()}</td>
-                    <td className="py-2.5 px-3 text-right font-mono">₦{t.balanceAfterNgn.toLocaleString()}</td>
+                    <td className="py-2.5 px-3 text-right font-mono font-bold">{formatPrice(t.amountNgn)}</td>
+                    <td className="py-2.5 px-3 text-right font-mono">{formatPrice(t.balanceAfterNgn)}</td>
                     <td className="py-2.5 px-3 text-center">
                       <span className="text-[10px] font-bold text-emerald-600">✓ Verified</span>
                     </td>

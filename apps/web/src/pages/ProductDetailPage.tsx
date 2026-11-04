@@ -19,7 +19,7 @@ import { motion } from 'framer-motion';
 export const ProductDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { products, favourites, toggleFavourite, addToCart, checkoutWithWallet, wallet } = useApp();
+  const { products, favourites, toggleFavourite, addToCart, checkoutWithWallet, wallet, formatPrice } = useApp();
 
   const product = products.find(p => p.slug === slug) || products[0];
   const isFav = favourites.includes(product.id);
@@ -137,7 +137,7 @@ export const ProductDetailPage: React.FC = () => {
               <div>
                 <span className="text-xs text-oj-muted block">Unit Price</span>
                 <span className="font-heading font-extrabold text-2xl text-oj-midnight dark:text-white">
-                  ₦{product.priceNgn.toLocaleString()}
+                  {formatPrice(product.priceNgn)}
                 </span>
                 <span className="text-xs text-oj-muted ml-1">/ unit</span>
               </div>
@@ -152,7 +152,7 @@ export const ProductDetailPage: React.FC = () => {
               <div>
                 <p className="text-xs font-semibold text-oj-midnight dark:text-white">Select Quantity</p>
                 <p className="font-mono text-xs font-bold text-oj-primary dark:text-oj-cyan">
-                  Total: ₦{totalPrice.toLocaleString()}
+                  Total: {formatPrice(totalPrice)}
                 </p>
               </div>
 
@@ -182,7 +182,7 @@ export const ProductDetailPage: React.FC = () => {
                 className="w-full py-3.5 rounded-btn bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-orange-500 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-all hover:scale-[1.01]"
               >
                 <Zap className="w-4 h-4 fill-white" />
-                <span>Buy Now (₦{totalPrice.toLocaleString()})</span>
+                <span>Buy Now ({formatPrice(totalPrice)})</span>
               </button>
 
               <div className="flex gap-2">
@@ -325,7 +325,7 @@ export const ProductDetailPage: React.FC = () => {
                   <p className="text-[11px] text-oj-muted line-clamp-1">{rel.summary}</p>
                 </div>
                 <div className="mt-2 pt-2 border-t border-oj-border dark:border-oj-dark-border flex items-center justify-between">
-                  <span className="font-mono font-bold text-xs text-oj-primary">₦{rel.priceNgn.toLocaleString()}</span>
+                  <span className="font-mono font-bold text-xs text-oj-primary">{formatPrice(rel.priceNgn)}</span>
                   <span className="text-[10px] text-emerald-600 font-semibold">● In Stock</span>
                 </div>
               </div>

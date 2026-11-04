@@ -20,7 +20,7 @@ import { FundWalletModal } from '../components/wallet/FundWalletModal';
 import { StatementModal } from '../components/wallet/StatementModal';
 
 export const WalletPage: React.FC = () => {
-  const { wallet, ledger, hideBalance, toggleHideBalance } = useApp();
+  const { wallet, ledger, hideBalance, toggleHideBalance, formatPrice, currency } = useApp();
   const [isFundOpen, setIsFundOpen] = useState(false);
   const [isStatementOpen, setIsStatementOpen] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'deposit' | 'order_payment' | 'refund'>('all');
@@ -83,7 +83,7 @@ export const WalletPage: React.FC = () => {
           </span>
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>NGN</span>
+            <span>{currency}</span>
           </span>
         </div>
 
@@ -93,7 +93,7 @@ export const WalletPage: React.FC = () => {
           </p>
           <div className="flex items-center gap-3">
             <span className="font-heading font-extrabold text-3xl sm:text-4xl tracking-tight text-white">
-              {hideBalance ? '••••••••' : `₦${wallet.balanceNgn.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              {hideBalance ? '••••••••' : formatPrice(wallet.balanceNgn)}
             </span>
             <button
               onClick={toggleHideBalance}
@@ -264,10 +264,10 @@ export const WalletPage: React.FC = () => {
                 <p className={`font-mono font-extrabold text-xs sm:text-sm ${
                   tx.type === 'credit' ? 'text-emerald-600 dark:text-emerald-400' : 'text-oj-midnight dark:text-white'
                 }`}>
-                  {tx.type === 'credit' ? '+' : '-'}₦{tx.amountNgn.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                  {tx.type === 'credit' ? '+' : '-'}{formatPrice(tx.amountNgn)}
                 </p>
                 <p className="text-[10px] font-mono text-oj-muted">
-                  Balance: ₦{tx.balanceAfterNgn.toLocaleString('en-NG')}
+                  Balance: {formatPrice(tx.balanceAfterNgn)}
                 </p>
               </div>
             </div>

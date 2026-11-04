@@ -16,7 +16,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const OrdersPage: React.FC = () => {
-  const { orders, revealSecret, showToast } = useApp();
+  const { orders, revealSecret, showToast, formatPrice, currency } = useApp();
   const [activeTab, setActiveTab] = useState<'all' | 'completed' | 'pending'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -141,14 +141,14 @@ export const OrdersPage: React.FC = () => {
                       </span>
                     </div>
                     <p className="text-[11px] text-oj-muted mt-0.5">
-                      Placed on {new Date(order.createdAt).toLocaleDateString()} at {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · Method: {order.paymentMethod === 'wallet' ? 'NGN Wallet' : 'BACH Gateway'}
+                      Placed on {new Date(order.createdAt).toLocaleDateString()} at {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · Method: {order.paymentMethod === 'wallet' ? `${currency} Wallet` : 'BACH Gateway'}
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3">
                   <span className="font-mono font-extrabold text-base text-oj-primary dark:text-oj-cyan">
-                    ₦{order.totalNgn.toLocaleString()}
+                    {formatPrice(order.totalNgn)}
                   </span>
                   <button
                     onClick={() => window.print()}
@@ -177,7 +177,7 @@ export const OrdersPage: React.FC = () => {
                         <div>
                           <p className="text-xs font-bold text-oj-midnight dark:text-white">{item.product.title}</p>
                           <p className="text-[11px] text-oj-muted font-mono">
-                            Qty: {item.quantity} · {item.product.serverCluster} · ₦{item.totalNgn.toLocaleString()}
+                            Qty: {item.quantity} · {item.product.serverCluster} · {formatPrice(item.totalNgn)}
                           </p>
                         </div>
                       </div>

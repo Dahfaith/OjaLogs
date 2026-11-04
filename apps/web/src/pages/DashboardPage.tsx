@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { FundWalletModal } from '../components/wallet/FundWalletModal';
 
 export const DashboardPage: React.FC = () => {
-  const { user, wallet, hideBalance, toggleHideBalance, orders, activeNumbers } = useApp();
+  const { user, wallet, hideBalance, toggleHideBalance, orders, activeNumbers, formatPrice, currency } = useApp();
   const [isFundModalOpen, setIsFundModalOpen] = useState(false);
 
   const formattedDate = new Date().toLocaleDateString('en-US', {
@@ -47,7 +47,7 @@ export const DashboardPage: React.FC = () => {
           </span>
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>NGN Wallet</span>
+            <span>{currency} Wallet</span>
           </span>
         </div>
 
@@ -57,7 +57,7 @@ export const DashboardPage: React.FC = () => {
           </p>
           <div className="flex items-center gap-3">
             <span className="font-heading font-extrabold text-3xl sm:text-4xl tracking-tight text-white">
-              {hideBalance ? '••••••••' : `₦${wallet.balanceNgn.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              {hideBalance ? '••••••••' : formatPrice(wallet.balanceNgn)}
             </span>
             <button
               onClick={toggleHideBalance}
@@ -126,7 +126,7 @@ export const DashboardPage: React.FC = () => {
               Monthly spend
             </p>
             <p className="font-heading font-extrabold text-2xl text-oj-midnight dark:text-white">
-              ₦{wallet.monthlySpendNgn.toLocaleString('en-NG')}
+              {formatPrice(wallet.monthlySpendNgn)}
             </p>
             <p className="text-[11px] text-oj-muted dark:text-oj-dark-muted mt-0.5">
               Total verified spending
@@ -251,7 +251,7 @@ export const DashboardPage: React.FC = () => {
 
             <div className="text-right">
               <p className="font-mono font-bold text-xs text-oj-midnight dark:text-white">
-                ₦{order.totalNgn.toLocaleString()}
+                {formatPrice(order.totalNgn)}
               </p>
               <Link
                 to="/orders"
