@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useApp } from '../context/AppContext';
 import {
   Sparkles,
   ShieldCheck,
@@ -28,6 +29,7 @@ import { InstagramIcon, FacebookIcon, TwitterXIcon, TikTokIcon, GmailIcon } from
 
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
+  const { setIsAuthModalOpen } = useApp();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   const directoryCategories = [
@@ -188,12 +190,13 @@ export const LandingPage: React.FC = () => {
               <ArrowRight className="w-4 h-4" />
             </Link>
 
-            <Link
-              to="/dashboard"
-              className="w-full sm:w-auto px-6 py-3.5 rounded-btn bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border text-oj-midnight dark:text-white text-xs font-bold hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt transition-colors"
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="w-full sm:w-auto px-6 py-3.5 rounded-btn bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border text-oj-midnight dark:text-white text-xs font-bold hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt transition-colors flex items-center justify-center gap-2"
             >
-              Open Free NGN Wallet
-            </Link>
+              <Mail className="w-4 h-4 text-oj-primary" />
+              <span>Sign In / Open Wallet</span>
+            </button>
           </motion.div>
         </div>
       </section>

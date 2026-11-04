@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Moon, Sun, ShoppingBag, Bell, Shield, ChevronDown, Check, User, LogOut, PhoneCall } from 'lucide-react';
+import { Moon, Sun, ShoppingBag, Bell, Shield, ChevronDown, Check, User, LogOut, PhoneCall, Mail } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SupportedCurrency, SUPPORTED_CURRENCIES } from '@ojalogs/shared';
 import { Link, useLocation } from 'react-router-dom';
@@ -10,7 +10,7 @@ interface TopBarProps {
 }
 
 export const TopBar: React.FC<TopBarProps> = ({ onOpenCart }) => {
-  const { user, theme, toggleTheme, currency, setCurrency, role, setRole, cart } = useApp();
+  const { user, theme, toggleTheme, currency, setCurrency, role, setRole, cart, setIsAuthModalOpen, logout } = useApp();
   const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const location = useLocation();
@@ -223,6 +223,28 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenCart }) => {
                       <Shield className="w-4 h-4 text-oj-primary" />
                       <span>Admin Console</span>
                     </Link>
+
+                    <button
+                      onClick={() => {
+                        setShowUserDropdown(false);
+                        setIsAuthModalOpen(true);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-oj-primary dark:text-oj-cyan rounded-lg hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt"
+                    >
+                      <Mail className="w-4 h-4 text-oj-primary" />
+                      <span>Sign In / Magic Link</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setShowUserDropdown(false);
+                        logout();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Sign Out</span>
+                    </button>
                   </div>
                 </motion.div>
               )}

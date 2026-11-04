@@ -22,6 +22,8 @@ import {
   mockServices
 } from '../lib/mockData';
 import { apiClient } from '../lib/apiClient';
+import { supabase, signOutUser } from '../lib/supabaseClient';
+import { AuthModal } from '../components/auth/AuthModal';
 
 interface AppContextType {
   // User & Settings
@@ -35,6 +37,11 @@ interface AppContextType {
   setCurrency: (c: SupportedCurrency) => void;
   role: 'customer' | 'admin';
   setRole: (r: 'customer' | 'admin') => void;
+
+  // Auth Modal & Session
+  isAuthModalOpen: boolean;
+  setIsAuthModalOpen: (open: boolean) => void;
+  logout: () => Promise<void>;
 
   // Catalog
   products: Product[];
@@ -83,6 +90,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : initialMockUser;
   });
 
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('oj_theme') as 'light' | 'dark') || 'light';
   });
@@ -93,6 +102,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [currency, setCurrencyState] = useState<SupportedCurrency>('NGN');
   const [role, setRole] = useState<'customer' | 'admin'>('customer');
+
+  // Supabase Magic Link redirect listener
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        const u = session.user;
+        const name = u.user_metadata?.full_name || u.email?.split('@')[0] || 'Customer';
+        const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
+        const userObj: UserProfile = {
+          id: u.id,
+          name: formattedName,
+          email: u.email || '',
+          initials: formattedName.substring(0, 2).toUpperCase(),
+          role: 'customer',
+          isVerified: true,
+          acceptableUseAcceptedAt: new Date().toISOString(),
+          preferences: {
+            theme: 'light',
+            hideWalletBalance: false,
+            transactionAlerts: true,
+            currency: 'NGN'
+          }
+        };
+        setUser(userObj);
+        localStorage.setItem('oj_user', JSON.stringify(userObj));
+        showToast(`Authenticated as ${userObj.email}!`);
+      }
+    });
+
+    return () => {
+      authListener?.subscription?.unsubscribe();
+    };
+  }, []);
 
   // Theme synchronization
   useEffect(() => {
@@ -119,6 +161,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const setCurrency = (c: SupportedCurrency) => {
     setCurrencyState(c);
+  };
+
+  const logout = async () => {
+    await signOutUser();
+    setUser(initialMockUser);
+    showToast('Signed out of Ojalogs.');
   };
 
   // Catalog & Favourites
@@ -675,6 +723,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setCurrency,
         role,
         setRole,
+        isAuthModalOpen,
+        setIsAuthModalOpen,
+        logout,
         products,
         favourites,
         toggleFavourite,
@@ -703,6 +754,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }}
     >
       {children}
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </AppContext.Provider>
   );
 };

@@ -44,6 +44,30 @@ class ApiClient {
     return json.data as T;
   }
 
+  // Auth
+  async sendMagicLink(email: string, redirectTo?: string): Promise<{
+    sent: boolean;
+    email: string;
+    supabaseSent: boolean;
+    previewCode?: string;
+    message: string;
+  }> {
+    return this.request('/auth/magic-link', {
+      method: 'POST',
+      body: JSON.stringify({ email, redirectTo })
+    });
+  }
+
+  async verifyOtp(email: string, token: string): Promise<{
+    token: string;
+    user: any;
+  }> {
+    return this.request('/auth/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email, token })
+    });
+  }
+
   // Catalog
   async getCatalog(params?: { category?: string; serverCluster?: string; search?: string }): Promise<Product[]> {
     const query = new URLSearchParams();
