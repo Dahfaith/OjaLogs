@@ -1,0 +1,22 @@
+{
+  "name": "ojalogs-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ojalogs - Premium Digital Marketplace & Wallet Platform",
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "dev:api": "pnpm --filter api dev",
+    "dev": "pnpm --filter web dev",
+    "build:shared": "pnpm --filter @ojalogs/shared build",
+    "build:api": "pnpm --filter api build",
+    "build:web": "pnpm --filter web build",
+    "build": "pnpm --filter @ojalogs/shared build && pnpm --filter api build && pnpm --filter web build",
+    "test": "pnpm --filter api test",
+    "test:unit": "pnpm --filter api test:unit",
+    "test:bach": "pnpm --filter api test:bach",
+    "test:e2e": "pnpm --filter api test:e2e"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

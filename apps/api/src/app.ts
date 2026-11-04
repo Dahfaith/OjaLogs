@@ -1,0 +1,40 @@
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import { v1Router } from './routes/index.js';
+import { errorHandler, AppError } from './middleware/errorHandler.js';
+import { generalLimiter } from './middleware/rateLimiter.js';
+
+export const app = express();
+
+// Security Headers & CORS
+app.use(helmet());
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'x-request-id']
+}));
+
+// Request ID injector
+app.use((req, res, next) => {
+  const reqId = (req.headers['x-request-id'] as string) || `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  req.headers['x-request-id'] = reqId;
+  res.setHeader('x-request-id', reqId);
+  next();
+});
+
+// JSON Body Parser & Rate Limiter
+app.use(express.json({ limit: '1mb' }));
+app.use(generalLimiter);
+
+// Mount API v1 Routes
+app.use('/api/v1', v1Router);
+
+// 404 Route Catch-all
+app.use('*', (req, res, next) => {
+  next(new AppError(`Route '${req.originalUrl}' not found on this server.`, 404, 'ROUTE_NOT_FOUND'));
+});
+
+// Centralized Error Handler
+app.use(errorHandler);
+

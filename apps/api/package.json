@@ -1,0 +1,35 @@
+{
+  "name": "api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test:unit": "tsx test/api.test.ts",
+    "test:bach": "tsx test/bach.test.ts",
+    "test:e2e": "tsx test/e2e_phase5.test.ts",
+    "test": "tsx test/api.test.ts && tsx test/bach.test.ts && tsx test/e2e_phase5.test.ts"
+  },
+  "dependencies": {
+    "@ojalogs/shared": "workspace:*",
+    "@supabase/supabase-js": "^2.46.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "helmet": "^8.0.0",
+    "uuid": "^11.0.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.8.7",
+    "@types/uuid": "^10.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
+

@@ -1,0 +1,125 @@
+import { Router, Request, Response, NextFunction } from 'express';
+import { bachGateway } from '../gateways/bach.gateway.js';
+import { walletService } from '../services/wallet.service.js';
+import { AppError } from '../middleware/errorHandler.js';
+
+const router = Router();
+
+// In-memory gateway event sink to enforce idempotency
+const processedEvents = new Set<string>();
+
+/**
+ * Live / Sandbox Webhook Receiver from Bachs API
+ */
+router.post('/bach', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const signature = req.headers['x-bachs-signature-v2'] as string;
+    const timestamp = req.headers['x-bachs-timestamp'] as string;
+
+    if (!signature) {
+      throw new AppError('Missing X-Bachs-Signature-V2 header', 400, 'MISSING_SIGNATURE');
+    }
+
+    // Capture raw body
+    const rawBody = JSON.stringify(req.body);
+
+    // 1. Verify Signature & Anti-Replay Timestamp
+    const webhookEvent = await bachGateway.handleWebhook(rawBody, signature, timestamp);
+
+    // 2. Idempotency Check: Prevent Double Credit
+    if (processedEvents.has(webhookEvent.eventId)) {
+      console.log(`[BACH_WEBHOOK] Duplicate event ${webhookEvent.eventId} received. Skipping credit.`);
+      return res.status(200).json({
+        success: true,
+        data: { received: true, duplicate: true, eventId: webhookEvent.eventId },
+        meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+      });
+    }
+
+    processedEvents.add(webhookEvent.eventId);
+
+    // 3. Process Valid Payment Event
+    if (webhookEvent.status === 'successful') {
+      const userId = webhookEvent.rawPayload.data?.metadata?.user_id || 'usr_oj_001';
+
+      // Atomic Ledger Credit
+      const tx = walletService.creditWallet(
+        userId,
+        webhookEvent.amountNgn,
+        'deposit',
+        webhookEvent.reference,
+        `Bachs Gateway Verified Deposit (${webhookEvent.reference})`
+      );
+
+      console.log(`[BACH_WEBHOOK] Credited ₦${webhookEvent.amountNgn} to wallet for user ${userId}. Tx: ${tx.id}`);
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: { received: true, processed: true, eventId: webhookEvent.eventId },
+      meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Webhook Simulator (Allows immediate testing without needing a public domain yet!)
+ */
+router.post('/bach/simulate', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { amountNgn = 25000, reference = `ref_oj_${Date.now()}`, eventType = 'collection.succeeded' } = req.body;
+
+    const payload = {
+      id: `evt_sim_${Date.now()}`,
+      type: eventType,
+      data: {
+        reference,
+        amount: amountNgn,
+        currency: 'NGN',
+        status: 'succeeded',
+        metadata: {
+          user_id: 'usr_oj_001'
+        }
+      }
+    };
+
+    const payloadStr = JSON.stringify(payload);
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    const signature = bachGateway.generateTestSignature(payloadStr, timestamp);
+
+    // Trigger internal webhook validation with generated signature
+    const event = await bachGateway.handleWebhook(payloadStr, signature, timestamp);
+
+    // Idempotency check
+    let isDuplicate = false;
+    if (processedEvents.has(event.eventId)) {
+      isDuplicate = true;
+    } else {
+      processedEvents.add(event.eventId);
+      walletService.creditWallet(
+        'usr_oj_001',
+        event.amountNgn,
+        'deposit',
+        event.reference,
+        `Bachs Simulated Webhook Deposit (${event.reference})`
+      );
+    }
+
+    res.json({
+      success: true,
+      message: isDuplicate ? 'Event flagged as duplicate. Wallet not re-credited.' : 'Webhook simulated & verified successfully!',
+      simulatedEvent: event,
+      signatureUsed: signature,
+      timestampUsed: timestamp,
+      walletBalanceNow: walletService.getBalance('usr_oj_001'),
+      isDuplicate
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+export const webhookRouter = router;
+
