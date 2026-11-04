@@ -4,6 +4,7 @@
   "private": true,
   "description": "Ojalogs - Premium Digital Marketplace & Wallet Platform",
   "scripts": {
+    "start": "pnpm --filter api start",
     "dev:web": "pnpm --filter web dev",
     "dev:api": "pnpm --filter api dev",
     "dev": "pnpm --filter web dev",

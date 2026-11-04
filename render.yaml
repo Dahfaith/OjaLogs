@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: ojalogs-api
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: pnpm --filter @ojalogs/shared build && pnpm --filter api build
+    startCommand: pnpm --filter api start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: SUPABASE_URL
+        value: https://vbhvorgjeivvvjktspee.supabase.co
+      - key: SUPABASE_ANON_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZiaHZvcmdqZWl2dnZqa3RzcGVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM4MDQ4ODYsImV4cCI6MjEwOTM4MDg4Nn0.qexsyw5N3lPbU4jlXXkwBkVVzDthifHWjaWwsiOcwCE
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZiaHZvcmdqZWl2dnZqa3RzcGVlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MzgwNDg4NiwiZXhwIjoyMTA5MzgwODg2fQ.D-HbBiuX5ZD7XeVgRXnVrq6TbhGQ6qE2YoojBEdKZqI
+      - key: SERVER_ENCRYPTION_KEY
+        value: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      - key: BACHS_API_KEY
+        value: sk_sandbox_1e154c00_0BVnqwslBHTZ0amGc9VsYFKVyZC2_Vx43TiwFGe6CHg
+      - key: BACHS_WEBHOOK_SECRET
+        value: whsec_sandbox_ojalogs_secret_2026
+      - key: BACHS_BASE_URL
+        value: https://sandbox-api.bachs.io/v1
