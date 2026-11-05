@@ -16,7 +16,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const OrdersPage: React.FC = () => {
-  const { orders, revealSecret, showToast, formatPrice, currency } = useApp();
+  const { orders, revealSecret, showToast, formatPrice, currency, user, setIsAuthModalOpen } = useApp();
   const [activeTab, setActiveTab] = useState<'all' | 'completed' | 'pending'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -60,6 +60,26 @@ export const OrdersPage: React.FC = () => {
           Access your delivered digital license keys, activation codes, and purchase invoices.
         </p>
       </div>
+
+      {!user && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-oj-midnight to-oj-navy text-white border border-oj-navy flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-soft">
+          <div>
+            <p className="text-sm font-bold flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-oj-cyan" />
+              <span>Sign in to view orders & secrets</span>
+            </p>
+            <p className="text-xs text-slate-300 mt-0.5">
+              Enter your email to receive a passwordless sign-in link or 6-digit confirmation code.
+            </p>
+          </div>
+          <button
+            onClick={() => setIsAuthModalOpen(true)}
+            className="py-2 px-4 rounded-btn bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white text-xs font-bold shadow-glow-primary shrink-0 transition-all"
+          >
+            Sign In / Register
+          </button>
+        </div>
+      )}
 
       {/* Tabs & Search */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

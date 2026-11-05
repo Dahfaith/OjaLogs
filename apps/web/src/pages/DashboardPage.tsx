@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { FundWalletModal } from '../components/wallet/FundWalletModal';
 
 export const DashboardPage: React.FC = () => {
-  const { user, wallet, hideBalance, toggleHideBalance, orders, activeNumbers, formatPrice, currency } = useApp();
+  const { user, wallet, hideBalance, toggleHideBalance, orders, activeNumbers, formatPrice, currency, setIsAuthModalOpen } = useApp();
   const [isFundModalOpen, setIsFundModalOpen] = useState(false);
 
   const formattedDate = new Date().toLocaleDateString('en-US', {
@@ -26,13 +26,33 @@ export const DashboardPage: React.FC = () => {
           {formattedDate}
         </p>
         <h1 className="font-heading font-extrabold text-2xl sm:text-3xl text-oj-midnight dark:text-white mt-0.5 flex items-center gap-2">
-          <span>Hello, {user.name.split(' ')[0]}</span>
+          <span>Hello, {user ? user.name.split(' ')[0] : 'Guest'}</span>
           <span className="inline-block animate-bounce">👋</span>
         </h1>
         <p className="text-xs sm:text-sm text-oj-muted dark:text-oj-dark-muted mt-0.5">
           Here's what's happening with your Ojalogs account.
         </p>
       </div>
+
+      {!user && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-oj-midnight to-oj-navy text-white border border-oj-navy flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-soft">
+          <div>
+            <p className="text-sm font-bold flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-oj-cyan" />
+              <span>Create an account or sign in</span>
+            </p>
+            <p className="text-xs text-slate-300 mt-0.5">
+              Sign in with your email to access your personal wallet, view secret delivery vaults, and order history.
+            </p>
+          </div>
+          <button
+            onClick={() => setIsAuthModalOpen(true)}
+            className="py-2 px-4 rounded-btn bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white text-xs font-bold shadow-glow-primary shrink-0 transition-all"
+          >
+            Sign In / Register
+          </button>
+        </div>
+      )}
 
       {/* Hero Dark Wallet Card */}
       <motion.div

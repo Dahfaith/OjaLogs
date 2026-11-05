@@ -20,7 +20,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { mockCountries, mockServices } from '../lib/mockData';
 
 export const VirtualNumbersPage: React.FC = () => {
-  const { activeNumbers, requestNumber, cancelNumber, simulateIncomingSms, wallet, showToast, setIsSupportOpen, formatPrice } = useApp();
+  const { activeNumbers, requestNumber, cancelNumber, simulateIncomingSms, wallet, showToast, setIsSupportOpen, formatPrice, user, setIsAuthModalOpen } = useApp();
 
   const [selectedCountryCode, setSelectedCountryCode] = useState<string>('US');
   const [selectedServiceId, setSelectedServiceId] = useState<string>('whatsapp');
@@ -33,6 +33,12 @@ export const VirtualNumbersPage: React.FC = () => {
   const price = rentalType === 'long_term_rental' ? selectedService.priceNgn * 5 : selectedService.priceNgn;
 
   const handleRequest = async () => {
+    if (!user) {
+      setIsAuthModalOpen(true);
+      showToast('Please sign in or enter your email to allocate a virtual number.');
+      return;
+    }
+
     setIsRequesting(true);
     try {
       await requestNumber(selectedCountryCode, selectedServiceId, rentalType);

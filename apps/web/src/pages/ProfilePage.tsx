@@ -18,27 +18,49 @@ import {
 import { motion } from 'framer-motion';
 
 export const ProfilePage: React.FC = () => {
-  const { user, setUser, theme, toggleTheme, hideBalance, toggleHideBalance, showToast, setIsSupportOpen } = useApp();
-  const [transactionAlerts, setTransactionAlerts] = useState(user.preferences.transactionAlerts);
-  const [fullName, setFullName] = useState(user.name);
+  const { user, setUser, theme, toggleTheme, hideBalance, toggleHideBalance, showToast, setIsSupportOpen, setIsAuthModalOpen } = useApp();
+  const [transactionAlerts, setTransactionAlerts] = useState(user?.preferences?.transactionAlerts ?? true);
+  const [fullName, setFullName] = useState(user?.name || '');
   const [isSaved, setIsSaved] = useState(false);
+
+  if (!user) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-16 text-center space-y-4">
+        <div className="w-16 h-16 rounded-2xl bg-oj-primary/10 text-oj-primary flex items-center justify-center mx-auto">
+          <User className="w-8 h-8" />
+        </div>
+        <h2 className="font-heading font-extrabold text-2xl text-oj-midnight dark:text-white">
+          Sign in to your account
+        </h2>
+        <p className="text-xs text-oj-muted max-w-xs mx-auto">
+          Access your personal wallet, view purchased license vouchers, and manage your security preferences.
+        </p>
+        <button
+          onClick={() => setIsAuthModalOpen(true)}
+          className="w-full py-3 rounded-btn bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white text-xs font-bold shadow-glow-primary transition-all"
+        >
+          Sign In with Email / OTP
+        </button>
+      </div>
+    );
+  }
 
   const handleToggleAlerts = () => {
     setTransactionAlerts(!transactionAlerts);
-    setUser(prev => ({
+    setUser(prev => prev ? ({
       ...prev,
       preferences: { ...prev.preferences, transactionAlerts: !transactionAlerts }
-    }));
+    }) : null);
     showToast(`Transaction alerts ${!transactionAlerts ? 'enabled' : 'disabled'}`);
   };
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
-    setUser(prev => ({
+    setUser(prev => prev ? ({
       ...prev,
       name: fullName,
       initials: fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
-    }));
+    }) : null);
     setIsSaved(true);
     showToast('Profile information updated.');
     setTimeout(() => setIsSaved(false), 2000);

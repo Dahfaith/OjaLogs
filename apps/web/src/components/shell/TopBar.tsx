@@ -97,19 +97,21 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenCart }) => {
 
         {/* Right Action Icons */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Role Switcher Pill (Customer vs Admin preview) */}
-          <button
-            onClick={() => setRole(role === 'customer' ? 'admin' : 'customer')}
-            className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 ${
-              role === 'admin'
-                ? 'bg-oj-midnight text-oj-cyan border-oj-cyan/40 shadow-glow-cyan'
-                : 'bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted dark:text-oj-dark-muted border-oj-border dark:border-oj-dark-border hover:border-oj-primary/40'
-            }`}
-            title="Toggle between Customer Storefront and Super Admin View"
-          >
-            <Shield className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{role === 'admin' ? 'Admin Mode' : 'Customer'}</span>
-          </button>
+          {/* Admin Mode Badge (only if signed in as admin) */}
+          {user?.role === 'administrator' && (
+            <button
+              onClick={() => setRole(role === 'customer' ? 'admin' : 'customer')}
+              className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 ${
+                role === 'admin'
+                  ? 'bg-oj-midnight text-oj-cyan border-oj-cyan/40 shadow-glow-cyan'
+                  : 'bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted dark:text-oj-dark-muted border-oj-border dark:border-oj-dark-border hover:border-oj-primary/40'
+              }`}
+              title="Toggle between Customer Storefront and Super Admin View"
+            >
+              <Shield className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{role === 'admin' ? 'Admin Mode' : 'Customer'}</span>
+            </button>
+          )}
 
           {/* Currency Dropdown Selector */}
           <div className="relative">
@@ -175,76 +177,92 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenCart }) => {
             )}
           </button>
 
-          {/* User Profile Avatar & Menu */}
-          <div className="relative">
-            <button
-              onClick={() => setShowUserDropdown(!showUserDropdown)}
-              className="w-9 h-9 rounded-btn bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 flex items-center justify-center text-xs font-bold text-amber-700 dark:text-amber-300 hover:scale-105 transition-transform"
-            >
-              {user.initials}
-            </button>
+          {/* User Profile Avatar & Menu OR Sign In / Register CTA */}
+          {user ? (
+            <div className="relative">
+              <button
+                onClick={() => setShowUserDropdown(!showUserDropdown)}
+                className="w-9 h-9 rounded-btn bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 flex items-center justify-center text-xs font-bold text-amber-700 dark:text-amber-300 hover:scale-105 transition-transform"
+              >
+                {user.initials}
+              </button>
 
-            <AnimatePresence>
-              {showUserDropdown && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute right-0 mt-2 w-56 bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border rounded-xl shadow-elevated p-2 z-50"
-                >
-                  <div className="px-3 py-2 border-b border-oj-border dark:border-oj-dark-border">
-                    <p className="text-sm font-bold text-oj-midnight dark:text-white truncate">{user.name}</p>
-                    <p className="text-xs text-oj-muted dark:text-oj-dark-muted truncate">{user.email}</p>
-                    <span className="inline-block mt-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                      ✓ Verified Customer
-                    </span>
-                  </div>
+              <AnimatePresence>
+                {showUserDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 mt-2 w-56 bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border rounded-xl shadow-elevated p-2 z-50"
+                  >
+                    <div className="px-3 py-2 border-b border-oj-border dark:border-oj-dark-border">
+                      <p className="text-sm font-bold text-oj-midnight dark:text-white truncate">{user.name}</p>
+                      <p className="text-xs text-oj-muted dark:text-oj-dark-muted truncate">{user.email}</p>
+                      <span className="inline-block mt-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                        ✓ Verified Customer
+                      </span>
+                    </div>
 
-                  <div className="py-1">
-                    <Link
-                      to="/profile"
-                      onClick={() => setShowUserDropdown(false)}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-oj-midnight dark:text-white rounded-lg hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt"
-                    >
-                      <User className="w-4 h-4 text-oj-muted" />
-                      <span>Profile & Settings</span>
-                    </Link>
-                    <Link
-                      to="/admin"
-                      onClick={() => setShowUserDropdown(false)}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-oj-midnight dark:text-white rounded-lg hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt"
-                    >
-                      <Shield className="w-4 h-4 text-oj-primary" />
-                      <span>Admin Console</span>
-                    </Link>
+                    <div className="py-1">
+                      <Link
+                        to="/profile"
+                        onClick={() => setShowUserDropdown(false)}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-oj-midnight dark:text-white rounded-lg hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt"
+                      >
+                        <User className="w-4 h-4 text-oj-muted" />
+                        <span>Profile & Settings</span>
+                      </Link>
+                      <Link
+                        to="/wallet"
+                        onClick={() => setShowUserDropdown(false)}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-oj-midnight dark:text-white rounded-lg hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt"
+                      >
+                        <ShoppingBag className="w-4 h-4 text-oj-muted" />
+                        <span>My Wallet & Funds</span>
+                      </Link>
+                      <Link
+                        to="/orders"
+                        onClick={() => setShowUserDropdown(false)}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-oj-midnight dark:text-white rounded-lg hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt"
+                      >
+                        <Shield className="w-4 h-4 text-oj-muted" />
+                        <span>My Orders & Vault Keys</span>
+                      </Link>
 
-                    <button
-                      onClick={() => {
-                        setShowUserDropdown(false);
-                        setIsAuthModalOpen(true);
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-oj-primary dark:text-oj-cyan rounded-lg hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt"
-                    >
-                      <Mail className="w-4 h-4 text-oj-primary" />
-                      <span>Sign In / Magic Link</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setShowUserDropdown(false);
-                        logout();
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      <span>Sign Out</span>
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+                      <button
+                        onClick={() => {
+                          setShowUserDropdown(false);
+                          logout();
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold text-oj-midnight dark:text-white hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt transition-colors"
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="px-3.5 py-1.5 rounded-btn bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white text-xs font-bold shadow-glow-primary transition-all flex items-center gap-1.5"
+              >
+                <User className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Register</span>
+                <span className="sm:hidden">Join</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

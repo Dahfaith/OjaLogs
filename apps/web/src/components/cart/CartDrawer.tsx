@@ -10,12 +10,19 @@ interface CartDrawerProps {
 }
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
-  const { cart, removeFromCart, updateQuantity, wallet, checkoutWithWallet, checkoutWithGateway, formatPrice, currency } = useApp();
+  const { cart, removeFromCart, updateQuantity, wallet, checkoutWithWallet, checkoutWithGateway, formatPrice, currency, user, setIsAuthModalOpen, showToast } = useApp();
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const handleWalletCheckout = async () => {
+    if (!user) {
+      onClose();
+      setIsAuthModalOpen(true);
+      showToast('Please sign in or enter your email to complete checkout.');
+      return;
+    }
+
     setIsProcessing(true);
     setErrorMessage(null);
     try {
@@ -30,6 +37,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
   };
 
   const handleGatewayCheckout = async () => {
+    if (!user) {
+      onClose();
+      setIsAuthModalOpen(true);
+      showToast('Please sign in or enter your email to complete checkout.');
+      return;
+    }
     setIsProcessing(true);
     setErrorMessage(null);
     try {

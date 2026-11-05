@@ -21,14 +21,23 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { mockAdminMetrics } from '../lib/mockData';
+import { Product } from '@ojalogs/shared';
 
 export const AdminPage: React.FC = () => {
-  const { products, ledger, activeNumbers, showToast, formatPrice } = useApp();
+  const { products, ledger, activeNumbers, showToast, formatPrice, updateProduct } = useApp();
   const [activeTab, setActiveTab] = useState<'kpi' | 'catalog' | 'fulfilment' | 'numbers' | 'ledger' | 'audit'>('kpi');
   const [metrics] = useState(mockAdminMetrics);
 
   const [inventoryPayload, setInventoryPayload] = useState('');
   const [selectedProductForVault, setSelectedProductForVault] = useState(products[0]?.id || '');
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  const handleSaveProductEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct) return;
+    updateProduct(editingProduct);
+    setEditingProduct(null);
+  };
 
   const handleUploadVaultKeys = (e: React.FormEvent) => {
     e.preventDefault();
@@ -223,10 +232,10 @@ export const AdminPage: React.FC = () => {
                     </td>
                     <td className="py-2.5 px-3 text-right">
                       <button
-                        onClick={() => showToast(`Updated status for ${p.title}`)}
+                        onClick={() => setEditingProduct({ ...p })}
                         className="text-xs text-oj-primary hover:underline font-semibold"
                       >
-                        Edit
+                        Edit Server / Price
                       </button>
                     </td>
                   </tr>
@@ -392,6 +401,127 @@ export const AdminPage: React.FC = () => {
                 Logged
               </span>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Product Server & Price Editor Modal */}
+      {editingProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-oj-border dark:border-oj-dark-border">
+              <div>
+                <h3 className="font-heading font-extrabold text-base text-oj-midnight dark:text-white">
+                  Edit Product & Server Assignment
+                </h3>
+                <p className="text-xs text-oj-muted">
+                  Configure upstream fulfillment server cluster and pricing.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingProduct(null)}
+                className="p-1 rounded-lg text-oj-muted hover:text-oj-midnight dark:hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProductEdit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-oj-midnight dark:text-white mb-1">
+                  Product Title
+                </label>
+                <input
+                  type="text"
+                  value={editingProduct.title}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, title: e.target.value })}
+                  className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-oj-midnight dark:text-white mb-1">
+                    Fulfillment Server Cluster
+                  </label>
+                  <select
+                    value={editingProduct.serverCluster}
+                    onChange={(e) => setEditingProduct({
+                      ...editingProduct,
+                      serverCluster: e.target.value as any
+                    })}
+                    className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary"
+                  >
+                    <option value="Server 1">Server 1 (VPNs, Proxies & eSIM)</option>
+                    <option value="Server 2">Server 2 (Social Accounts & Cloud)</option>
+                    <option value="Server 3">Server 3 (Software & OS)</option>
+                    <option value="Server 4">Server 4 (AI Subscriptions)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-oj-midnight dark:text-white mb-1">
+                    Price (NGN ₦)
+                  </label>
+                  <input
+                    type="number"
+                    value={editingProduct.priceNgn}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, priceNgn: Number(e.target.value) })}
+                    className="w-full text-xs font-mono font-bold px-3 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-oj-midnight dark:text-white mb-1">
+                    Stock Units Available
+                  </label>
+                  <input
+                    type="number"
+                    value={editingProduct.stockCount}
+                    onChange={(e) => {
+                      const count = Number(e.target.value);
+                      setEditingProduct({
+                        ...editingProduct,
+                        stockCount: count,
+                        inStock: count > 0
+                      });
+                    }}
+                    className="w-full text-xs font-mono font-bold px-3 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-oj-midnight dark:text-white mb-1">
+                    Delivery Format
+                  </label>
+                  <input
+                    type="text"
+                    value={editingProduct.deliveryFormat}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, deliveryFormat: e.target.value })}
+                    className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-oj-border dark:border-oj-dark-border">
+                <button
+                  type="button"
+                  onClick={() => setEditingProduct(null)}
+                  className="px-4 py-2 rounded-btn text-xs font-bold text-oj-muted hover:text-oj-midnight dark:hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-btn bg-oj-primary hover:bg-oj-primary-hover text-white text-xs font-bold shadow-glow-primary transition-all"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -29,7 +29,7 @@ export const StatementModal: React.FC<StatementModalProps> = ({ isOpen, onClose 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `ojalogs_statement_${user.id}_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `ojalogs_statement_${user?.id || 'customer'}_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -97,11 +97,11 @@ export const StatementModal: React.FC<StatementModalProps> = ({ isOpen, onClose 
             <div className="p-4 bg-oj-surface-alt/40 dark:bg-oj-dark-surface-alt/40 border-b border-oj-border dark:border-oj-dark-border grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
               <div>
                 <span className="text-oj-muted block">Account Holder:</span>
-                <span className="font-bold text-oj-midnight dark:text-white">{user.name}</span>
+                <span className="font-bold text-oj-midnight dark:text-white">{user?.name || 'Customer'}</span>
               </div>
               <div>
                 <span className="text-oj-muted block">Customer ID:</span>
-                <span className="font-mono font-semibold text-oj-midnight dark:text-white">{user.id}</span>
+                <span className="font-mono font-semibold text-oj-midnight dark:text-white">{user?.id || 'GUEST'}</span>
               </div>
               <div>
                 <span className="text-oj-muted block">Available Balance:</span>

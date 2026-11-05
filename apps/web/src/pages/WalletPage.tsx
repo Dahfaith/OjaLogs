@@ -20,7 +20,7 @@ import { FundWalletModal } from '../components/wallet/FundWalletModal';
 import { StatementModal } from '../components/wallet/StatementModal';
 
 export const WalletPage: React.FC = () => {
-  const { wallet, ledger, hideBalance, toggleHideBalance, formatPrice, currency } = useApp();
+  const { user, wallet, ledger, hideBalance, toggleHideBalance, formatPrice, currency, setIsAuthModalOpen } = useApp();
   const [isFundOpen, setIsFundOpen] = useState(false);
   const [isStatementOpen, setIsStatementOpen] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'deposit' | 'order_payment' | 'refund'>('all');
@@ -70,6 +70,26 @@ export const WalletPage: React.FC = () => {
           </span>
         </div>
       </div>
+
+      {!user && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-oj-midnight to-oj-navy text-white border border-oj-navy flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-soft">
+          <div>
+            <p className="text-sm font-bold flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-oj-cyan" />
+              <span>Personal Wallet Access</span>
+            </p>
+            <p className="text-xs text-slate-300 mt-0.5">
+              Sign in with your email to view your personal balance, fund your wallet via BACH, and export statements.
+            </p>
+          </div>
+          <button
+            onClick={() => setIsAuthModalOpen(true)}
+            className="py-2 px-4 rounded-btn bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white text-xs font-bold shadow-glow-primary shrink-0 transition-all"
+          >
+            Sign In / Register
+          </button>
+        </div>
+      )}
 
       {/* Dark Wallet Card */}
       <motion.div

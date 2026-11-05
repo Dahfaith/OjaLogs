@@ -29,8 +29,9 @@ import { AuthModal } from '../components/auth/AuthModal';
 
 interface AppContextType {
   // User & Settings
-  user: UserProfile;
-  setUser: React.Dispatch<React.SetStateAction<UserProfile>>;
+  user: UserProfile | null;
+  setUser: React.Dispatch<React.SetStateAction<UserProfile | null>>;
+  isAuthenticated: boolean;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   hideBalance: boolean;
@@ -52,6 +53,7 @@ interface AppContextType {
   favourites: string[];
   toggleFavourite: (productId: string) => void;
   refreshCatalog: () => Promise<void>;
+  updateProduct: (updated: Product) => void;
 
   // Cart
   cart: CartState;
@@ -88,11 +90,13 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // User
-  const [user, setUser] = useState<UserProfile>(() => {
+  // User (defaults to null for guests / new visitors)
+  const [user, setUser] = useState<UserProfile | null>(() => {
     const saved = localStorage.getItem('oj_user');
-    return saved ? JSON.parse(saved) : initialMockUser;
+    return saved ? JSON.parse(saved) : null;
   });
+
+  const isAuthenticated = Boolean(user && user.id);
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
@@ -107,8 +111,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currency, setCurrencyState] = useState<SupportedCurrency>('NGN');
   const [role, setRole] = useState<'customer' | 'admin'>('customer');
 
-  // Supabase Magic Link redirect listener
+  // Supabase Magic Link redirect & session listener
   useEffect(() => {
+    // Check existing active Supabase session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user && !user) {
+        const u = session.user;
+        const name = u.user_metadata?.full_name || u.email?.split('@')[0] || 'Customer';
+        const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
+        const userObj: UserProfile = {
+          id: u.id,
+          name: formattedName,
+          email: u.email || '',
+          initials: formattedName.substring(0, 2).toUpperCase(),
+          role: 'customer',
+          isVerified: true,
+          acceptableUseAcceptedAt: new Date().toISOString(),
+          preferences: {
+            theme: 'light',
+            hideWalletBalance: false,
+            transactionAlerts: true,
+            currency: 'NGN'
+          }
+        };
+        setUser(userObj);
+        localStorage.setItem('oj_user', JSON.stringify(userObj));
+      }
+    });
+
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
         const u = session.user;
@@ -132,6 +162,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setUser(userObj);
         localStorage.setItem('oj_user', JSON.stringify(userObj));
         showToast(`Authenticated as ${userObj.email}!`);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        localStorage.removeItem('oj_user');
       }
     });
 
@@ -183,7 +216,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const logout = async () => {
     await signOutUser();
-    setUser(initialMockUser);
+    localStorage.removeItem('oj_user');
+    localStorage.removeItem('oj_auth_token');
+    setUser(null);
     showToast('Signed out of Ojalogs.');
   };
 
@@ -200,6 +235,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch {
       // Fallback to initial mock if API server unavailable
     }
+  }, []);
+
+  const updateProduct = useCallback((updated: Product) => {
+    setProducts(prev => prev.map(p => p.id === updated.id ? updated : p));
+    showToast(`Updated "${updated.title}" successfully.`);
   }, []);
 
   useEffect(() => {
@@ -380,7 +420,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         status: 'completed',
         paymentMethod: 'wallet',
         totalNgn: cart.totalAmountNgn,
-        customerEmail: user.email,
+        customerEmail: user?.email || 'guest@ojalogs.com',
         items: cart.items.map((item, idx) => ({
           id: `ord_item_${Date.now()}_${idx}`,
           product: item.product,
@@ -455,7 +495,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         status: 'completed',
         paymentMethod: 'bach_direct',
         totalNgn: cart.totalAmountNgn,
-        customerEmail: user.email,
+        customerEmail: user?.email || 'guest@ojalogs.com',
         items: cart.items.map((item, idx) => ({
           id: `ord_item_${Date.now()}_${idx}`,
           product: item.product,
@@ -733,6 +773,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       value={{
         user,
         setUser,
+        isAuthenticated,
         theme,
         toggleTheme,
         hideBalance,
@@ -750,6 +791,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         favourites,
         toggleFavourite,
         refreshCatalog,
+        updateProduct,
         cart,
         addToCart,
         removeFromCart,

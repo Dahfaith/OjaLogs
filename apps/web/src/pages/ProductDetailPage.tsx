@@ -19,7 +19,7 @@ import { motion } from 'framer-motion';
 export const ProductDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { products, favourites, toggleFavourite, addToCart, checkoutWithWallet, wallet, formatPrice } = useApp();
+  const { products, favourites, toggleFavourite, addToCart, checkoutWithWallet, wallet, formatPrice, user, setIsAuthModalOpen, showToast } = useApp();
 
   const product = products.find(p => p.slug === slug) || products[0];
   const isFav = favourites.includes(product.id);
@@ -33,7 +33,11 @@ export const ProductDetailPage: React.FC = () => {
 
   const handleBuyNow = async () => {
     addToCart(product, quantity);
-    // Instant checkout if user has enough balance, or open cart
+    if (!user) {
+      setIsAuthModalOpen(true);
+      showToast('Please sign in with your email to complete checkout.');
+      return;
+    }
     navigate('/orders');
   };
 
