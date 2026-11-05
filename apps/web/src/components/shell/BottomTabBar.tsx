@@ -2,15 +2,18 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Store, Wallet, PackageCheck, UserCircle, PhoneCall } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useApp } from '../../context/AppContext';
 
 export const BottomTabBar: React.FC = () => {
+  const { user, setIsAuthModalOpen } = useApp();
+
   const tabs = [
-    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/shop', label: 'Shop', icon: Store },
-    { to: '/virtual-numbers', label: 'Numbers', icon: PhoneCall },
-    { to: '/wallet', label: 'Wallet', icon: Wallet },
-    { to: '/orders', label: 'Orders', icon: PackageCheck },
-    { to: '/profile', label: 'Profile', icon: UserCircle },
+    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, authRequired: true },
+    { to: '/shop', label: 'Shop', icon: Store, authRequired: false },
+    { to: '/virtual-numbers', label: 'Numbers', icon: PhoneCall, authRequired: false },
+    { to: '/wallet', label: 'Wallet', icon: Wallet, authRequired: true },
+    { to: '/orders', label: 'Orders', icon: PackageCheck, authRequired: true },
+    { to: '/profile', label: 'Profile', icon: UserCircle, authRequired: true },
   ];
 
   return (
@@ -20,6 +23,12 @@ export const BottomTabBar: React.FC = () => {
           <NavLink
             key={tab.to}
             to={tab.to}
+            onClick={(e) => {
+              if (tab.authRequired && !user) {
+                e.preventDefault();
+                setIsAuthModalOpen(true);
+              }
+            }}
             className={({ isActive }) =>
               `relative flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all duration-200 ${
                 isActive

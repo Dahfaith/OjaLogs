@@ -42,16 +42,18 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenCart }) => {
 
         {/* Desktop Navigation Links */}
         <nav className="hidden md:flex items-center gap-1 text-sm font-medium">
-          <Link
-            to="/dashboard"
-            className={`px-3 py-1.5 rounded-lg transition-colors ${
-              location.pathname === '/dashboard'
-                ? 'bg-oj-primary/10 text-oj-primary font-semibold dark:bg-oj-primary/20'
-                : 'text-oj-muted hover:text-oj-midnight dark:text-oj-dark-muted dark:hover:text-white'
-            }`}
-          >
-            Dashboard
-          </Link>
+          {user && (
+            <Link
+              to="/dashboard"
+              className={`px-3 py-1.5 rounded-lg transition-colors ${
+                location.pathname === '/dashboard'
+                  ? 'bg-oj-primary/10 text-oj-primary font-semibold dark:bg-oj-primary/20'
+                  : 'text-oj-muted hover:text-oj-midnight dark:text-oj-dark-muted dark:hover:text-white'
+              }`}
+            >
+              Dashboard
+            </Link>
+          )}
           <Link
             to="/shop"
             className={`px-3 py-1.5 rounded-lg transition-colors ${
@@ -73,26 +75,30 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenCart }) => {
             <PhoneCall className="w-3.5 h-3.5 text-oj-cyan" />
             <span>Virtual Numbers</span>
           </Link>
-          <Link
-            to="/wallet"
-            className={`px-3 py-1.5 rounded-lg transition-colors ${
-              location.pathname === '/wallet'
-                ? 'bg-oj-primary/10 text-oj-primary font-semibold dark:bg-oj-primary/20'
-                : 'text-oj-muted hover:text-oj-midnight dark:text-oj-dark-muted dark:hover:text-white'
-            }`}
-          >
-            Wallet
-          </Link>
-          <Link
-            to="/orders"
-            className={`px-3 py-1.5 rounded-lg transition-colors ${
-              location.pathname === '/orders'
-                ? 'bg-oj-primary/10 text-oj-primary font-semibold dark:bg-oj-primary/20'
-                : 'text-oj-muted hover:text-oj-midnight dark:text-oj-dark-muted dark:hover:text-white'
-            }`}
-          >
-            Orders
-          </Link>
+          {user && (
+            <>
+              <Link
+                to="/wallet"
+                className={`px-3 py-1.5 rounded-lg transition-colors ${
+                  location.pathname === '/wallet'
+                    ? 'bg-oj-primary/10 text-oj-primary font-semibold dark:bg-oj-primary/20'
+                    : 'text-oj-muted hover:text-oj-midnight dark:text-oj-dark-muted dark:hover:text-white'
+                }`}
+              >
+                Wallet
+              </Link>
+              <Link
+                to="/orders"
+                className={`px-3 py-1.5 rounded-lg transition-colors ${
+                  location.pathname === '/orders'
+                    ? 'bg-oj-primary/10 text-oj-primary font-semibold dark:bg-oj-primary/20'
+                    : 'text-oj-muted hover:text-oj-midnight dark:text-oj-dark-muted dark:hover:text-white'
+                }`}
+              >
+                Orders
+              </Link>
+            </>
+          )}
         </nav>
 
         {/* Right Action Icons */}

@@ -326,15 +326,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCart({ items: [], totalQuantity: 0, totalAmountNgn: 0 });
   };
 
-  // Wallet & Ledger (Empty for guests, loaded when authenticated)
-  const [wallet, setWallet] = useState<WalletState>(() => {
-    const saved = localStorage.getItem('oj_user');
-    return saved ? initialMockWallet : initialGuestWallet;
-  });
-  const [ledger, setLedger] = useState<LedgerTransaction[]>(() => {
-    const saved = localStorage.getItem('oj_user');
-    return saved ? initialMockLedger : [];
-  });
+  // Wallet & Ledger: Strictly empty for new accounts and guests (real balances loaded from backend)
+  const [wallet, setWallet] = useState<WalletState>(initialGuestWallet);
+  const [ledger, setLedger] = useState<LedgerTransaction[]>([]);
 
   const refreshWallet = useCallback(async () => {
     if (!user) {
@@ -404,11 +398,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { reference, checkoutUrl };
   };
 
-  // Orders (Empty for guests, loaded when authenticated)
-  const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem('oj_user');
-    return saved ? initialMockOrders : [];
-  });
+  // Orders: Strictly empty for new accounts and guests (real orders loaded from backend)
+  const [orders, setOrders] = useState<Order[]>([]);
 
   const refreshOrders = useCallback(async () => {
     if (!user) {
@@ -596,11 +587,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('Vault secret decrypted with AES-256 and audited.');
   };
 
-  // Division B: Virtual Numbers (Empty for guests, loaded when authenticated)
-  const [activeNumbers, setActiveNumbers] = useState<VirtualNumberSession[]>(() => {
-    const saved = localStorage.getItem('oj_user');
-    return saved ? [initialMockVirtualNumber] : [];
-  });
+  // Division B: Virtual Numbers: Strictly empty for new accounts and guests
+  const [activeNumbers, setActiveNumbers] = useState<VirtualNumberSession[]>([]);
 
   const refreshNumbers = useCallback(async () => {
     if (!user) {

@@ -19,7 +19,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultEm
   const [otpCode, setOtpCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [previewOtp, setPreviewOtp] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(60);
   const [canResend, setCanResend] = useState(false);
 
@@ -28,7 +27,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultEm
       setStep('input');
       setOtpCode('');
       setErrorMessage(null);
-      setPreviewOtp(null);
       setCountdown(60);
       setCanResend(false);
     }
@@ -61,31 +59,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultEm
     setErrorMessage(null);
 
     try {
-      // 1. Send via Supabase client directly in browser
-      let supabaseSent = false;
-      try {
-        await sendMagicLink(email);
-        supabaseSent = true;
-      } catch (err: any) {
-        console.warn('Browser Supabase direct call error:', err.message);
-      }
+      // Send real passwordless magic link + 6-digit OTP code via Supabase Auth
+      await sendMagicLink(email);
 
-      // 2. Also notify backend API to register/ensure backup session
-      try {
-        const res = await apiClient.sendMagicLink(email);
-        if (res.previewCode) {
-          setPreviewOtp(res.previewCode);
-        }
-      } catch {
-        // Continue if backend is in local fallback mode
-      }
+      // Also notify backend API to ensure user record is prepared
+      apiClient.sendMagicLink(email).catch(() => {});
 
       setStep('sent');
       setCountdown(60);
       setCanResend(false);
-      showToast(`Confirmation link sent to ${email}!`);
+      showToast(`Confirmation code sent to ${email}!`);
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to send confirmation link. Please try again.');
+      console.error('Supabase Auth error:', err);
+      setErrorMessage(err.message || 'Failed to send confirmation email. Please check your email configuration.');
     } finally {
       setIsLoading(false);
     }
@@ -278,29 +264,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultEm
                     {email}
                   </p>
                 </div>
-
-                {previewOtp && (
-                  <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold flex items-center gap-1">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                        <span>Instant Sandbox Code:</span>
-                      </span>
-                      <button
-                        onClick={() => {
-                          setOtpCode(previewOtp);
-                          handleVerifyOtp(previewOtp);
-                        }}
-                        className="px-2 py-0.5 rounded bg-amber-500 text-white font-bold text-[10px] hover:bg-amber-600 transition-colors"
-                      >
-                        Autofill & Verify
-                      </button>
-                    </div>
-                    <p className="font-mono font-black text-base tracking-widest text-center py-1">
-                      {previewOtp}
-                    </p>
-                  </div>
-                )}
 
                 {errorMessage && (
                   <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 text-xs">

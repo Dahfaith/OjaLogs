@@ -218,3 +218,4 @@ export const LegalPage: React.FC = () => {
     </div>
   );
 };
+
