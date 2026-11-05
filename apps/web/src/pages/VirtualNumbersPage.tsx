@@ -236,7 +236,18 @@ export const VirtualNumbersPage: React.FC = () => {
           <span className="text-xs text-oj-muted">Auto-refreshed in real-time</span>
         </div>
 
-        {activeNumbers.map((session) => {
+        {activeNumbers.length === 0 ? (
+          <div className="p-8 text-center bg-white dark:bg-oj-dark-surface rounded-2xl border border-oj-border dark:border-oj-dark-border shadow-soft space-y-2">
+            <PhoneCall className="w-8 h-8 text-oj-muted mx-auto mb-1 opacity-50" />
+            <p className="font-heading font-bold text-sm text-oj-midnight dark:text-white">
+              No Active Virtual Lines
+            </p>
+            <p className="text-xs text-oj-muted max-w-sm mx-auto leading-relaxed">
+              Select your desired country and service above, then click &ldquo;Allocate Virtual Line&rdquo; to start an active 15-minute SMS verification session.
+            </p>
+          </div>
+        ) : (
+          activeNumbers.map((session) => {
           const isCountdownActive = session.status === 'active';
           const minutes = Math.floor(session.timeRemainingSeconds / 60);
           const seconds = session.timeRemainingSeconds % 60;
@@ -364,7 +375,7 @@ export const VirtualNumbersPage: React.FC = () => {
               </div>
             </motion.div>
           );
-        })}
+        }))}
       </div>
     </div>
   );

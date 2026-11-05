@@ -16,19 +16,30 @@ import {
   Star
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { APPROVED_CATEGORIES } from '@ojalogs/shared';
 
 export const ShopPage: React.FC = () => {
   const { products, favourites, toggleFavourite, addToCart, formatPrice } = useApp();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   // Search & Filters State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedServer, setSelectedServer] = useState<string>('All');
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [selectedCategory, setSelectedCategory] = useState<string>(() => {
+    return searchParams.get('category') || 'All';
+  });
   const [availabilityFilter, setAvailabilityFilter] = useState<'All' | 'in_stock' | 'out_of_stock'>('All');
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Sync category param if user navigates via footer / deep link
+  React.useEffect(() => {
+    const cat = searchParams.get('category');
+    if (cat) {
+      setSelectedCategory(cat);
+    }
+  }, [searchParams]);
 
   // Counters
   const totalCount = products.length;

@@ -89,6 +89,15 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const initialGuestWallet: WalletState = {
+  balanceNgn: 0,
+  currency: 'NGN',
+  isLocked: false,
+  pendingDeposits: 0,
+  lifetimePurchases: 0,
+  monthlySpendNgn: 0
+};
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // User (defaults to null for guests / new visitors)
   const [user, setUser] = useState<UserProfile | null>(() => {
@@ -164,6 +173,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         showToast(`Authenticated as ${userObj.email}!`);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
+        setWallet(initialGuestWallet);
+        setLedger([]);
+        setOrders([]);
+        setActiveNumbers([]);
         localStorage.removeItem('oj_user');
       }
     });
@@ -219,6 +232,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem('oj_user');
     localStorage.removeItem('oj_auth_token');
     setUser(null);
+    setWallet(initialGuestWallet);
+    setLedger([]);
+    setOrders([]);
+    setActiveNumbers([]);
     showToast('Signed out of Ojalogs.');
   };
 
@@ -309,11 +326,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCart({ items: [], totalQuantity: 0, totalAmountNgn: 0 });
   };
 
-  // Wallet & Ledger
-  const [wallet, setWallet] = useState<WalletState>(initialMockWallet);
-  const [ledger, setLedger] = useState<LedgerTransaction[]>(initialMockLedger);
+  // Wallet & Ledger (Empty for guests, loaded when authenticated)
+  const [wallet, setWallet] = useState<WalletState>(() => {
+    const saved = localStorage.getItem('oj_user');
+    return saved ? initialMockWallet : initialGuestWallet;
+  });
+  const [ledger, setLedger] = useState<LedgerTransaction[]>(() => {
+    const saved = localStorage.getItem('oj_user');
+    return saved ? initialMockLedger : [];
+  });
 
   const refreshWallet = useCallback(async () => {
+    if (!user) {
+      setWallet(initialGuestWallet);
+      setLedger([]);
+      return;
+    }
     try {
       const [balRes, ledgerRes] = await Promise.all([
         apiClient.getWalletBalance(),
@@ -326,9 +354,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setLedger(ledgerRes.transactions);
       }
     } catch {
-      // Retain optimistic local state if offline
+      // Retain state if offline
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     refreshWallet();
@@ -376,10 +404,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { reference, checkoutUrl };
   };
 
-  // Orders
-  const [orders, setOrders] = useState<Order[]>(initialMockOrders);
+  // Orders (Empty for guests, loaded when authenticated)
+  const [orders, setOrders] = useState<Order[]>(() => {
+    const saved = localStorage.getItem('oj_user');
+    return saved ? initialMockOrders : [];
+  });
 
   const refreshOrders = useCallback(async () => {
+    if (!user) {
+      setOrders([]);
+      return;
+    }
     try {
       const data = await apiClient.getOrders();
       if (data && data.length > 0) {
@@ -388,7 +423,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch {
       // Retain local orders
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     refreshOrders();
@@ -561,10 +596,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('Vault secret decrypted with AES-256 and audited.');
   };
 
-  // Division B: Virtual Numbers
-  const [activeNumbers, setActiveNumbers] = useState<VirtualNumberSession[]>([initialMockVirtualNumber]);
+  // Division B: Virtual Numbers (Empty for guests, loaded when authenticated)
+  const [activeNumbers, setActiveNumbers] = useState<VirtualNumberSession[]>(() => {
+    const saved = localStorage.getItem('oj_user');
+    return saved ? [initialMockVirtualNumber] : [];
+  });
 
   const refreshNumbers = useCallback(async () => {
+    if (!user) {
+      setActiveNumbers([]);
+      return;
+    }
     try {
       const list = await apiClient.getNumbers();
       if (list && list.length > 0) {
@@ -573,7 +615,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch {
       // Retain active numbers
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     refreshNumbers();

@@ -808,6 +808,92 @@ ON CONFLICT (id) DO UPDATE SET
   in_stock = EXCLUDED.in_stock;
 
 -- =====================================================================
+-- 10. CMS & PLATFORM GOVERNANCE PAGES (Terms, Privacy, AUP, Refund, About, API Docs)
+-- =====================================================================
+
+CREATE TABLE IF NOT EXISTS public.site_pages (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  slug VARCHAR(100) NOT NULL UNIQUE,
+  title VARCHAR(255) NOT NULL,
+  category VARCHAR(50) NOT NULL, -- 'legal', 'company', 'developer'
+  summary TEXT,
+  content TEXT NOT NULL,
+  last_updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE public.site_pages ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  CREATE POLICY "Public read site_pages" ON public.site_pages
+    FOR SELECT USING (true);
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Admin manage site_pages" ON public.site_pages
+    FOR ALL USING (
+      EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE profiles.id = auth.uid()
+        AND profiles.role IN ('administrator', 'super_administrator')
+      )
+    );
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+-- Seed Governance & Informational Pages
+INSERT INTO public.site_pages (slug, title, category, summary, content)
+VALUES
+  (
+    'terms-of-service',
+    'Terms of Service',
+    'legal',
+    'General commercial terms governing the use of Ojalogs marketplace, logical servers, and wallet system.',
+    '# Terms of Service\n\n**Ojalogs Marketplace Technologies Ltd (2026)**\n\n### 1. Agreement & Platform Operations\nBy creating an account, funding a wallet, or purchasing digital goods or telephony services on Ojalogs, you agree to be bound by these Terms of Service. Ojalogs operates as an automated digital goods marketplace and telephony switch connected to upstream server clusters.\n\n### 2. Operational Divisions\n- **Division A (Digital Essentials & Accounts):** Genuine software keys, VPN vouchers, eSIM travel data profiles, residential/datacenter proxies, and creator profiles connected to 4 logical server clusters.\n- **Division B (Telephony Verification Gateway):** Virtual numbers for authorized incoming SMS verification with active 15-minute countdown and automated 100% wallet refund.\n\n### 3. Multi-Currency Wallet & Settlement\nAll wallet ledger entries are denominated in Nigerian Naira (NGN) with real-time conversion rates across USD, EUR, and GBP. Wallet funding is verified via authorized banking gateways (BACH Gateway). Balances are non-transferable between third-party accounts.\n\n### 4. Vault Key Security\nAll dispatched license keys, activation codes, and proxy credentials are encrypted with AES-256 and restricted via PostgreSQL Row-Level Security.'
+  ),
+  (
+    'privacy-policy',
+    'Privacy & Data Protection Policy',
+    'legal',
+    'Comprehensive privacy commitments, NDPR compliance, passwordless authentication, and zero data selling.',
+    '# Privacy & Data Protection Policy\n\n**Compliant with NDPR & International Privacy Standards**\n\n### 1. Zero Password Storage\nOjalogs utilizes passwordless authentication via cryptographic magic links and 6-digit OTP codes. We never store, handle, or transmit user passwords.\n\n### 2. Information Collected\n- Verified email address for account authorization and purchase receipts.\n- Immutable wallet transaction ledger references (funding, orders, refunds).\n- Session metadata (masked IP address, security audit logs).\n\n### 3. Encrypted Vault Storage\nDigital credentials, license keys, and proxy details are stored encrypted using AES-256. Decryption keys are scoped exclusively to the authenticated owner.'
+  ),
+  (
+    'acceptable-use-policy',
+    'Acceptable Use Policy (AUP)',
+    'legal',
+    'Rules governing authorized usage of virtual numbers, proxies, and digital accounts with zero tolerance for spam or abuse.',
+    '# Acceptable Use Policy\n\n### 1. Authorized Verification Use\nDivision B virtual phone numbers must only be utilized for lawful, authorized verification confirmations (e.g. WhatsApp, Google, Telegram, OpenAI). Spamming, robotic bot creation, or circumvention of platform safety controls is strictly prohibited.\n\n### 2. Proxies & Network Etiquette\nServer 1 residential and mobile proxies must be used solely for legitimate browsing, market research, and developer testing. DoS attacks, unauthorized penetration testing, and illicit scraping are blocked.\n\n### 3. Violation Penalties\nViolations result in immediate line revocation, permanent account termination, and forfeiture of wallet funds.'
+  ),
+  (
+    'refund-policy',
+    'Refund & Guarantee Policy',
+    'legal',
+    'Automated 15-minute telephony refund guarantee and 24-hour digital key replacement warranty.',
+    '# Refund & Guarantee Policy\n\n### 1. 15-Minute Automated Telephony Refund\nIf no SMS verification code arrives during the active 15-minute countdown window, our telephony daemon automatically revokes the line and returns 100% of the purchase amount directly to your NGN wallet balance. No human ticket required.\n\n### 2. Defective Key Replacement Warranty\nIn the rare event that an automated license key fails to activate, our Super Admin inspection desk provides an instant verified replacement within 24 hours of ticket submission.'
+  ),
+  (
+    'about-us',
+    'About Ojalogs',
+    'company',
+    'Corporate overview of Ojalogs Marketplace Technologies Ltd and its multi-server API architecture.',
+    '# About Ojalogs Marketplace Technologies Ltd\n\nOjalogs is a fintech-powered digital essentials marketplace engineered to deliver verified software licenses, travel eSIM profiles, cloud vouchers, and virtual verification phone numbers with bank-grade security, instant AES-256 vault dispatch, and verified BACH Payment Gateway integration.'
+  ),
+  (
+    'api-documentation',
+    'Logical Server API Documentation',
+    'developer',
+    'Developer documentation for Server 1, Server 2, Server 3, Server 4, and Telephony Gateway APIs.',
+    '# Logical Server API Reference\n\nBase URL: `https://ojalogs-api.onrender.com/api/v1`\n\n### Authentication\nInclude your API key in all requests: `Authorization: Bearer <API_KEY>`\n\n### Endpoints\n- `GET /catalog/products` - Live multi-server product catalog\n- `POST /orders/checkout` - Automated vault purchase\n- `POST /numbers/request` - Virtual number telephony allocation'
+  )
+ON CONFLICT (slug) DO UPDATE SET
+  title = EXCLUDED.title,
+  category = EXCLUDED.category,
+  summary = EXCLUDED.summary,
+  content = EXCLUDED.content,
+  last_updated_at = NOW();
+
+-- =====================================================================
 -- SCHEMA INITIALIZATION COMPLETE
 -- Ojalogs is 100% operational and ready.
 -- =====================================================================

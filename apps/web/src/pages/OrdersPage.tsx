@@ -44,6 +44,38 @@ export const OrdersPage: React.FC = () => {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
+  if (!user) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-16 pb-24 md:pb-12 text-center space-y-6">
+        <div className="w-16 h-16 rounded-2xl bg-oj-primary/10 text-oj-primary dark:bg-oj-primary/20 dark:text-oj-cyan mx-auto flex items-center justify-center shadow-soft">
+          <PackageCheck className="w-8 h-8" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="font-heading font-extrabold text-2xl sm:text-3xl text-oj-midnight dark:text-white">
+            Customer Orders & Vault Keys
+          </h1>
+          <p className="text-xs sm:text-sm text-oj-muted dark:text-oj-dark-muted max-w-md mx-auto leading-relaxed">
+            Your delivered digital accounts, software license keys, and purchase receipts are encrypted and linked to your verified account. Please sign in or register to access your vault.
+          </p>
+        </div>
+
+        <div className="p-6 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft max-w-md mx-auto space-y-4">
+          <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-200 dark:border-emerald-800">
+            <ShieldCheck className="w-4 h-4 shrink-0" />
+            <span>Zero password fatigue · Secure instant magic link / OTP</span>
+          </div>
+
+          <button
+            onClick={() => setIsAuthModalOpen(true)}
+            className="w-full py-3 rounded-btn bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white text-xs font-bold shadow-glow-primary transition-all flex items-center justify-center gap-2"
+          >
+            <span>Sign In or Register with Email</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-24 md:pb-12">
       {/* Page Header */}
@@ -60,26 +92,6 @@ export const OrdersPage: React.FC = () => {
           Access your delivered digital license keys, activation codes, and purchase invoices.
         </p>
       </div>
-
-      {!user && (
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-oj-midnight to-oj-navy text-white border border-oj-navy flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-soft">
-          <div>
-            <p className="text-sm font-bold flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-oj-cyan" />
-              <span>Sign in to view orders & secrets</span>
-            </p>
-            <p className="text-xs text-slate-300 mt-0.5">
-              Enter your email to receive a passwordless sign-in link or 6-digit confirmation code.
-            </p>
-          </div>
-          <button
-            onClick={() => setIsAuthModalOpen(true)}
-            className="py-2 px-4 rounded-btn bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white text-xs font-bold shadow-glow-primary shrink-0 transition-all"
-          >
-            Sign In / Register
-          </button>
-        </div>
-      )}
 
       {/* Tabs & Search */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

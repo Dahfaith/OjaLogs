@@ -18,6 +18,104 @@ export const DashboardPage: React.FC = () => {
 
   const activeSessions = activeNumbers.filter(s => s.status === 'active' || s.status === 'sms_received');
 
+  if (!user) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-8 space-y-8 pb-24 md:pb-12">
+        {/* Guest Hero Banner */}
+        <div className="rounded-3xl bg-gradient-to-tr from-oj-midnight via-oj-navy to-slate-900 border border-oj-navy p-6 sm:p-10 text-white relative overflow-hidden shadow-elevated">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-oj-primary/20 blur-3xl rounded-full pointer-events-none" />
+
+          <div className="max-w-2xl space-y-4 relative z-10">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-oj-cyan text-xs font-bold border border-white/10">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Fintech Marketplace · Powered by BACH Gateway</span>
+            </div>
+
+            <h1 className="font-heading font-black text-2xl sm:text-4xl tracking-tight leading-tight">
+              Welcome to Ojalogs Portal
+            </h1>
+
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Your central hub for verified digital goods, eSIM profiles, software licenses, and private virtual phone numbers. Sign in to access your personal multi-currency wallet and unlocked vault keys.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="w-full sm:w-auto px-6 py-3.5 rounded-btn bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white text-xs font-bold shadow-glow-primary transition-all flex items-center justify-center gap-2 hover:scale-[1.02]"
+              >
+                <span>Sign In / Create Account</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+
+              <Link
+                to="/shop"
+                className="w-full sm:w-auto px-6 py-3.5 rounded-btn bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-bold transition-all flex items-center justify-center gap-2 hover:scale-[1.02]"
+              >
+                <ShoppingBag className="w-4 h-4 text-oj-cyan" />
+                <span>Explore Marketplace</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Feature Highlights Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="p-5 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft space-y-2.5">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 flex items-center justify-center">
+              <ShoppingBag className="w-5 h-5" />
+            </div>
+            <h3 className="font-heading font-bold text-sm text-oj-midnight dark:text-white">
+              Division A: Digital Goods
+            </h3>
+            <p className="text-xs text-oj-muted dark:text-oj-dark-muted leading-relaxed">
+              4 logical server clusters powering social media accounts, cloud credits, VPNs, and software keys with instant automated vault dispatch.
+            </p>
+            <Link to="/shop" className="text-xs font-bold text-oj-primary hover:underline inline-flex items-center gap-1 pt-1">
+              <span>Browse Catalog</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <div className="p-5 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft space-y-2.5">
+            <div className="w-10 h-10 rounded-xl bg-cyan-50 dark:bg-cyan-950/40 text-cyan-600 flex items-center justify-center">
+              <PhoneCall className="w-5 h-5" />
+            </div>
+            <h3 className="font-heading font-bold text-sm text-oj-midnight dark:text-white">
+              Division B: Virtual Numbers
+            </h3>
+            <p className="text-xs text-oj-muted dark:text-oj-dark-muted leading-relaxed">
+              Real-time SMS verification listeners with active 15-minute countdowns and automated 100% wallet refunds if no code is received.
+            </p>
+            <Link to="/virtual-numbers" className="text-xs font-bold text-oj-cyan hover:underline inline-flex items-center gap-1 pt-1">
+              <span>View Numbers</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <div className="p-5 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft space-y-2.5">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center">
+              <Wallet className="w-5 h-5" />
+            </div>
+            <h3 className="font-heading font-bold text-sm text-oj-midnight dark:text-white">
+              Secured Multi-Currency Wallet
+            </h3>
+            <p className="text-xs text-oj-muted dark:text-oj-dark-muted leading-relaxed">
+              Fund your wallet using verified BACH Gateway dynamic accounts with real-time conversion across NGN, USD, EUR, and GBP.
+            </p>
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="text-xs font-bold text-emerald-600 hover:underline inline-flex items-center gap-1 pt-1 text-left"
+            >
+              <span>Unlock Personal Wallet</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-24 md:pb-12">
       {/* Date & User Greeting */}
@@ -26,33 +124,13 @@ export const DashboardPage: React.FC = () => {
           {formattedDate}
         </p>
         <h1 className="font-heading font-extrabold text-2xl sm:text-3xl text-oj-midnight dark:text-white mt-0.5 flex items-center gap-2">
-          <span>Hello, {user ? user.name.split(' ')[0] : 'Guest'}</span>
+          <span>Hello, {user.name.split(' ')[0]}</span>
           <span className="inline-block animate-bounce">👋</span>
         </h1>
         <p className="text-xs sm:text-sm text-oj-muted dark:text-oj-dark-muted mt-0.5">
           Here's what's happening with your Ojalogs account.
         </p>
       </div>
-
-      {!user && (
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-oj-midnight to-oj-navy text-white border border-oj-navy flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-soft">
-          <div>
-            <p className="text-sm font-bold flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-oj-cyan" />
-              <span>Create an account or sign in</span>
-            </p>
-            <p className="text-xs text-slate-300 mt-0.5">
-              Sign in with your email to access your personal wallet, view secret delivery vaults, and order history.
-            </p>
-          </div>
-          <button
-            onClick={() => setIsAuthModalOpen(true)}
-            className="py-2 px-4 rounded-btn bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white text-xs font-bold shadow-glow-primary shrink-0 transition-all"
-          >
-            Sign In / Register
-          </button>
-        </div>
-      )}
 
       {/* Hero Dark Wallet Card */}
       <motion.div

@@ -554,9 +554,9 @@ export const LandingPage: React.FC = () => {
             </h4>
             <ul className="space-y-2 text-oj-muted">
               <li><Link to="/shop" className="hover:text-oj-primary">Marketplace Store</Link></li>
-              <li><Link to="/shop" className="hover:text-oj-primary">Social Media Accounts</Link></li>
-              <li><Link to="/shop" className="hover:text-oj-primary">eSIM Profiles & Data</Link></li>
-              <li><Link to="/shop" className="hover:text-oj-primary">Residential Proxies</Link></li>
+              <li><Link to="/shop?category=social-media" className="hover:text-oj-primary">Social Media Accounts</Link></li>
+              <li><Link to="/shop?category=esim" className="hover:text-oj-primary">eSIM Profiles & Data</Link></li>
+              <li><Link to="/shop?category=proxies" className="hover:text-oj-primary">Residential Proxies</Link></li>
               <li><Link to="/virtual-numbers" className="hover:text-oj-primary">Virtual Phone Numbers</Link></li>
             </ul>
           </div>
@@ -566,8 +566,8 @@ export const LandingPage: React.FC = () => {
               Developers & Support
             </h4>
             <ul className="space-y-2 text-oj-muted">
-              <li><a href="#api" className="hover:text-oj-primary">Server API Documentation</a></li>
-              <li><a href="#about" className="hover:text-oj-primary">About Ojalogs</a></li>
+              <li><Link to="/docs/api" className="hover:text-oj-primary">Server API Documentation</Link></li>
+              <li><Link to="/about" className="hover:text-oj-primary">About Ojalogs</Link></li>
               <li><Link to="/dashboard" className="hover:text-oj-primary">Customer Portal</Link></li>
               <li><Link to="/wallet" className="hover:text-oj-primary">NGN Wallet Ledger</Link></li>
             </ul>
@@ -578,10 +578,10 @@ export const LandingPage: React.FC = () => {
               Account & Legal
             </h4>
             <ul className="space-y-2 text-oj-muted">
-              <li><Link to="/profile" className="hover:text-oj-primary">Terms of Service</Link></li>
-              <li><Link to="/profile" className="hover:text-oj-primary">Privacy Policy</Link></li>
-              <li><Link to="/profile" className="hover:text-oj-primary">Acceptable Use Policy</Link></li>
-              <li><Link to="/profile" className="hover:text-oj-primary">Refund & Guarantee Policy</Link></li>
+              <li><Link to="/legal/terms" className="hover:text-oj-primary">Terms of Service</Link></li>
+              <li><Link to="/legal/privacy" className="hover:text-oj-primary">Privacy Policy</Link></li>
+              <li><Link to="/legal/acceptable-use" className="hover:text-oj-primary">Acceptable Use Policy</Link></li>
+              <li><Link to="/legal/refund" className="hover:text-oj-primary">Refund & Guarantee Policy</Link></li>
             </ul>
           </div>
         </div>

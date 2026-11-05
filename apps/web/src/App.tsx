@@ -17,6 +17,9 @@ import { WalletPage } from './pages/WalletPage';
 import { OrdersPage } from './pages/OrdersPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { AdminPage } from './pages/AdminPage';
+import { LegalPage } from './pages/LegalPage';
+import { AboutPage } from './pages/AboutPage';
+import { ApiDocsPage } from './pages/ApiDocsPage';
 
 export const App: React.FC = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -38,6 +41,10 @@ export const App: React.FC = () => {
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/docs/api" element={<ApiDocsPage />} />
+          <Route path="/legal/:slug" element={<LegalPage />} />
+          <Route path="/legal" element={<Navigate to="/legal/terms" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

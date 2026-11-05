@@ -39,6 +39,38 @@ export const WalletPage: React.FC = () => {
     return true;
   });
 
+  if (!user) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-16 pb-24 md:pb-12 text-center space-y-6">
+        <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 mx-auto flex items-center justify-center shadow-soft">
+          <Wallet className="w-8 h-8" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="font-heading font-extrabold text-2xl sm:text-3xl text-oj-midnight dark:text-white">
+            Personal Multi-Currency Wallet
+          </h1>
+          <p className="text-xs sm:text-sm text-oj-muted dark:text-oj-dark-muted max-w-md mx-auto leading-relaxed">
+            Fund your wallet securely via BACH Payment Gateway, manage multi-currency exchange balances, and review full immutable financial ledgers. Please sign in or register to access your wallet.
+          </p>
+        </div>
+
+        <div className="p-6 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft max-w-md mx-auto space-y-4">
+          <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-200 dark:border-emerald-800">
+            <ShieldCheck className="w-4 h-4 shrink-0" />
+            <span>Bank-grade security · Dedicated dynamic accounts</span>
+          </div>
+
+          <button
+            onClick={() => setIsAuthModalOpen(true)}
+            className="w-full py-3 rounded-btn bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white text-xs font-bold shadow-glow-primary transition-all flex items-center justify-center gap-2"
+          >
+            <span>Sign In or Open Wallet</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-24 md:pb-12">
       {/* Top Header */}
@@ -70,26 +102,6 @@ export const WalletPage: React.FC = () => {
           </span>
         </div>
       </div>
-
-      {!user && (
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-oj-midnight to-oj-navy text-white border border-oj-navy flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-soft">
-          <div>
-            <p className="text-sm font-bold flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-oj-cyan" />
-              <span>Personal Wallet Access</span>
-            </p>
-            <p className="text-xs text-slate-300 mt-0.5">
-              Sign in with your email to view your personal balance, fund your wallet via BACH, and export statements.
-            </p>
-          </div>
-          <button
-            onClick={() => setIsAuthModalOpen(true)}
-            className="py-2 px-4 rounded-btn bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white text-xs font-bold shadow-glow-primary shrink-0 transition-all"
-          >
-            Sign In / Register
-          </button>
-        </div>
-      )}
 
       {/* Dark Wallet Card */}
       <motion.div

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import {
   User,
@@ -228,16 +229,22 @@ export const ProfilePage: React.FC = () => {
         </p>
 
         <div className="pt-2 grid grid-cols-2 gap-2 text-[11px] font-semibold text-oj-primary">
-          <button onClick={() => showToast('Terms of Service: Standard marketplace terms.')} className="text-left hover:underline">
+          <Link to="/legal/terms" className="text-left hover:underline">
             • Terms of Service
-          </button>
-          <button onClick={() => showToast('Privacy Policy: Zero data selling. AES-256 storage.')} className="text-left hover:underline">
+          </Link>
+          <Link to="/legal/privacy" className="text-left hover:underline">
             • Privacy Policy
-          </button>
-          <button onClick={() => showToast('Acceptable Use: No third-party accounts, bots or spam.')} className="text-left hover:underline">
+          </Link>
+          <Link to="/legal/acceptable-use" className="text-left hover:underline">
             • Acceptable Use Policy
-          </button>
-          <button onClick={() => setIsSupportOpen(true)} className="text-left text-red-600 hover:underline">
+          </Link>
+          <Link to="/legal/refund" className="text-left hover:underline">
+            • Refund & Guarantee
+          </Link>
+          <button
+            onClick={() => setIsSupportOpen(true)}
+            className="text-left text-rose-600 dark:text-rose-400 hover:underline col-span-2 pt-1"
+          >
             • Report an Abuse Case
           </button>
         </div>
