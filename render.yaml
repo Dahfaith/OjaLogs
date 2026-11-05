@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: free
     region: oregon
-    buildCommand: pnpm --filter @ojalogs/shared build && pnpm --filter api build
+    buildCommand: pnpm install && pnpm --filter @ojalogs/shared build && pnpm --filter api build
     startCommand: pnpm --filter api start
     healthCheckPath: /api/v1/health
     envVars:
@@ -28,3 +28,4 @@ services:
         value: whsec_sandbox_ojalogs_secret_2026
       - key: BACHS_BASE_URL
         value: https://sandbox-api.bachs.io/v1
+

@@ -10,6 +10,7 @@
     "dev": "pnpm --filter web dev",
     "build:shared": "pnpm --filter @ojalogs/shared build",
     "build:api": "pnpm --filter api build",
+    "build:backend": "pnpm --filter @ojalogs/shared build && pnpm --filter api build",
     "build:web": "pnpm --filter web build",
     "build": "pnpm --filter @ojalogs/shared build && pnpm --filter api build && pnpm --filter web build",
     "test": "pnpm --filter api test",
