@@ -58,5 +58,52 @@ router.get('/servers/status', async (req, res, next) => {
   }
 });
 
+// Upstream Server API Configuration Management
+router.get('/servers/configs', (req, res) => {
+  const configs = serverApiRegistry.getAllConfigs();
+  res.json({
+    success: true,
+    data: configs,
+    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+  });
+});
+
+const UpdateServerConfigSchema = z.object({
+  apiUrl: z.string().url().optional(),
+  apiKey: z.string().min(1).optional(),
+  fulfillmentMode: z.enum(['automated_api', 'vault_inventory', 'hybrid']).optional(),
+  webhookSecret: z.string().optional()
+});
+
+router.patch('/servers/:clusterName', validateBody(UpdateServerConfigSchema), (req, res, next) => {
+  try {
+    const rawCluster = Array.isArray(req.params.clusterName) ? req.params.clusterName[0] : req.params.clusterName;
+    const clusterName = decodeURIComponent(rawCluster);
+    const updated = serverApiRegistry.updateConfig(clusterName, req.body);
+    res.json({
+      success: true,
+      data: updated,
+      meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/servers/:clusterName/test', async (req, res, next) => {
+  try {
+    const rawCluster = Array.isArray(req.params.clusterName) ? req.params.clusterName[0] : req.params.clusterName;
+    const clusterName = decodeURIComponent(rawCluster);
+    const result = await serverApiRegistry.testConnection(clusterName);
+    res.json({
+      success: true,
+      data: result,
+      meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export const adminRouter = router;
 

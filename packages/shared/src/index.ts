@@ -258,7 +258,21 @@ export interface Order {
   customerEmail: string;
 }
 
-// Admin Metrics
+// Admin Metrics & Server Configurations
+export interface ServerClusterConfig {
+  id: string;
+  cluster: 'Server 1' | 'Server 2' | 'Server 3' | 'Server 4';
+  name: string;
+  description: string;
+  apiUrl: string;
+  apiKey: string;
+  fulfillmentMode: 'automated_api' | 'vault_inventory' | 'hybrid';
+  webhookSecret?: string;
+  status: 'connected' | 'testing' | 'offline';
+  latencyMs: number;
+  lastChecked: string;
+}
+
 export interface AdminMetrics {
   totalRevenueNgn: number;
   walletLiabilitiesNgn: number;

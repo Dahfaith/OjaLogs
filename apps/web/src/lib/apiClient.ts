@@ -4,7 +4,8 @@ import {
   VirtualNumberSession,
   LedgerTransaction,
   CountryOption,
-  ServiceOption
+  ServiceOption,
+  ServerClusterConfig
 } from '@ojalogs/shared';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'https://ojalogs-api.onrender.com/api/v1';
@@ -202,6 +203,24 @@ class ApiClient {
   // Cron / Reconciliations
   async triggerRentalReconciliation(): Promise<{ expiredCount: number; totalRefundedNgn: number }> {
     return this.request('/cron/reconcile-rentals', {
+      method: 'POST'
+    });
+  }
+
+  // Admin Server Configurations
+  async getServerConfigs(): Promise<ServerClusterConfig[]> {
+    return this.request<ServerClusterConfig[]>('/admin/servers/configs');
+  }
+
+  async updateServerConfig(cluster: string, updates: Partial<ServerClusterConfig>): Promise<ServerClusterConfig> {
+    return this.request<ServerClusterConfig>(`/admin/servers/${encodeURIComponent(cluster)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates)
+    });
+  }
+
+  async testServerConnection(cluster: string): Promise<{ healthy: boolean; latencyMs: number; message: string }> {
+    return this.request<{ healthy: boolean; latencyMs: number; message: string }>(`/admin/servers/${encodeURIComponent(cluster)}/test`, {
       method: 'POST'
     });
   }

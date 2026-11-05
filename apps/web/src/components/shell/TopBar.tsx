@@ -117,11 +117,12 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenCart }) => {
           <div className="relative">
             <button
               onClick={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-oj-surface-alt dark:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border text-xs font-semibold text-oj-midnight dark:text-white hover:border-oj-primary/50 transition-colors"
+              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg bg-oj-surface-alt dark:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border text-xs font-semibold text-oj-midnight dark:text-white hover:border-oj-primary/50 transition-colors"
             >
               <span>{currencySymbols[currency].flag}</span>
-              <span>{currency} ({currencySymbols[currency].symbol})</span>
-              <ChevronDown className="w-3 h-3 text-oj-muted" />
+              <span className="hidden sm:inline">{currency} ({currencySymbols[currency].symbol})</span>
+              <span className="sm:hidden font-mono font-bold text-xs">{currencySymbols[currency].symbol}</span>
+              <ChevronDown className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-oj-muted" />
             </button>
 
             <AnimatePresence>
@@ -154,10 +155,10 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenCart }) => {
             </AnimatePresence>
           </div>
 
-          {/* Theme Switcher Toggle */}
+          {/* Theme Switcher Toggle (Visible on tablet & desktop, hidden on tiny mobile) */}
           <button
             onClick={toggleTheme}
-            className="w-9 h-9 rounded-btn flex items-center justify-center bg-oj-surface-alt dark:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border text-oj-muted dark:text-oj-dark-muted hover:text-oj-primary dark:hover:text-oj-cyan transition-colors"
+            className="hidden sm:flex w-9 h-9 rounded-btn items-center justify-center bg-oj-surface-alt dark:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border text-oj-muted dark:text-oj-dark-muted hover:text-oj-primary dark:hover:text-oj-cyan transition-colors"
             aria-label="Toggle theme"
           >
             {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
@@ -166,23 +167,23 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenCart }) => {
           {/* Cart Trigger Button */}
           <button
             onClick={onOpenCart}
-            className="relative w-9 h-9 rounded-btn flex items-center justify-center bg-oj-surface-alt dark:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border text-oj-muted dark:text-oj-dark-muted hover:text-oj-primary transition-colors"
+            className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-btn flex items-center justify-center bg-oj-surface-alt dark:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border text-oj-muted dark:text-oj-dark-muted hover:text-oj-primary transition-colors shrink-0"
             aria-label="View Cart"
           >
             <ShoppingBag className="w-4 h-4" />
             {cart.totalQuantity > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-oj-primary text-white text-[11px] font-bold flex items-center justify-center shadow-glow-primary animate-pulse-subtle">
+              <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-oj-primary text-white text-[10px] sm:text-[11px] font-bold flex items-center justify-center shadow-glow-primary animate-pulse-subtle">
                 {cart.totalQuantity}
               </span>
             )}
           </button>
 
-          {/* User Profile Avatar & Menu OR Sign In / Register CTA */}
+          {/* User Profile Avatar & Menu OR Sign In CTA */}
           {user ? (
             <div className="relative">
               <button
                 onClick={() => setShowUserDropdown(!showUserDropdown)}
-                className="w-9 h-9 rounded-btn bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 flex items-center justify-center text-xs font-bold text-amber-700 dark:text-amber-300 hover:scale-105 transition-transform"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-btn bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 flex items-center justify-center text-xs font-bold text-amber-700 dark:text-amber-300 hover:scale-105 transition-transform"
               >
                 {user.initials}
               </button>
@@ -249,17 +250,10 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenCart }) => {
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setIsAuthModalOpen(true)}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold text-oj-midnight dark:text-white hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt transition-colors"
-              >
-                Sign In
-              </button>
-              <button
-                onClick={() => setIsAuthModalOpen(true)}
-                className="px-3.5 py-1.5 rounded-btn bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white text-xs font-bold shadow-glow-primary transition-all flex items-center gap-1.5"
+                className="px-3 sm:px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white text-xs font-bold shadow-glow-primary transition-all flex items-center gap-1 shrink-0"
               >
                 <User className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Register</span>
-                <span className="sm:hidden">Join</span>
+                <span>Sign In</span>
               </button>
             </div>
           )}

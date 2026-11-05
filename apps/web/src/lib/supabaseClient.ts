@@ -16,7 +16,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
  * Works for both new user registration and existing user login!
  */
 export async function sendMagicLink(email: string, redirectTo?: string) {
-  const redirectUrl = redirectTo || (typeof window !== 'undefined' ? `${window.location.origin}/dashboard` : undefined);
+  let targetOrigin = 'https://ojalogs.vercel.app';
+  if (typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost')) {
+    targetOrigin = window.location.origin;
+  }
+  const redirectUrl = redirectTo || `${targetOrigin}/dashboard`;
   
   const { data, error } = await supabase.auth.signInWithOtp({
     email,
