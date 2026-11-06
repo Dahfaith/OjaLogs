@@ -273,6 +273,35 @@ export interface ServerClusterConfig {
   lastChecked: string;
 }
 
+export interface PaymentGatewayConfig {
+  id: string;
+  name: string;
+  badge: string;
+  isActive: boolean;
+  isLiveMode: boolean;
+  publicKey: string;
+  secretKey: string;
+  webhookSecret: string;
+  baseUrl: string;
+  dynamicAccountsEnabled: boolean;
+  settlementBank: string;
+  settlementAccountNumber: string;
+  status: 'connected' | 'standby' | 'offline';
+  latencyMs: number;
+}
+
+export interface TelephonyProviderConfig {
+  id: string;
+  name: string;
+  badge: string;
+  apiUrl: string;
+  apiKey: string;
+  markupPercent: number;
+  autoRefundTimeoutSeconds: number;
+  status: 'connected' | 'standby' | 'offline';
+  latencyMs: number;
+}
+
 export interface AdminMetrics {
   totalRevenueNgn: number;
   walletLiabilitiesNgn: number;

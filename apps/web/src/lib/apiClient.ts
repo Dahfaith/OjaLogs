@@ -5,7 +5,9 @@ import {
   LedgerTransaction,
   CountryOption,
   ServiceOption,
-  ServerClusterConfig
+  ServerClusterConfig,
+  PaymentGatewayConfig,
+  TelephonyProviderConfig
 } from '@ojalogs/shared';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'https://ojalogs-api.onrender.com/api/v1';
@@ -221,6 +223,42 @@ class ApiClient {
 
   async testServerConnection(cluster: string): Promise<{ healthy: boolean; latencyMs: number; message: string }> {
     return this.request<{ healthy: boolean; latencyMs: number; message: string }>(`/admin/servers/${encodeURIComponent(cluster)}/test`, {
+      method: 'POST'
+    });
+  }
+
+  // Admin Payment Gateways
+  async getGatewayConfigs(): Promise<PaymentGatewayConfig[]> {
+    return this.request<PaymentGatewayConfig[]>('/admin/gateways/configs');
+  }
+
+  async updateGatewayConfig(id: string, updates: Partial<PaymentGatewayConfig>): Promise<PaymentGatewayConfig> {
+    return this.request<PaymentGatewayConfig>(`/admin/gateways/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates)
+    });
+  }
+
+  async testGatewayConnection(id: string): Promise<{ healthy: boolean; latencyMs: number; message: string }> {
+    return this.request<{ healthy: boolean; latencyMs: number; message: string }>(`/admin/gateways/${encodeURIComponent(id)}/test`, {
+      method: 'POST'
+    });
+  }
+
+  // Admin Telephony Providers
+  async getTelephonyConfigs(): Promise<TelephonyProviderConfig[]> {
+    return this.request<TelephonyProviderConfig[]>('/admin/numbers/configs');
+  }
+
+  async updateTelephonyConfig(id: string, updates: Partial<TelephonyProviderConfig>): Promise<TelephonyProviderConfig> {
+    return this.request<TelephonyProviderConfig>(`/admin/numbers/configs/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates)
+    });
+  }
+
+  async testTelephonyConnection(id: string): Promise<{ healthy: boolean; latencyMs: number; message: string }> {
+    return this.request<{ healthy: boolean; latencyMs: number; message: string }>(`/admin/numbers/configs/${encodeURIComponent(id)}/test`, {
       method: 'POST'
     });
   }
