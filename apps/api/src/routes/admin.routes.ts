@@ -120,11 +120,11 @@ router.get('/metrics', (req, res) => {
   res.json({
     success: true,
     data: {
-      totalRevenueNgn: 8645200.00,
-      walletLiabilitiesNgn: 1980400.00,
-      totalOrders: 432,
-      activeRentals: 28,
-      registeredCustomers: 1480,
+      totalRevenueNgn: 0.00,
+      walletLiabilitiesNgn: 0.00,
+      totalOrders: 0,
+      activeRentals: 0,
+      registeredCustomers: 1,
       systemHealth: 'OPERATIONAL'
     },
     meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }

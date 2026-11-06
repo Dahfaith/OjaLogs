@@ -557,16 +557,16 @@ export const initialMockLedger: LedgerTransaction[] = [];
 // Initial Mock Orders (Production Default: 0)
 export const initialMockOrders: Order[] = [];
 
-// Initial Admin Metrics
+// Initial Admin Metrics (Production Default: Clean Zero Launch)
 export const mockAdminMetrics: AdminMetrics = {
-  totalRevenueNgn: 8645200.00,
-  walletLiabilitiesNgn: 1980400.00,
-  totalOrders: 432,
-  successfulPaymentsCount: 512,
-  pendingPaymentsCount: 7,
-  activeRentalsCount: 28,
-  registeredCustomersCount: 1480,
-  inventoryUnitsTotal: 496,
-  inventoryUnitsAvailable: 476
+  totalRevenueNgn: 0.00,
+  walletLiabilitiesNgn: 0.00,
+  totalOrders: 0,
+  successfulPaymentsCount: 0,
+  pendingPaymentsCount: 0,
+  activeRentalsCount: 0,
+  registeredCustomersCount: 1,
+  inventoryUnitsTotal: 0,
+  inventoryUnitsAvailable: 0
 };
 

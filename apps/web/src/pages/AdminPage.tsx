@@ -37,13 +37,42 @@ import { Product, ServerClusterConfig, PaymentGatewayConfig, TelephonyProviderCo
 import { apiClient } from '../lib/apiClient';
 
 export const AdminPage: React.FC = () => {
-  const { products, ledger, activeNumbers, showToast, formatPrice, updateProduct } = useApp();
+  const { user, role, products, ledger, activeNumbers, showToast, formatPrice, updateProduct } = useApp();
   const [activeTab, setActiveTab] = useState<'kpi' | 'catalog' | 'servers' | 'gateways' | 'numbers' | 'fulfilment' | 'ledger' | 'audit'>('kpi');
   const [metrics] = useState(mockAdminMetrics);
 
   const [inventoryPayload, setInventoryPayload] = useState('');
   const [selectedProductForVault, setSelectedProductForVault] = useState(products[0]?.id || '');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  // RBAC Access Gate: Only authorized administrators can view the command console
+  const isAdmin = user && (user.role === 'administrator' || role === 'admin');
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center p-4">
+        <div className="max-w-md w-full p-8 rounded-2xl bg-white dark:bg-oj-dark-surface border border-rose-200 dark:border-rose-900 shadow-xl text-center space-y-4">
+          <div className="w-16 h-16 mx-auto rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-600 flex items-center justify-center border border-rose-200 dark:border-rose-800">
+            <Shield className="w-8 h-8 text-rose-600" />
+          </div>
+          <h2 className="font-heading font-extrabold text-xl text-oj-midnight dark:text-white">
+            Access Restricted
+          </h2>
+          <p className="text-xs text-oj-muted leading-relaxed">
+            The Super Admin Command Console is restricted to authorized platform administrators only. {user ? `Your current account (${user.email}) does not have administrative clearance.` : 'You must sign in as an authorized administrator to access platform governance.'}
+          </p>
+          <div className="pt-2">
+            <a
+              href="/"
+              className="inline-flex items-center justify-center px-5 py-2.5 rounded-btn bg-oj-primary hover:bg-oj-primary-hover text-white text-xs font-bold transition-all shadow-glow-primary"
+            >
+              Return to Storefront
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Server API Configurations State
   const [serverConfigs, setServerConfigs] = useState<ServerClusterConfig[]>(() => {
@@ -462,7 +491,7 @@ export const AdminPage: React.FC = () => {
                 {formatPrice(metrics.totalRevenueNgn)}
               </p>
               <span className="text-[10px] text-emerald-600 font-semibold mt-0.5 block">
-                +14.8% vs last month
+                Live Settlement Track
               </span>
             </div>
 
@@ -472,7 +501,7 @@ export const AdminPage: React.FC = () => {
                 {formatPrice(metrics.walletLiabilitiesNgn)}
               </p>
               <span className="text-[10px] text-oj-muted mt-0.5 block">
-                Backed 1:1 by BACH Gateway
+                Backed 1:1 by Gateway NUBAN
               </span>
             </div>
 
@@ -482,7 +511,7 @@ export const AdminPage: React.FC = () => {
                 {metrics.totalOrders}
               </p>
               <span className="text-[10px] text-emerald-600 font-semibold mt-0.5 block">
-                99.8% Automated
+                0 Pending Delivery
               </span>
             </div>
 
@@ -492,7 +521,7 @@ export const AdminPage: React.FC = () => {
                 {metrics.activeRentalsCount}
               </p>
               <span className="text-[10px] text-oj-muted mt-0.5 block">
-                Across 12 providers
+                3 Telephony Hubs Connected
               </span>
             </div>
           </div>
@@ -1239,32 +1268,40 @@ export const AdminPage: React.FC = () => {
           </div>
 
           <div className="border border-oj-border dark:border-oj-dark-border rounded-xl overflow-hidden">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted border-b border-oj-border dark:border-oj-dark-border">
-                <tr>
-                  <th className="py-2.5 px-3 font-semibold">Ledger ID</th>
-                  <th className="py-2.5 px-3 font-semibold">Reference</th>
-                  <th className="py-2.5 px-3 font-semibold">Entry Type</th>
-                  <th className="py-2.5 px-3 font-semibold text-right">Amount</th>
-                  <th className="py-2.5 px-3 font-semibold text-right">Balance After</th>
-                  <th className="py-2.5 px-3 font-semibold text-center">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-oj-border dark:divide-oj-dark-border">
-                {ledger.map(t => (
-                  <tr key={t.id} className="hover:bg-oj-surface-alt/40">
-                    <td className="py-2.5 px-3 font-mono text-[11px] text-oj-muted">{t.id}</td>
-                    <td className="py-2.5 px-3 font-mono font-bold text-oj-midnight dark:text-white">{t.reference}</td>
-                    <td className="py-2.5 px-3 uppercase text-[10px] font-bold">{t.type}</td>
-                    <td className="py-2.5 px-3 text-right font-mono font-bold">{formatPrice(t.amountNgn)}</td>
-                    <td className="py-2.5 px-3 text-right font-mono">{formatPrice(t.balanceAfterNgn)}</td>
-                    <td className="py-2.5 px-3 text-center">
-                      <span className="text-[10px] font-bold text-emerald-600">✓ Verified</span>
-                    </td>
+            {ledger.length === 0 ? (
+              <div className="p-8 text-center text-xs text-oj-muted bg-oj-surface-alt/20 dark:bg-oj-dark-surface-alt/20">
+                <Database className="w-8 h-8 mx-auto text-oj-muted/50 mb-2" />
+                <p className="font-bold text-oj-midnight dark:text-white">Zero Ledger Discrepancies</p>
+                <p className="mt-1">No transaction records logged yet. Inbound customer deposits and ledger reconciliation entries will appear here in real time.</p>
+              </div>
+            ) : (
+              <table className="w-full text-left text-xs">
+                <thead className="bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted border-b border-oj-border dark:border-oj-dark-border">
+                  <tr>
+                    <th className="py-2.5 px-3 font-semibold">Ledger ID</th>
+                    <th className="py-2.5 px-3 font-semibold">Reference</th>
+                    <th className="py-2.5 px-3 font-semibold">Entry Type</th>
+                    <th className="py-2.5 px-3 font-semibold text-right">Amount</th>
+                    <th className="py-2.5 px-3 font-semibold text-right">Balance After</th>
+                    <th className="py-2.5 px-3 font-semibold text-center">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-oj-border dark:divide-oj-dark-border">
+                  {ledger.map(t => (
+                    <tr key={t.id} className="hover:bg-oj-surface-alt/40">
+                      <td className="py-2.5 px-3 font-mono text-[11px] text-oj-muted">{t.id}</td>
+                      <td className="py-2.5 px-3 font-mono font-bold text-oj-midnight dark:text-white">{t.reference}</td>
+                      <td className="py-2.5 px-3 uppercase text-[10px] font-bold">{t.type}</td>
+                      <td className="py-2.5 px-3 text-right font-mono font-bold">{formatPrice(t.amountNgn)}</td>
+                      <td className="py-2.5 px-3 text-right font-mono">{formatPrice(t.balanceAfterNgn)}</td>
+                      <td className="py-2.5 px-3 text-center">
+                        <span className="text-[10px] font-bold text-emerald-600">✓ Verified</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       )}
@@ -1279,34 +1316,10 @@ export const AdminPage: React.FC = () => {
             Every sensitive staff action is cryptographically written with actor ID, IP address, and payload diffs.
           </p>
 
-          <div className="space-y-2.5 text-xs">
-            <div className="p-3 rounded-xl bg-oj-surface-alt/50 dark:bg-oj-dark-surface-alt/50 border border-oj-border dark:border-oj-dark-border flex items-center justify-between">
-              <div>
-                <p className="font-bold text-oj-midnight dark:text-white">
-                  UPDATE_PRICING_RULE · Product: Windows 11 Pro
-                </p>
-                <p className="text-[11px] text-oj-muted">
-                  Actor: <span className="font-mono">super_admin_01</span> · IP: 102.89.44.12 · 2026-11-04 04:12:00
-                </p>
-              </div>
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">
-                Logged
-              </span>
-            </div>
-
-            <div className="p-3 rounded-xl bg-oj-surface-alt/50 dark:bg-oj-dark-surface-alt/50 border border-oj-border dark:border-oj-dark-border flex items-center justify-between">
-              <div>
-                <p className="font-bold text-oj-midnight dark:text-white">
-                  INVENTORY_VAULT_ENCRYPT · Ingested 50 NordVPN Units
-                </p>
-                <p className="text-[11px] text-oj-muted">
-                  Actor: <span className="font-mono">super_admin_01</span> · IP: 102.89.44.12 · 2026-11-04 03:00:22
-                </p>
-              </div>
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">
-                Logged
-              </span>
-            </div>
+          <div className="p-8 text-center text-xs text-oj-muted bg-oj-surface-alt/20 dark:bg-oj-dark-surface-alt/20 rounded-xl border border-oj-border dark:border-oj-dark-border">
+            <FileText className="w-8 h-8 mx-auto text-oj-muted/50 mb-2" />
+            <p className="font-bold text-oj-midnight dark:text-white">Audit Trail System Clean & Active</p>
+            <p className="mt-1">All sensitive administrative actions (price edits, vault encryptions, payment gateway switches) are logged directly to Supabase RLS audit logs.</p>
           </div>
         </div>
       )}

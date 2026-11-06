@@ -120,6 +120,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currency, setCurrencyState] = useState<SupportedCurrency>('NGN');
   const [role, setRole] = useState<'customer' | 'admin'>('customer');
 
+  const checkIsAdmin = (email?: string, metaRole?: string): boolean => {
+    if (!email) return false;
+    const normalized = email.toLowerCase().trim();
+    const authorized = [
+      'visioreach@gmail.com',
+      'admin@ojalogs.com',
+      'dahfaith@gmail.com'
+    ];
+    const envAdmins = ((import.meta as any).env?.VITE_ADMIN_EMAILS || '')
+      .split(',')
+      .map((e: string) => e.toLowerCase().trim())
+      .filter(Boolean);
+    return authorized.includes(normalized) || envAdmins.includes(normalized) || metaRole === 'administrator' || metaRole === 'admin';
+  };
+
   // Supabase Magic Link redirect & session listener
   useEffect(() => {
     // Check existing active Supabase session
@@ -128,12 +143,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const u = session.user;
         const name = u.user_metadata?.full_name || u.email?.split('@')[0] || 'Customer';
         const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
+        const isAdmin = checkIsAdmin(u.email, u.user_metadata?.role);
         const userObj: UserProfile = {
           id: u.id,
           name: formattedName,
           email: u.email || '',
           initials: formattedName.substring(0, 2).toUpperCase(),
-          role: 'customer',
+          role: isAdmin ? 'administrator' : 'customer',
           isVerified: true,
           acceptableUseAcceptedAt: new Date().toISOString(),
           preferences: {
@@ -144,6 +160,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         };
         setUser(userObj);
+        if (isAdmin) setRole('admin');
         localStorage.setItem('oj_user', JSON.stringify(userObj));
       }
     });
@@ -153,12 +170,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const u = session.user;
         const name = u.user_metadata?.full_name || u.email?.split('@')[0] || 'Customer';
         const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
+        const isAdmin = checkIsAdmin(u.email, u.user_metadata?.role);
         const userObj: UserProfile = {
           id: u.id,
           name: formattedName,
           email: u.email || '',
           initials: formattedName.substring(0, 2).toUpperCase(),
-          role: 'customer',
+          role: isAdmin ? 'administrator' : 'customer',
           isVerified: true,
           acceptableUseAcceptedAt: new Date().toISOString(),
           preferences: {
@@ -169,6 +187,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         };
         setUser(userObj);
+        if (isAdmin) setRole('admin');
         localStorage.setItem('oj_user', JSON.stringify(userObj));
         showToast(`Authenticated as ${userObj.email}!`);
       } else if (event === 'SIGNED_OUT') {
