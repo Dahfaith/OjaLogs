@@ -12,6 +12,25 @@ import { env } from '../config/env.js';
 import { PaymentGatewayConfig, TelephonyProviderConfig, AdminManagedUser, AdminNotification } from '@ojalogs/shared';
 
 const router = Router();
+
+const SignupAlertSchema = z.object({
+  email: z.string().email(),
+  name: z.string().optional()
+});
+
+// Public signup alert listener (callable from AuthModal or public frontend without admin clearance)
+router.post('/notifications/signup-alert', validateBody(SignupAlertSchema), async (req, res) => {
+  const { email, name } = req.body;
+  await notificationService.recordSignupAlert(email, name);
+
+  res.json({
+    success: true,
+    message: 'Signup alert recorded and email alert queued',
+    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+  });
+});
+
+// All routes below require administrator role clearance
 router.use(authMiddleware);
 router.use(requireRole('administrator', 'super_administrator'));
 
@@ -438,18 +457,12 @@ router.post('/notifications/mark-read', (req, res) => {
   });
 });
 
-const SignupAlertSchema = z.object({
-  email: z.string().email(),
-  name: z.string().optional()
-});
-
-router.post('/notifications/signup-alert', validateBody(SignupAlertSchema), async (req, res) => {
-  const { email, name } = req.body;
-  await notificationService.recordSignupAlert(email, name);
-
+router.post('/notifications/test-email', async (req, res) => {
+  const adminEmail = process.env.ADMIN_ALERT_EMAIL || env.ADMIN_ALERT_EMAIL || 'ojalogs@gmail.com';
+  const result = await notificationService.sendTestAlert(adminEmail);
   res.json({
-    success: true,
-    message: 'Signup alert recorded and email alert queued',
+    success: result.success,
+    data: result,
     meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
   });
 });

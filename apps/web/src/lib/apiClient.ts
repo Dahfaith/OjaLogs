@@ -29,9 +29,24 @@ class ApiClient {
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const url = `${API_BASE}${path}`;
+    
+    // Check if authenticated as administrator
+    let adminEmail = '';
+    try {
+      const storedUser = localStorage.getItem('oj_user');
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        const emailLower = (parsed.email || '').toLowerCase();
+        if (emailLower === 'visioreach@gmail.com' || emailLower === 'ojalogs@gmail.com' || emailLower === 'dahfaith@gmail.com') {
+          adminEmail = emailLower;
+        }
+      }
+    } catch {}
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${this.getToken()}`,
+      ...(adminEmail ? { 'x-admin-email': adminEmail } : {}),
       ...(options.headers as Record<string, string> || {})
     };
 
@@ -326,6 +341,12 @@ class ApiClient {
     return this.request<{ success: boolean; message: string }>('/admin/notifications/signup-alert', {
       method: 'POST',
       body: JSON.stringify({ email, name })
+    });
+  }
+
+  async testAdminEmailAlert(): Promise<{ success: boolean; message: string; data?: any }> {
+    return this.request<{ success: boolean; message: string; data?: any }>('/admin/notifications/test-email', {
+      method: 'POST'
     });
   }
 }

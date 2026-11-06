@@ -141,6 +141,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Check existing active Supabase session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user && !user) {
+        if (session.access_token) {
+          apiClient.setToken(session.access_token);
+        }
         const u = session.user;
         const name = u.user_metadata?.full_name || u.email?.split('@')[0] || 'Customer';
         const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
@@ -171,6 +174,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
+        if (session.access_token) {
+          apiClient.setToken(session.access_token);
+        }
         const u = session.user;
         const name = u.user_metadata?.full_name || u.email?.split('@')[0] || 'Customer';
         const formattedName = name.charAt(0).toUpperCase() + name.slice(1);

@@ -39,7 +39,8 @@ import {
   UserX,
   DollarSign,
   ArrowUpRight,
-  ArrowDownLeft
+  ArrowDownLeft,
+  Mail
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { mockAdminMetrics } from '../lib/mockData';
@@ -421,6 +422,41 @@ export const AdminPage: React.FC = () => {
     showToast('All notifications marked as read');
   };
 
+  const [isTestingEmail, setIsTestingEmail] = useState(false);
+
+  const handleSendTestEmail = async () => {
+    setIsTestingEmail(true);
+    try {
+      const res = await apiClient.testAdminEmailAlert();
+      if (res.success) {
+        showToast(res.message || '✓ Email Alert Dispatched! Check ojalogs@gmail.com inbox.');
+      } else {
+        showToast(`Notice: ${res.message || 'Could not send test email'}`);
+      }
+    } catch (err: any) {
+      showToast(`Error: ${err.message || 'Failed to dispatch test email'}`);
+    } finally {
+      setIsTestingEmail(false);
+    }
+  };
+
+  const handleRefreshUsers = async () => {
+    try {
+      const data = await apiClient.getAdminUsers();
+      if (data && data.length > 0) {
+        setUsersList(data);
+        localStorage.setItem('oj_managed_users', JSON.stringify(data));
+        showToast(`Synced ${data.length} registered user(s) from Supabase Auth!`);
+      } else {
+        showToast('Connected to Supabase. No users found.');
+      }
+      const notifs = await apiClient.getAdminNotifications();
+      if (notifs) setNotifications(notifs);
+    } catch (err: any) {
+      showToast(`Sync error: ${err.message}`);
+    }
+  };
+
   const handleUpdateGatewayField = (id: string, field: keyof PaymentGatewayConfig, val: any) => {
     setGatewayConfigs(prev => prev.map(g => g.id === id ? { ...g, [field]: val } : g));
   };
@@ -611,13 +647,24 @@ export const AdminPage: React.FC = () => {
                 New Customer Registrations & Real-time Alerts
               </h3>
             </div>
-            <button
-              type="button"
-              onClick={handleMarkNotificationsRead}
-              className="text-xs text-oj-primary hover:underline font-bold"
-            >
-              Mark all as read
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleSendTestEmail}
+                disabled={isTestingEmail}
+                className="text-xs text-oj-primary dark:text-oj-cyan hover:underline font-bold flex items-center gap-1"
+              >
+                <Mail className="w-3.5 h-3.5" />
+                <span>{isTestingEmail ? 'Sending...' : 'Test Brevo Email'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleMarkNotificationsRead}
+                className="text-xs text-oj-muted hover:text-oj-primary font-bold"
+              >
+                Mark all as read
+              </button>
+            </div>
           </div>
 
           <div className="space-y-2 max-h-60 overflow-y-auto">
@@ -783,7 +830,25 @@ export const AdminPage: React.FC = () => {
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleSendTestEmail}
+                disabled={isTestingEmail}
+                className="px-3 py-1.5 rounded-lg bg-oj-primary text-white text-xs font-bold hover:bg-oj-primary-hover flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
+                title="Dispatches a test signup alert email to ojalogs@gmail.com via Brevo"
+              >
+                <Mail className="w-3.5 h-3.5" />
+                <span>{isTestingEmail ? 'Sending...' : '⚡ Test Alert to ojalogs@gmail.com'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleRefreshUsers}
+                className="p-1.5 rounded-lg bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-border text-oj-midnight dark:text-white border border-oj-border dark:border-oj-dark-border"
+                title="Refresh user list from Supabase Auth"
+              >
+                <RotateCw className="w-4 h-4" />
+              </button>
               <span className="text-xs font-mono font-bold text-oj-midnight dark:text-white bg-oj-surface-alt dark:bg-oj-dark-surface-alt px-3 py-1.5 rounded-lg border border-oj-border dark:border-oj-dark-border">
                 Registered: {usersList.length} Accounts
               </span>
