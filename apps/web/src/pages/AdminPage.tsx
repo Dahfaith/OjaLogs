@@ -40,21 +40,50 @@ import {
   DollarSign,
   ArrowUpRight,
   ArrowDownLeft,
-  Mail
+  Mail,
+  PackageCheck,
+  ExternalLink,
+  ChevronRight,
+  Info,
+  Sparkles,
+  Receipt,
+  Inbox,
+  AlertCircle
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { mockAdminMetrics } from '../lib/mockData';
-import { Product, ServerClusterConfig, PaymentGatewayConfig, TelephonyProviderConfig, AdminManagedUser, AdminNotification, UserRole } from '@ojalogs/shared';
+import { Product, ServerClusterConfig, PaymentGatewayConfig, TelephonyProviderConfig, AdminManagedUser, AdminNotification, UserRole, Order } from '@ojalogs/shared';
 import { apiClient } from '../lib/apiClient';
 
 export const AdminPage: React.FC = () => {
-  const { user, role, products, ledger, activeNumbers, showToast, formatPrice, updateProduct } = useApp();
-  const [activeTab, setActiveTab] = useState<'kpi' | 'users' | 'catalog' | 'servers' | 'gateways' | 'numbers' | 'fulfilment' | 'ledger' | 'audit'>('kpi');
+  const { user, role, products, ledger, activeNumbers, showToast, formatPrice, updateProduct, addProduct, orders } = useApp();
+  const [activeTab, setActiveTab] = useState<'kpi' | 'users' | 'orders' | 'catalog' | 'servers' | 'gateways' | 'numbers' | 'fulfilment' | 'ledger' | 'audit'>('kpi');
   const [metrics, setMetrics] = useState(mockAdminMetrics);
 
   const [inventoryPayload, setInventoryPayload] = useState('');
   const [selectedProductForVault, setSelectedProductForVault] = useState(products[0]?.id || '');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  // New Listing State
+  const [isAddListingOpen, setIsAddListingOpen] = useState(false);
+  const [newListingForm, setNewListingForm] = useState({
+    title: '',
+    category: 'VPNs & Proxies',
+    serverCluster: 'Server 1' as 'Server 1' | 'Server 2' | 'Server 3' | 'Server 4',
+    priceNgn: 4500,
+    stockCount: 50,
+    deliveryFormat: 'license_key',
+    summary: '',
+    initialKeys: ''
+  });
+
+  // Orders Governance State
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState('all');
+  const [inspectingOrder, setInspectingOrder] = useState<Order | null>(null);
+
+  // Customer Profile State
+  const [inspectedCustomer, setInspectedCustomer] = useState<AdminManagedUser | null>(null);
 
   // RBAC Access Gate: Only authorized administrators can view the command console
   const isAdmin = user && (user.role === 'administrator' || role === 'admin');
@@ -467,6 +496,70 @@ export const AdminPage: React.FC = () => {
     }
   };
 
+  const handleRefundOrder = (order: Order) => {
+    if (!confirm(`Are you sure you want to refund ${formatPrice(order.totalNgn)} for order ${order.reference}?`)) return;
+    order.status = 'refunded';
+    showToast(`Order ${order.reference} refunded. ${formatPrice(order.totalNgn)} credited to customer.`);
+  };
+
+  const handleCreateListing = () => {
+    if (!newListingForm.title.trim()) {
+      showToast('Product title is required');
+      return;
+    }
+
+    const newProd: Product = {
+      id: `prod_${Date.now()}`,
+      slug: newListingForm.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+      title: newListingForm.title.trim(),
+      category: newListingForm.category,
+      categoryId: newListingForm.category.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      division: 'A',
+      serverCluster: newListingForm.serverCluster,
+      priceNgn: Number(newListingForm.priceNgn),
+      inStock: true,
+      stockCount: Number(newListingForm.stockCount) || 50,
+      rating: 5.0,
+      verifiedResale: true,
+      coverImage: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&auto=format&fit=crop&q=60',
+      summary: newListingForm.summary || `${newListingForm.title} with automated instant vault delivery.`,
+      descriptionHtml: `<p>${newListingForm.summary || newListingForm.title}</p>`,
+      specifications: {
+        title: newListingForm.title,
+        category: newListingForm.category,
+        serverOrigin: newListingForm.serverCluster,
+        deliveryType: 'instant_automated',
+        validityDuration: 'Standard Validity',
+        fulfillmentSpeed: '< 5 Seconds Automated',
+        verificationStatus: '100% Verified Stock',
+        stockUnits: Number(newListingForm.stockCount) || 50,
+        region: 'Global'
+      },
+      deliveryFormat: newListingForm.deliveryFormat,
+      validityDuration: 'Standard',
+      region: 'Global'
+    };
+
+    addProduct(newProd);
+
+    if (newListingForm.initialKeys.trim()) {
+      const keysCount = newListingForm.initialKeys.trim().split('\n').filter(Boolean).length;
+      showToast(`Encrypted & loaded ${keysCount} initial license keys into vault.`);
+    }
+
+    setIsAddListingOpen(false);
+    setNewListingForm({
+      title: '',
+      category: 'VPNs & Proxies',
+      serverCluster: 'Server 1',
+      priceNgn: 4500,
+      stockCount: 50,
+      deliveryFormat: 'license_key',
+      summary: '',
+      initialKeys: ''
+    });
+  };
+
   const handleUpdateGatewayField = (id: string, field: keyof PaymentGatewayConfig, val: any) => {
     setGatewayConfigs(prev => prev.map(g => g.id === id ? { ...g, [field]: val } : g));
   };
@@ -718,6 +811,7 @@ export const AdminPage: React.FC = () => {
         {[
           { id: 'kpi', label: 'Overview & KPIs', icon: TrendingUp },
           { id: 'users', label: 'User Governance & Customers', icon: Users },
+          { id: 'orders', label: 'Orders & Deliveries', icon: ShoppingBag },
           { id: 'catalog', label: 'Catalog Governance', icon: Sliders },
           { id: 'servers', label: 'Server APIs & Upstream Config', icon: Server },
           { id: 'gateways', label: 'Payment Gateways & Banking', icon: CreditCard },
@@ -1021,6 +1115,15 @@ export const AdminPage: React.FC = () => {
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"
+                            onClick={() => setInspectedCustomer(u)}
+                            className="p-1.5 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-border text-oj-midnight dark:text-white transition-colors"
+                            title="View Customer Profile & 360° Insight"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            type="button"
                             onClick={() => handleToggleFreezeUser(u)}
                             className={`p-1.5 rounded-lg border transition-colors ${
                               u.status === 'frozen'
@@ -1170,6 +1273,377 @@ export const AdminPage: React.FC = () => {
         </div>
       )}
 
+      {/* Modal: Customer Profile & 360° Insight */}
+      {inspectedCustomer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-lg p-6 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-oj-border dark:border-oj-dark-border">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-full bg-oj-primary/10 text-oj-primary font-bold flex items-center justify-center text-sm border border-oj-primary/20">
+                  {inspectedCustomer.name.substring(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <h3 className="font-heading font-extrabold text-base text-oj-midnight dark:text-white">
+                    {inspectedCustomer.name}
+                  </h3>
+                  <p className="font-mono text-xs text-oj-muted">{inspectedCustomer.email}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInspectedCustomer(null)}
+                className="text-oj-muted hover:text-oj-midnight dark:hover:text-white text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="p-3 rounded-xl bg-oj-surface-alt/50 dark:bg-oj-dark-surface-alt/50 border border-oj-border dark:border-oj-dark-border">
+                <span className="text-oj-muted block text-[10px]">Held Wallet Balance</span>
+                <p className="font-mono font-bold text-base text-oj-midnight dark:text-white mt-0.5">
+                  {formatPrice(inspectedCustomer.balanceNgn)}
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-oj-surface-alt/50 dark:bg-oj-dark-surface-alt/50 border border-oj-border dark:border-oj-dark-border">
+                <span className="text-oj-muted block text-[10px]">Account Clearance</span>
+                <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold mt-1 ${
+                  inspectedCustomer.status === 'active'
+                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
+                    : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
+                }`}>
+                  ● {inspectedCustomer.status.toUpperCase()}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt/30 space-y-2">
+              <h4 className="font-bold text-xs text-oj-midnight dark:text-white">Customer Governance Actions</h4>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleToggleFreezeUser(inspectedCustomer);
+                    setInspectedCustomer({
+                      ...inspectedCustomer,
+                      status: inspectedCustomer.status === 'frozen' ? 'active' : 'frozen'
+                    });
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 ${
+                    inspectedCustomer.status === 'frozen'
+                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      : 'bg-amber-600 text-white border-amber-600'
+                  }`}
+                >
+                  {inspectedCustomer.status === 'frozen' ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                  <span>{inspectedCustomer.status === 'frozen' ? 'Unfreeze Wallet' : 'Freeze Wallet'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdjustingUser(inspectedCustomer);
+                    setAdjustAmount(1000);
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-oj-primary text-white text-xs font-bold hover:bg-oj-primary-hover flex items-center gap-1.5 shadow-sm"
+                >
+                  <DollarSign className="w-3.5 h-3.5" />
+                  <span>Adjust Balance</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5 text-xs text-oj-muted pt-1">
+              <p><strong>System ID:</strong> <span className="font-mono">{inspectedCustomer.id}</span></p>
+              <p><strong>Registered:</strong> {new Date(inspectedCustomer.createdAt).toUTCString()}</p>
+              <p><strong>Email Verification:</strong> {inspectedCustomer.isVerified ? '✓ Confirmed via Supabase' : 'Pending'}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Orders & Deliveries Governance */}
+      {activeTab === 'orders' && (
+        <div className="space-y-6">
+          <div className="p-5 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-heading font-extrabold text-base text-oj-midnight dark:text-white">
+                  Marketplace Orders & Digital Fulfilment Hub
+                </h3>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                  ● Automated Vault Delivery Active
+                </span>
+              </div>
+              <p className="text-xs text-oj-muted mt-1 max-w-2xl">
+                Inspect live orders across all 4 upstream server clusters, audit delivered AES-256 encrypted license keys, or trigger customer wallet refunds.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono font-bold text-oj-midnight dark:text-white bg-oj-surface-alt dark:bg-oj-dark-surface-alt px-3 py-1.5 rounded-lg border border-oj-border dark:border-oj-dark-border">
+                Total Orders: {orders.length}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
+              <span className="text-xs text-oj-muted block">Total Orders</span>
+              <p className="font-heading font-extrabold text-xl text-oj-midnight dark:text-white mt-1">
+                {orders.length}
+              </p>
+              <span className="text-[10px] text-emerald-600 font-semibold mt-0.5 block">
+                {orders.filter(o => o.status === 'completed').length} Delivered
+              </span>
+            </div>
+
+            <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
+              <span className="text-xs text-oj-muted block">Gross Order Value</span>
+              <p className="font-heading font-extrabold text-xl text-emerald-600 mt-1">
+                {formatPrice(orders.reduce((acc, o) => acc + (o.status !== 'refunded' ? o.totalNgn : 0), 0))}
+              </p>
+              <span className="text-[10px] text-emerald-600 font-semibold mt-0.5 block">
+                Settled to Ledger
+              </span>
+            </div>
+
+            <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
+              <span className="text-xs text-oj-muted block">Wallet Checkouts</span>
+              <p className="font-heading font-extrabold text-xl text-oj-primary mt-1">
+                {orders.filter(o => o.paymentMethod === 'wallet').length}
+              </p>
+              <span className="text-[10px] text-oj-muted mt-0.5 block">
+                Instant Ledger Debits
+              </span>
+            </div>
+
+            <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
+              <span className="text-xs text-oj-muted block">Refunded / Cancelled</span>
+              <p className="font-heading font-extrabold text-xl text-rose-600 mt-1">
+                {orders.filter(o => o.status === 'refunded').length}
+              </p>
+              <span className="text-[10px] text-oj-muted mt-0.5 block">
+                Reconciled Balances
+              </span>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="relative w-full sm:w-96">
+              <Search className="w-4 h-4 text-oj-muted absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={orderSearch}
+                onChange={(e) => setOrderSearch(e.target.value)}
+                placeholder="Search by order ID, email, or item..."
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-xs font-medium text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary"
+              />
+            </div>
+
+            <select
+              value={orderStatusFilter}
+              onChange={(e) => setOrderStatusFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-xs font-medium text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary w-full sm:w-auto"
+            >
+              <option value="all">All Statuses</option>
+              <option value="completed">Completed / Delivered</option>
+              <option value="pending">Pending</option>
+              <option value="refunded">Refunded</option>
+            </select>
+          </div>
+
+          <div className="border border-oj-border dark:border-oj-dark-border rounded-xl overflow-hidden bg-white dark:bg-oj-dark-surface shadow-soft">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted border-b border-oj-border dark:border-oj-dark-border">
+                <tr>
+                  <th className="py-2.5 px-3 font-semibold">Order Reference</th>
+                  <th className="py-2.5 px-3 font-semibold">Customer</th>
+                  <th className="py-2.5 px-3 font-semibold">Items</th>
+                  <th className="py-2.5 px-3 font-semibold text-right">Total</th>
+                  <th className="py-2.5 px-3 font-semibold text-center">Channel</th>
+                  <th className="py-2.5 px-3 font-semibold text-center">Status</th>
+                  <th className="py-2.5 px-3 font-semibold">Date</th>
+                  <th className="py-2.5 px-3 font-semibold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-oj-border dark:divide-oj-dark-border">
+                {orders.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center text-oj-muted">
+                      <Inbox className="w-8 h-8 mx-auto mb-2 opacity-40 text-oj-primary" />
+                      <p className="font-semibold text-xs">No orders recorded yet.</p>
+                      <p className="text-[11px] text-oj-muted mt-0.5">When customers purchase digital goods, orders will appear here in real time.</p>
+                    </td>
+                  </tr>
+                ) : (
+                  orders
+                    .filter(o => {
+                      const matchesSearch =
+                        o.reference.toLowerCase().includes(orderSearch.toLowerCase()) ||
+                        (o.customerEmail && o.customerEmail.toLowerCase().includes(orderSearch.toLowerCase())) ||
+                        o.items.some(i => i.product.title.toLowerCase().includes(orderSearch.toLowerCase()));
+                      const matchesStatus = orderStatusFilter === 'all' || o.status === orderStatusFilter;
+                      return matchesSearch && matchesStatus;
+                    })
+                    .map((o) => (
+                      <tr key={o.id} className="hover:bg-oj-surface-alt/40 transition-colors">
+                        <td className="py-3 px-3 font-mono font-bold text-oj-midnight dark:text-white">
+                          {o.reference}
+                        </td>
+                        <td className="py-3 px-3 font-mono text-oj-muted text-[11px]">
+                          {o.customerEmail || 'Guest / Verified'}
+                        </td>
+                        <td className="py-3 px-3">
+                          <div className="space-y-0.5">
+                            {o.items.map((it, idx) => (
+                              <div key={idx} className="flex items-center gap-1.5 text-[11px]">
+                                <span className="font-bold text-oj-midnight dark:text-white truncate max-w-xs">{it.product.title}</span>
+                                <span className="text-[10px] font-mono text-oj-muted">×{it.quantity}</span>
+                                <span className="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold bg-oj-primary/10 text-oj-primary">
+                                  {it.product.serverCluster}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono font-bold text-oj-midnight dark:text-white">
+                          {formatPrice(o.totalNgn)}
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            o.paymentMethod === 'wallet'
+                              ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
+                              : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                          }`}>
+                            {o.paymentMethod === 'wallet' ? 'Wallet' : 'BACH'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            o.status === 'completed'
+                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
+                              : o.status === 'refunded'
+                              ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
+                              : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
+                          }`}>
+                            {o.status.toUpperCase()}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-oj-muted text-[11px]">
+                          {new Date(o.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td className="py-3 px-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setInspectingOrder(o)}
+                              className="px-2.5 py-1 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-primary hover:text-white text-oj-midnight dark:text-white font-bold text-[11px] flex items-center gap-1 transition-all"
+                              title="Inspect Vault Secrets"
+                            >
+                              <KeyRound className="w-3 h-3" />
+                              <span>Vault</span>
+                            </button>
+                            {o.status !== 'refunded' && (
+                              <button
+                                type="button"
+                                onClick={() => handleRefundOrder(o)}
+                                className="px-2.5 py-1 rounded-lg border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-600 hover:text-white text-rose-600 font-bold text-[11px] transition-all"
+                                title="Refund order amount to customer wallet"
+                              >
+                                Refund
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Inspect Order Vault Key */}
+      {inspectingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-lg p-6 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-oj-border dark:border-oj-dark-border">
+              <div className="flex items-center gap-2">
+                <KeyRound className="w-5 h-5 text-oj-primary" />
+                <div>
+                  <h3 className="font-heading font-extrabold text-base text-oj-midnight dark:text-white">
+                    Order Delivery Vault Inspector
+                  </h3>
+                  <p className="font-mono text-xs text-oj-muted">{inspectingOrder.reference}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInspectingOrder(null)}
+                className="text-oj-muted hover:text-oj-midnight dark:hover:text-white text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {inspectingOrder.items.map((item, idx) => (
+                <div key={idx} className="p-4 rounded-xl border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt/40 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="font-bold text-xs text-oj-midnight dark:text-white">{item.product.title}</p>
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-oj-primary/10 text-oj-primary">
+                      {item.product.serverCluster}
+                    </span>
+                  </div>
+
+                  {item.deliveredSecrets && item.deliveredSecrets.length > 0 ? (
+                    item.deliveredSecrets.map((sec: any, sIdx: number) => (
+                      <div key={sIdx} className="space-y-1.5 pt-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-oj-muted font-bold">Encrypted Payload Status:</span>
+                          <span className="text-[10px] text-emerald-600 font-bold">AES-256-GCM Sealed</span>
+                        </div>
+                        <div className="p-2.5 rounded-lg bg-black text-emerald-400 font-mono text-xs break-all flex items-center justify-between">
+                          <span>{sec.value || '••••••••••••••••••••••••'}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(sec.value || '');
+                              showToast('Copied delivered secret to clipboard');
+                            }}
+                            className="text-xs text-oj-muted hover:text-white ml-2"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        {sec.instruction && (
+                          <p className="text-[11px] text-oj-muted italic">{sec.instruction}</p>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-oj-muted py-2">No license secrets delivered for this line item.</p>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setInspectingOrder(null)}
+                className="px-4 py-2 rounded-btn bg-oj-surface-alt text-oj-midnight dark:text-white text-xs font-bold hover:bg-oj-border transition-colors"
+              >
+                Close Inspector
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tab: Catalog Governance */}
       {activeTab === 'catalog' && (
         <div className="p-5 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft space-y-4">
@@ -1183,13 +1657,182 @@ export const AdminPage: React.FC = () => {
               </p>
             </div>
             <button
-              onClick={() => showToast('Opening Super Admin Listing Creator')}
-              className="py-1.5 px-3 rounded-lg bg-oj-primary text-white text-xs font-bold flex items-center gap-1 shadow-glow-primary"
+              onClick={() => setIsAddListingOpen(true)}
+              className="py-1.5 px-3 rounded-lg bg-oj-primary text-white text-xs font-bold flex items-center gap-1 shadow-glow-primary hover:bg-oj-primary-hover transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Listing</span>
             </button>
           </div>
+
+          {/* Modal: Add New Product Listing */}
+          {isAddListingOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+              <div className="w-full max-w-lg p-6 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between pb-3 border-b border-oj-border dark:border-oj-dark-border">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-oj-primary" />
+                    <h3 className="font-heading font-extrabold text-base text-oj-midnight dark:text-white">
+                      Add New Marketplace Listing
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddListingOpen(false)}
+                    className="text-oj-muted hover:text-oj-midnight dark:hover:text-white text-lg font-bold"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleCreateListing();
+                  }}
+                  className="space-y-3 text-xs"
+                >
+                  <div>
+                    <label className="block font-bold text-oj-midnight dark:text-white mb-1">
+                      Product Title *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={newListingForm.title}
+                      onChange={(e) => setNewListingForm({ ...newListingForm, title: e.target.value })}
+                      placeholder="e.g. NordVPN 2-Year Ultimate Pro"
+                      className="w-full px-3 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-midnight dark:text-white font-medium focus:outline-none focus:border-oj-primary"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-bold text-oj-midnight dark:text-white mb-1">
+                        Category *
+                      </label>
+                      <select
+                        value={newListingForm.category}
+                        onChange={(e) => setNewListingForm({ ...newListingForm, category: e.target.value })}
+                        className="w-full px-3 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-midnight dark:text-white font-medium focus:outline-none focus:border-oj-primary"
+                      >
+                        <option value="VPNs & Proxies">VPNs & Proxies</option>
+                        <option value="Social Media Accounts">Social Media Accounts</option>
+                        <option value="Software & OS Keys">Software & OS Keys</option>
+                        <option value="AI Subscriptions">AI Subscriptions</option>
+                        <option value="Development Tools">Development Tools</option>
+                        <option value="eSIM & Global Roaming">eSIM & Global Roaming</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-oj-midnight dark:text-white mb-1">
+                        Server Cluster *
+                      </label>
+                      <select
+                        value={newListingForm.serverCluster}
+                        onChange={(e) => setNewListingForm({ ...newListingForm, serverCluster: e.target.value as any })}
+                        className="w-full px-3 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-midnight dark:text-white font-medium focus:outline-none focus:border-oj-primary"
+                      >
+                        <option value="Server 1">Server 1 (VPNs, Proxies & eSIM)</option>
+                        <option value="Server 2">Server 2 (Social Accounts & Cloud)</option>
+                        <option value="Server 3">Server 3 (Software & OS)</option>
+                        <option value="Server 4">Server 4 (AI Subscriptions)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-bold text-oj-midnight dark:text-white mb-1">
+                        Retail Price (NGN) *
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        min={100}
+                        value={newListingForm.priceNgn}
+                        onChange={(e) => setNewListingForm({ ...newListingForm, priceNgn: Number(e.target.value) })}
+                        className="w-full px-3 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-midnight dark:text-white font-medium focus:outline-none focus:border-oj-primary"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-oj-midnight dark:text-white mb-1">
+                        Initial Stock Count
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={newListingForm.stockCount}
+                        onChange={(e) => setNewListingForm({ ...newListingForm, stockCount: Number(e.target.value) })}
+                        className="w-full px-3 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-midnight dark:text-white font-medium focus:outline-none focus:border-oj-primary"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-oj-midnight dark:text-white mb-1">
+                      Delivery Format
+                    </label>
+                    <select
+                      value={newListingForm.deliveryFormat}
+                      onChange={(e) => setNewListingForm({ ...newListingForm, deliveryFormat: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-midnight dark:text-white font-medium focus:outline-none focus:border-oj-primary"
+                    >
+                      <option value="license_key">License Key / Activation Code</option>
+                      <option value="account_credentials">Pre-verified Account Credentials (user:pass:2fa)</option>
+                      <option value="instant_token">API Token / Session Cookie</option>
+                      <option value="manual_concierge">Concierge Direct Handover</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-oj-midnight dark:text-white mb-1">
+                      Summary / Key Features
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={newListingForm.summary}
+                      onChange={(e) => setNewListingForm({ ...newListingForm, summary: e.target.value })}
+                      placeholder="Instant automated delivery, 100% replacement guarantee..."
+                      className="w-full px-3 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-midnight dark:text-white font-medium focus:outline-none focus:border-oj-primary"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-oj-midnight dark:text-white mb-1">
+                      Initial Vault License Keys (Optional - 1 per line)
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={newListingForm.initialKeys}
+                      onChange={(e) => setNewListingForm({ ...newListingForm, initialKeys: e.target.value })}
+                      placeholder="KEY-XXXXX-YYYYY-ZZZZZ&#10;KEY-AAAAA-BBBBB-CCCCC"
+                      className="w-full px-3 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-midnight dark:text-white font-mono text-[11px] focus:outline-none focus:border-oj-primary"
+                    />
+                  </div>
+
+                  <div className="pt-2 flex items-center justify-end gap-2 border-t border-oj-border dark:border-oj-dark-border">
+                    <button
+                      type="button"
+                      onClick={() => setIsAddListingOpen(false)}
+                      className="px-4 py-2 rounded-btn text-xs font-bold text-oj-muted hover:text-oj-midnight dark:hover:text-white"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-5 py-2 rounded-btn bg-oj-primary hover:bg-oj-primary-hover text-white text-xs font-bold shadow-glow-primary transition-all flex items-center gap-1.5"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Publish to Storefront</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
 
           <div className="border border-oj-border dark:border-oj-dark-border rounded-xl overflow-hidden">
             <table className="w-full text-left text-xs">

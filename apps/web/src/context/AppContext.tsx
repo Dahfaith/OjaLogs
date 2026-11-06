@@ -54,6 +54,7 @@ interface AppContextType {
   toggleFavourite: (productId: string) => void;
   refreshCatalog: () => Promise<void>;
   updateProduct: (updated: Product) => void;
+  addProduct: (newProduct: Product) => void;
 
   // Cart
   cart: CartState;
@@ -289,6 +290,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateProduct = useCallback((updated: Product) => {
     setProducts(prev => prev.map(p => p.id === updated.id ? updated : p));
     showToast(`Updated "${updated.title}" successfully.`);
+  }, []);
+
+  const addProduct = useCallback((newProduct: Product) => {
+    setProducts(prev => [newProduct, ...prev]);
+    showToast(`Published "${newProduct.title}" to marketplace!`);
   }, []);
 
   useEffect(() => {
@@ -854,6 +860,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toggleFavourite,
         refreshCatalog,
         updateProduct,
+        addProduct,
         cart,
         addToCart,
         removeFromCart,
