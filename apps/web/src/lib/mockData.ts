@@ -541,143 +541,21 @@ export const initialMockVirtualNumber: VirtualNumberSession = {
   messages: []
 };
 
-// Initial Wallet State
+// Initial Wallet State (Production Default: 0)
 export const initialMockWallet: WalletState = {
-  balanceNgn: 45200.00,
+  balanceNgn: 0.00,
   currency: 'NGN',
   isLocked: false,
   pendingDeposits: 0,
-  lifetimePurchases: 6,
-  monthlySpendNgn: 26900.00
+  lifetimePurchases: 0,
+  monthlySpendNgn: 0.00
 };
 
 // Initial Immutable Ledger Transactions
-export const initialMockLedger: LedgerTransaction[] = [
-  {
-    id: 'ldg_001',
-    reference: 'ref_oj_9812401',
-    type: 'credit',
-    category: 'deposit',
-    amountNgn: 50000.00,
-    balanceAfterNgn: 50000.00,
-    description: 'Wallet top-up via BACH Gateway (One-time transfer)',
-    status: 'successful',
-    timestamp: '2026-11-01T10:14:22Z'
-  },
-  {
-    id: 'ldg_002',
-    reference: 'ref_oj_9812402',
-    type: 'debit',
-    category: 'order_payment',
-    amountNgn: 18500.00,
-    balanceAfterNgn: 31500.00,
-    description: 'Purchased NordVPN Complete 1-Year Premium License Key',
-    status: 'successful',
-    timestamp: '2026-11-01T14:32:00Z',
-    relatedOrderReference: 'ord_oj_4481'
-  },
-  {
-    id: 'ldg_003',
-    reference: 'ref_oj_9812403',
-    type: 'debit',
-    category: 'virtual_number_order',
-    amountNgn: 1450.00,
-    balanceAfterNgn: 30050.00,
-    description: 'Provisioned US WhatsApp verification number (+1 415 890-4421)',
-    status: 'successful',
-    timestamp: '2026-11-02T08:12:10Z'
-  },
-  {
-    id: 'ldg_004',
-    reference: 'ref_oj_9812404',
-    type: 'credit',
-    category: 'deposit',
-    amountNgn: 20000.00,
-    balanceAfterNgn: 50050.00,
-    description: 'Wallet top-up via BACH Gateway',
-    status: 'successful',
-    timestamp: '2026-11-03T16:05:44Z'
-  },
-  {
-    id: 'ldg_005',
-    reference: 'ref_oj_9812405',
-    type: 'debit',
-    category: 'order_payment',
-    amountNgn: 8500.00,
-    balanceAfterNgn: 41550.00,
-    description: 'Purchased Microsoft Windows 11 Pro Genuine Retail License',
-    status: 'successful',
-    timestamp: '2026-11-03T18:40:12Z',
-    relatedOrderReference: 'ord_oj_5592'
-  },
-  {
-    id: 'ldg_006',
-    reference: 'ref_oj_9812406',
-    type: 'credit',
-    category: 'refund',
-    amountNgn: 3650.00,
-    balanceAfterNgn: 45200.00,
-    description: 'Automated 100% refund for unreceived SMS session (req_num_88190)',
-    status: 'successful',
-    timestamp: '2026-11-04T02:11:00Z'
-  }
-];
+export const initialMockLedger: LedgerTransaction[] = [];
 
-// Initial Mock Orders
-export const initialMockOrders: Order[] = [
-  {
-    id: 'ord_1',
-    reference: 'ord_oj_4481',
-    createdAt: '2026-11-01T14:32:00Z',
-    status: 'completed',
-    paymentMethod: 'wallet',
-    totalNgn: 18500,
-    customerEmail: 'katie.mille@ojalogs.dev',
-    items: [
-      {
-        id: 'item_1',
-        product: initialMockProducts[0],
-        quantity: 1,
-        unitPriceNgn: 18500,
-        totalNgn: 18500,
-        deliveredSecrets: [
-          {
-            type: 'license_key',
-            revealed: false,
-            value: 'NORD-CMP-2026-X99Q-88LV-M21K',
-            instruction: 'Redeem at nordvpn.com/order/activate with your Nord account.'
-          }
-        ]
-      }
-    ]
-  },
-  {
-    id: 'ord_2',
-    reference: 'ord_oj_5592',
-    createdAt: '2026-11-03T18:40:12Z',
-    status: 'completed',
-    paymentMethod: 'wallet',
-    totalNgn: 8500,
-    customerEmail: 'katie.mille@ojalogs.dev',
-    items: [
-      {
-        id: 'item_2',
-        product: initialMockProducts[5], // Windows 11 Pro
-        quantity: 1,
-        unitPriceNgn: 8500,
-        totalNgn: 8500,
-        deliveredSecrets: [
-          {
-            type: 'license_key',
-            revealed: false,
-            value: 'W269N-WFGWX-YVC9B-4J6C9-T83GX',
-            instruction: 'Settings -> System -> Activation -> Change Product Key. Enter this retail key.'
-          }
-        ]
-      }
-    ]
-  }
-];
+// Initial Mock Orders (Production Default: 0)
+export const initialMockOrders: Order[] = [];
 
 // Initial Admin Metrics
 export const mockAdminMetrics: AdminMetrics = {

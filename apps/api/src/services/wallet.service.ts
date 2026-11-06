@@ -4,9 +4,7 @@ import { bachGateway } from '../gateways/bach.gateway.js';
 
 // In-Memory state for serverless execution / testing
 export class WalletService {
-  private balances = new Map<string, number>([
-    ['usr_oj_001', 45200.00]
-  ]);
+  private balances = new Map<string, number>();
 
   private ledgerRecords = new Map<string, LedgerTransaction[]>();
 
