@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Store, Wallet, PackageCheck, UserCircle, PhoneCall } from 'lucide-react';
+import { LayoutDashboard, Store, Wallet, PackageCheck, UserCircle, PhoneCall, Flame } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useApp } from '../../context/AppContext';
 
@@ -8,12 +8,11 @@ export const BottomTabBar: React.FC = () => {
   const { user, setIsAuthModalOpen } = useApp();
 
   const tabs = [
-    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, authRequired: true },
     { to: '/shop', label: 'Shop', icon: Store, authRequired: false },
+    { to: '/social-boost', label: 'Boost', icon: Flame, authRequired: false },
     { to: '/virtual-numbers', label: 'Numbers', icon: PhoneCall, authRequired: false },
     { to: '/wallet', label: 'Wallet', icon: Wallet, authRequired: true },
     { to: '/orders', label: 'Orders', icon: PackageCheck, authRequired: true },
-    { to: '/profile', label: 'Profile', icon: UserCircle, authRequired: true },
   ];
 
   return (
