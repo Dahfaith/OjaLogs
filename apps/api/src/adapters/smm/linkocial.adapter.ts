@@ -292,3 +292,4 @@ export class LinkocialAdapter {
 }
 
 export const linkocialAdapter = new LinkocialAdapter();
+
