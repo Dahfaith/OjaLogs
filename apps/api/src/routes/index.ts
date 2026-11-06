@@ -6,6 +6,7 @@ import { orderRouter } from './order.routes.js';
 import { numbersRouter } from './numbers.routes.js';
 import { adminRouter } from './admin.routes.js';
 import { webhookRouter } from './webhook.routes.js';
+import { smmRouter } from './smm.routes.js';
 
 const router = Router();
 
@@ -29,6 +30,7 @@ router.use('/wallet', walletRouter);
 router.use('/catalog', catalogRouter);
 router.use('/orders', orderRouter);
 router.use('/numbers', numbersRouter);
+router.use('/smm', smmRouter);
 router.use('/admin', adminRouter);
 router.use('/webhooks', webhookRouter);
 

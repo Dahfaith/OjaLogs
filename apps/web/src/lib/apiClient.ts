@@ -10,7 +10,10 @@ import {
   TelephonyProviderConfig,
   AdminManagedUser,
   AdminNotification,
-  UserRole
+  UserRole,
+  SMMService,
+  SMMOrder,
+  SMMProviderConfig
 } from '@ojalogs/shared';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'https://ojalogs-api.onrender.com/api/v1';
@@ -373,6 +376,69 @@ class ApiClient {
   async testAdminEmailAlert(): Promise<{ success: boolean; message: string; data?: any }> {
     return this.request<{ success: boolean; message: string; data?: any }>('/admin/notifications/test-email', {
       method: 'POST'
+    });
+  }
+
+  // SMM (Social Media Marketing) Storefront
+  async getSMMServices(platform?: string): Promise<SMMService[]> {
+    const query = platform && platform !== 'all' ? `?platform=${encodeURIComponent(platform)}` : '';
+    return this.request<SMMService[]>(`/smm/services${query}`);
+  }
+
+  async placeSMMOrder(serviceId: string, targetLink: string, quantity: number, idempotencyKey: string): Promise<SMMOrder> {
+    return this.request<SMMOrder>('/smm/orders', {
+      method: 'POST',
+      body: JSON.stringify({ serviceId, targetLink, quantity, idempotencyKey })
+    });
+  }
+
+  async getSMMOrders(): Promise<SMMOrder[]> {
+    return this.request<SMMOrder[]>('/smm/orders');
+  }
+
+  async syncSMMOrder(orderId: string): Promise<SMMOrder> {
+    return this.request<SMMOrder>(`/smm/orders/${encodeURIComponent(orderId)}/sync`, {
+      method: 'POST'
+    });
+  }
+
+  // Admin SMM Governance
+  async getAdminSMMServices(): Promise<SMMService[]> {
+    return this.request<SMMService[]>('/admin/smm/services');
+  }
+
+  async updateSMMServiceRate(id: string, retailRateNgn: number, isActive?: boolean): Promise<SMMService> {
+    return this.request<SMMService>(`/admin/smm/services/${encodeURIComponent(id)}/rate`, {
+      method: 'PATCH',
+      body: JSON.stringify({ retailRateNgn, isActive })
+    });
+  }
+
+  async setGlobalSMMMarkup(markupPercent: number): Promise<{ updatedCount: number; defaultMarkupPercent: number }> {
+    return this.request<{ updatedCount: number; defaultMarkupPercent: number }>('/admin/smm/markup', {
+      method: 'POST',
+      body: JSON.stringify({ markupPercent })
+    });
+  }
+
+  async syncSMMFromProvider(): Promise<{ syncedCount: number; newCount: number }> {
+    return this.request<{ syncedCount: number; newCount: number }>('/admin/smm/sync', {
+      method: 'POST'
+    });
+  }
+
+  async getAdminSMMOrders(): Promise<SMMOrder[]> {
+    return this.request<SMMOrder[]>('/admin/smm/orders');
+  }
+
+  async getSMMProviderConfig(): Promise<SMMProviderConfig> {
+    return this.request<SMMProviderConfig>('/admin/smm/config');
+  }
+
+  async updateSMMProviderConfig(updates: Partial<SMMProviderConfig>): Promise<SMMProviderConfig> {
+    return this.request<SMMProviderConfig>('/admin/smm/config', {
+      method: 'PATCH',
+      body: JSON.stringify(updates)
     });
   }
 }

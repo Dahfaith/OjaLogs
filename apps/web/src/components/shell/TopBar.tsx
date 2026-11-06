@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Moon, Sun, ShoppingBag, Bell, Shield, ChevronDown, Check, User, LogOut, PhoneCall, Mail } from 'lucide-react';
+import { Moon, Sun, ShoppingBag, Bell, Shield, ChevronDown, Check, User, LogOut, PhoneCall, Mail, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SupportedCurrency, SUPPORTED_CURRENCIES, CURRENCY_SYMBOLS } from '@ojalogs/shared';
 import { Link, useLocation } from 'react-router-dom';
@@ -74,6 +74,20 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenCart }) => {
           >
             <PhoneCall className="w-3.5 h-3.5 text-oj-cyan" />
             <span>Virtual Numbers</span>
+          </Link>
+          <Link
+            to="/social-boost"
+            className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
+              location.pathname === '/social-boost'
+                ? 'bg-oj-primary/10 text-oj-primary font-semibold dark:bg-oj-primary/20'
+                : 'text-oj-muted hover:text-oj-midnight dark:text-oj-dark-muted dark:hover:text-white'
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5 text-amber-500" />
+            <span>Social Boost</span>
+            <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+              SMM
+            </span>
           </Link>
           {user && (
             <>

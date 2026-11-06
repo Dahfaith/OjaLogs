@@ -49,16 +49,17 @@ import {
   Receipt,
   Inbox,
   AlertCircle,
-  Trash2
+  Trash2,
+  Flame
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { mockAdminMetrics } from '../lib/mockData';
-import { Product, ServerClusterConfig, PaymentGatewayConfig, TelephonyProviderConfig, AdminManagedUser, AdminNotification, UserRole, Order } from '@ojalogs/shared';
+import { Product, ServerClusterConfig, PaymentGatewayConfig, TelephonyProviderConfig, AdminManagedUser, AdminNotification, UserRole, Order, SMMService, SMMOrder, SMMProviderConfig } from '@ojalogs/shared';
 import { apiClient } from '../lib/apiClient';
 
 export const AdminPage: React.FC = () => {
   const { user, role, products, ledger, activeNumbers, showToast, formatPrice, updateProduct, addProduct, orders } = useApp();
-  const [activeTab, setActiveTab] = useState<'kpi' | 'users' | 'orders' | 'catalog' | 'servers' | 'gateways' | 'numbers' | 'fulfilment' | 'ledger' | 'audit'>('kpi');
+  const [activeTab, setActiveTab] = useState<'kpi' | 'users' | 'orders' | 'catalog' | 'servers' | 'gateways' | 'numbers' | 'smm' | 'fulfilment' | 'ledger' | 'audit'>('kpi');
   const [metrics, setMetrics] = useState(mockAdminMetrics);
 
   const [inventoryPayload, setInventoryPayload] = useState('');
@@ -333,6 +334,20 @@ export const AdminPage: React.FC = () => {
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [showNotificationDrawer, setShowNotificationDrawer] = useState(false);
 
+  // SMM Governance State
+  const [smmServices, setSmmServices] = useState<SMMService[]>([]);
+  const [smmOrders, setSmmOrders] = useState<SMMOrder[]>([]);
+  const [smmConfig, setSmmConfig] = useState<SMMProviderConfig | null>(null);
+  const [smmPlatformFilter, setSmmPlatformFilter] = useState('all');
+  const [smmSearch, setSmmSearch] = useState('');
+  const [editingSmmService, setEditingSmmService] = useState<SMMService | null>(null);
+  const [editingSmmRate, setEditingSmmRate] = useState<number>(5000);
+  const [editingSmmActive, setEditingSmmActive] = useState<boolean>(true);
+  const [smmGlobalMarkupInput, setSmmGlobalMarkupInput] = useState<number>(30);
+  const [isSyncingSmm, setIsSyncingSmm] = useState(false);
+  const [isUpdatingConfig, setIsUpdatingConfig] = useState(false);
+  const [linkocialApiKeyInput, setLinkocialApiKeyInput] = useState('');
+
   // Sync from live backend API on mount
   useEffect(() => {
     apiClient.getServerConfigs()
@@ -391,7 +406,80 @@ export const AdminPage: React.FC = () => {
         if (data && data.length > 0) setNotifications(data);
       })
       .catch(() => {});
+
+    apiClient.getAdminSMMServices()
+      .then(data => { if (data && data.length > 0) setSmmServices(data); })
+      .catch(() => {});
+
+    apiClient.getAdminSMMOrders()
+      .then(data => { if (data) setSmmOrders(data); })
+      .catch(() => {});
+
+    apiClient.getSMMProviderConfig()
+      .then(data => {
+        if (data) {
+          setSmmConfig(data);
+          setSmmGlobalMarkupInput(data.defaultMarkupPercent || 30);
+          setLinkocialApiKeyInput(data.apiKey || '');
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  const handleSaveSmmRate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSmmService) return;
+
+    try {
+      const updated = await apiClient.updateSMMServiceRate(editingSmmService.id, editingSmmRate, editingSmmActive);
+      setSmmServices(prev => prev.map(s => s.id === updated.id ? updated : s));
+      showToast(`Updated "${updated.name}" retail rate to ₦${updated.retailRateNgn.toLocaleString()}`);
+      setEditingSmmService(null);
+    } catch (err: any) {
+      showToast(err.message || 'Could not update service rate');
+    }
+  };
+
+  const handleApplyGlobalMarkup = async () => {
+    try {
+      const res = await apiClient.setGlobalSMMMarkup(smmGlobalMarkupInput);
+      showToast(`Applied +${res.defaultMarkupPercent}% markup across ${res.updatedCount} services!`);
+      const refreshed = await apiClient.getAdminSMMServices();
+      if (refreshed) setSmmServices(refreshed);
+    } catch {
+      showToast('Could not apply global markup');
+    }
+  };
+
+  const handleSyncSmmFromProvider = async () => {
+    setIsSyncingSmm(true);
+    try {
+      const res = await apiClient.syncSMMFromProvider();
+      showToast(`Synced ${res.syncedCount} services (${res.newCount} new) from Linkocial!`);
+      const [refreshed, cfg] = await Promise.all([
+        apiClient.getAdminSMMServices(),
+        apiClient.getSMMProviderConfig()
+      ]);
+      if (refreshed) setSmmServices(refreshed);
+      if (cfg) setSmmConfig(cfg);
+    } catch {
+      showToast('Could not sync services from Linkocial');
+    } finally {
+      setIsSyncingSmm(false);
+    }
+  };
+
+  const handleSaveSmmConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const updated = await apiClient.updateSMMProviderConfig({ apiKey: linkocialApiKeyInput });
+      setSmmConfig(updated);
+      setIsUpdatingConfig(false);
+      showToast('Linkocial provider credentials saved successfully');
+    } catch {
+      showToast('Failed to update provider config');
+    }
+  };
 
   const handleToggleFreezeUser = async (userToUpdate: AdminManagedUser) => {
     const nextStatus: 'active' | 'frozen' = userToUpdate.status === 'frozen' ? 'active' : 'frozen';
@@ -862,6 +950,7 @@ export const AdminPage: React.FC = () => {
           { id: 'servers', label: 'Server APIs & Upstream Config', icon: Server },
           { id: 'gateways', label: 'Payment Gateways & Banking', icon: CreditCard },
           { id: 'numbers', label: 'Virtual Number Providers', icon: PhoneCall },
+          { id: 'smm', label: 'SMM & Social Boost', icon: Flame },
           { id: 'fulfilment', label: 'Encrypted Vault & Fulfilment', icon: KeyRound },
           { id: 'ledger', label: 'Ledger Reconciliation', icon: Database },
           { id: 'audit', label: 'Audit Trail', icon: FileText },
@@ -2475,6 +2564,471 @@ export const AdminPage: React.FC = () => {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Tab: SMM & Social Boost Governance */}
+      {activeTab === 'smm' && (
+        <div className="space-y-6">
+          {/* Top Banner: Linkocial Provider Hub */}
+          <div className="p-6 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Flame className="w-5 h-5 text-amber-500" />
+                <h3 className="font-heading font-extrabold text-base text-oj-midnight dark:text-white">
+                  SMM & Social Boost Engine (Linkocial API v1.0)
+                </h3>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                  ● Upstream Connected
+                </span>
+              </div>
+              <p className="text-xs text-oj-muted max-w-2xl">
+                Manage social media marketing services, customize profit margins per service (e.g. cost ₦5,000 ➔ retail ₦6,500), and inspect customer boost deliveries.
+              </p>
+            </div>
+
+            <div className="flex items-center flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleSyncSmmFromProvider}
+                disabled={isSyncingSmm}
+                className="px-3 py-2 rounded-xl bg-oj-primary text-white text-xs font-bold hover:bg-oj-primary-hover flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
+                title="Pulls latest services and rates from Linkocial"
+              >
+                <RotateCw className={`w-3.5 h-3.5 ${isSyncingSmm ? 'animate-spin' : ''}`} />
+                <span>{isSyncingSmm ? 'Syncing...' : '↻ Sync Linkocial Services'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsUpdatingConfig(true)}
+                className="px-3 py-2 rounded-xl border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-midnight dark:text-white hover:bg-oj-border text-xs font-bold flex items-center gap-1.5 transition-colors"
+              >
+                <KeyRound className="w-3.5 h-3.5 text-oj-primary" />
+                <span>Provider API Credentials</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Metrics & Upstream Balance */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
+              <span className="text-xs text-oj-muted block">Linkocial Provider Balance</span>
+              <p className="font-heading font-extrabold text-xl text-emerald-600 mt-1">
+                {smmConfig?.balanceNgn !== undefined ? formatPrice(smmConfig.balanceNgn) : '₦350,000'}
+              </p>
+              <span className="text-[10px] text-oj-muted mt-0.5 block">
+                Live Upstream Working Capital
+              </span>
+            </div>
+
+            <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
+              <span className="text-xs text-oj-muted block">Active SMM Catalog</span>
+              <p className="font-heading font-extrabold text-xl text-oj-midnight dark:text-white mt-1">
+                {smmServices.filter(s => s.isActive).length} / {smmServices.length}
+              </p>
+              <span className="text-[10px] text-emerald-600 font-semibold mt-0.5 block">
+                Ready for Storefront & API
+              </span>
+            </div>
+
+            <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
+              <span className="text-xs text-oj-muted block">Default Profit Markup</span>
+              <p className="font-heading font-extrabold text-xl text-amber-500 mt-1">
+                +{smmConfig?.defaultMarkupPercent || 30}%
+              </p>
+              <span className="text-[10px] text-oj-muted mt-0.5 block">
+                Automatic baseline margin
+              </span>
+            </div>
+
+            <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
+              <span className="text-xs text-oj-muted block">Customer SMM Orders</span>
+              <p className="font-heading font-extrabold text-xl text-oj-primary mt-1">
+                {smmOrders.length}
+              </p>
+              <span className="text-[10px] text-emerald-600 font-semibold mt-0.5 block">
+                {smmOrders.filter(o => o.status === 'completed').length} Completed
+              </span>
+            </div>
+          </div>
+
+          {/* Global Markup Control Card */}
+          <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <Percent className="w-4 h-4 text-amber-500" />
+              <div>
+                <span className="font-bold text-oj-midnight dark:text-white block">Global Default Profit Markup</span>
+                <span className="text-oj-muted">Apply a blanket percentage markup across all newly synced SMM services.</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="flex items-center">
+                <input
+                  type="number"
+                  min="0"
+                  max="300"
+                  value={smmGlobalMarkupInput}
+                  onChange={(e) => setSmmGlobalMarkupInput(Number(e.target.value))}
+                  className="w-20 px-2.5 py-1.5 rounded-l-lg border border-r-0 border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt font-mono font-bold text-center text-oj-midnight dark:text-white focus:outline-none"
+                />
+                <span className="px-2.5 py-1.5 rounded-r-lg bg-oj-surface-alt dark:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border font-bold text-oj-muted">
+                  %
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleApplyGlobalMarkup}
+                className="px-3.5 py-1.5 rounded-lg bg-oj-midnight dark:bg-white text-white dark:text-oj-midnight font-bold hover:opacity-90 transition-opacity"
+              >
+                Apply Markup
+              </button>
+            </div>
+          </div>
+
+          {/* Search & Platform Filter */}
+          <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="relative w-full sm:w-80">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-oj-muted" />
+              <input
+                type="text"
+                placeholder="Search services or categories..."
+                value={smmSearch}
+                onChange={(e) => setSmmSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-xs font-medium text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+              {['all', 'instagram', 'tiktok', 'twitter', 'youtube', 'telegram', 'spotify', 'facebook'].map(plat => (
+                <button
+                  key={plat}
+                  onClick={() => setSmmPlatformFilter(plat)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize whitespace-nowrap transition-colors ${
+                    smmPlatformFilter === plat
+                      ? 'bg-oj-primary text-white'
+                      : 'bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted hover:text-oj-midnight dark:hover:text-white'
+                  }`}
+                >
+                  {plat}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Service Catalog & Rate Manager Table */}
+          <div className="border border-oj-border dark:border-oj-dark-border rounded-xl overflow-hidden bg-white dark:bg-oj-dark-surface shadow-soft">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted border-b border-oj-border dark:border-oj-dark-border">
+                <tr>
+                  <th className="py-2.5 px-3 font-semibold">Service Name & Category</th>
+                  <th className="py-2.5 px-3 font-semibold text-center">Platform</th>
+                  <th className="py-2.5 px-3 font-semibold text-right">Source Cost (Linkocial)</th>
+                  <th className="py-2.5 px-3 font-semibold text-right">Your Retail Price</th>
+                  <th className="py-2.5 px-3 font-semibold text-center">Margin</th>
+                  <th className="py-2.5 px-3 font-semibold text-center">Storefront</th>
+                  <th className="py-2.5 px-3 font-semibold text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-oj-border dark:divide-oj-dark-border">
+                {smmServices
+                  .filter(s => {
+                    const matchesPlatform = smmPlatformFilter === 'all' || s.platform === smmPlatformFilter;
+                    const matchesSearch = s.name.toLowerCase().includes(smmSearch.toLowerCase()) || s.category.toLowerCase().includes(smmSearch.toLowerCase());
+                    return matchesPlatform && matchesSearch;
+                  })
+                  .map(s => {
+                    const profitNgn = s.retailRateNgn - s.sourceRateNgn;
+                    const profitPercent = s.sourceRateNgn > 0 ? Math.round((profitNgn / s.sourceRateNgn) * 100) : 0;
+                    return (
+                      <tr key={s.id} className="hover:bg-oj-surface-alt/40 transition-colors">
+                        <td className="py-3 px-3">
+                          <p className="font-bold text-oj-midnight dark:text-white max-w-sm truncate">{s.name}</p>
+                          <p className="text-[11px] text-oj-muted font-mono">{s.category}</p>
+                        </td>
+
+                        <td className="py-3 px-3 text-center">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-oj-primary/10 text-oj-primary">
+                            {s.platform}
+                          </span>
+                        </td>
+
+                        <td className="py-3 px-3 text-right font-mono text-oj-muted">
+                          ₦{s.sourceRateNgn.toLocaleString()} / 1k
+                        </td>
+
+                        <td className="py-3 px-3 text-right font-mono font-bold text-oj-midnight dark:text-white">
+                          ₦{s.retailRateNgn.toLocaleString()} / 1k
+                        </td>
+
+                        <td className="py-3 px-3 text-center">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            profitNgn >= 0
+                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
+                              : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
+                          }`}>
+                            +{formatPrice(profitNgn)} (+{profitPercent}%)
+                          </span>
+                        </td>
+
+                        <td className="py-3 px-3 text-center">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            s.isActive
+                              ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400'
+                              : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                          }`}>
+                            {s.isActive ? 'Active' : 'Disabled'}
+                          </span>
+                        </td>
+
+                        <td className="py-3 px-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingSmmService(s);
+                              setEditingSmmRate(s.retailRateNgn);
+                              setEditingSmmActive(s.isActive);
+                            }}
+                            className="px-2.5 py-1 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-primary hover:text-white text-oj-midnight dark:text-white font-bold text-[11px] transition-all"
+                          >
+                            Edit Rate
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* SMM Customer Orders Table */}
+          <div className="p-5 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-oj-border dark:border-oj-dark-border">
+              <h3 className="font-heading font-extrabold text-base text-oj-midnight dark:text-white">
+                Customer SMM Boost Orders
+              </h3>
+              <span className="text-xs font-mono font-bold text-oj-muted">
+                {smmOrders.length} Logged Orders
+              </span>
+            </div>
+
+            <div className="border border-oj-border dark:border-oj-dark-border rounded-xl overflow-hidden">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted border-b border-oj-border dark:border-oj-dark-border">
+                  <tr>
+                    <th className="py-2.5 px-3 font-semibold">Order Ref</th>
+                    <th className="py-2.5 px-3 font-semibold">Customer</th>
+                    <th className="py-2.5 px-3 font-semibold">Service</th>
+                    <th className="py-2.5 px-3 font-semibold">Link</th>
+                    <th className="py-2.5 px-3 font-semibold text-center">Qty</th>
+                    <th className="py-2.5 px-3 font-semibold text-right">Amount</th>
+                    <th className="py-2.5 px-3 font-semibold text-center">Status</th>
+                    <th className="py-2.5 px-3 font-semibold text-right">Provider Ref</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-oj-border dark:divide-oj-dark-border">
+                  {smmOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-8 text-center text-oj-muted">
+                        No customer SMM orders logged yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    smmOrders.map(o => (
+                      <tr key={o.id} className="hover:bg-oj-surface-alt/40 transition-colors">
+                        <td className="py-3 px-3 font-mono font-bold text-oj-midnight dark:text-white">
+                          {o.reference}
+                        </td>
+                        <td className="py-3 px-3 font-mono text-[11px] text-oj-muted">
+                          {o.customerEmail}
+                        </td>
+                        <td className="py-3 px-3 max-w-xs truncate font-medium">
+                          {o.serviceName}
+                        </td>
+                        <td className="py-3 px-3">
+                          <a href={o.targetLink} target="_blank" rel="noreferrer" className="text-oj-primary hover:underline font-mono text-[11px] truncate block max-w-[150px]">
+                            {o.targetLink}
+                          </a>
+                        </td>
+                        <td className="py-3 px-3 text-center font-mono font-bold">
+                          {o.quantity.toLocaleString()}
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono font-bold text-oj-midnight dark:text-white">
+                          {formatPrice(o.totalNgn)}
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            o.status === 'completed'
+                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
+                              : o.status === 'canceled'
+                              ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
+                              : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
+                          }`}>
+                            {o.status.toUpperCase()}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono text-oj-muted text-[11px]">
+                          {o.providerOrderId || 'Simulated'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Edit Service Custom Retail Price (User Requirement) */}
+      {editingSmmService && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md p-6 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-oj-border dark:border-oj-dark-border">
+              <div>
+                <h3 className="font-heading font-extrabold text-base text-oj-midnight dark:text-white">
+                  Custom Price Override
+                </h3>
+                <p className="text-xs text-oj-muted">
+                  Configure your retail selling price for this SMM service.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingSmmService(null)}
+                className="text-oj-muted hover:text-oj-midnight dark:hover:text-white text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSmmRate} className="space-y-4 text-xs">
+              <div className="p-3 rounded-xl bg-oj-surface-alt/50 dark:bg-oj-dark-surface-alt/50 border border-oj-border dark:border-oj-dark-border space-y-1">
+                <span className="text-[10px] text-oj-muted uppercase font-bold">{editingSmmService.category}</span>
+                <p className="font-bold text-oj-midnight dark:text-white text-xs">{editingSmmService.name}</p>
+                <p className="text-[11px] text-oj-muted font-mono">
+                  Upstream Cost from Linkocial: <strong>₦{editingSmmService.sourceRateNgn.toLocaleString()} / 1k</strong>
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-bold text-oj-midnight dark:text-white mb-1">
+                  Your Custom Retail Price (NGN per 1,000 units) *
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-oj-muted">₦</span>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={editingSmmRate}
+                    onChange={(e) => setEditingSmmRate(Number(e.target.value))}
+                    className="w-full pl-7 pr-3 py-2 rounded-xl border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt font-mono font-bold text-sm text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary"
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[11px] mt-1.5 px-0.5">
+                  <span className="text-oj-muted">Projected Profit per 1k:</span>
+                  <span className={`font-mono font-bold ${
+                    editingSmmRate >= editingSmmService.sourceRateNgn ? 'text-emerald-600' : 'text-rose-600'
+                  }`}>
+                    +{formatPrice(editingSmmRate - editingSmmService.sourceRateNgn)} (
+                    {Math.round(((editingSmmRate - editingSmmService.sourceRateNgn) / editingSmmService.sourceRateNgn) * 100)}%)
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2 cursor-pointer pt-1">
+                  <input
+                    type="checkbox"
+                    checked={editingSmmActive}
+                    onChange={(e) => setEditingSmmActive(e.target.checked)}
+                    className="w-4 h-4 rounded text-oj-primary focus:ring-0"
+                  />
+                  <span className="font-bold text-oj-midnight dark:text-white">
+                    Display service as active on Ojalogs storefront & Reseller API
+                  </span>
+                </label>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-oj-border dark:border-oj-dark-border">
+                <button
+                  type="button"
+                  onClick={() => setEditingSmmService(null)}
+                  className="px-4 py-2 rounded-btn text-xs font-bold text-oj-muted hover:text-oj-midnight dark:hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-btn bg-oj-primary hover:bg-oj-primary-hover text-white text-xs font-bold shadow-glow-primary transition-all"
+                >
+                  Save Custom Price
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Update Linkocial Credentials */}
+      {isUpdatingConfig && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md p-6 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-oj-border dark:border-oj-dark-border">
+              <div>
+                <h3 className="font-heading font-extrabold text-base text-oj-midnight dark:text-white">
+                  Linkocial API Configuration
+                </h3>
+                <p className="text-xs text-oj-muted">
+                  Connect your live Linkocial account for real-time SMM dispatching.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsUpdatingConfig(false)}
+                className="text-oj-muted hover:text-oj-midnight dark:hover:text-white text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSmmConfig} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-oj-midnight dark:text-white mb-1">
+                  Linkocial API Key *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={linkocialApiKeyInput}
+                  onChange={(e) => setLinkocialApiKeyInput(e.target.value)}
+                  placeholder="Paste your Linkocial API key here..."
+                  className="w-full px-3 py-2 rounded-xl border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt font-mono text-xs text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary"
+                />
+                <p className="text-[11px] text-oj-muted mt-1">
+                  Obtained from your Linkocial account under <em>API Docs ➔ Manage My Key</em>.
+                </p>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-oj-border dark:border-oj-dark-border">
+                <button
+                  type="button"
+                  onClick={() => setIsUpdatingConfig(false)}
+                  className="px-4 py-2 rounded-btn text-xs font-bold text-oj-muted hover:text-oj-midnight dark:hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-btn bg-oj-primary hover:bg-oj-primary-hover text-white text-xs font-bold shadow-glow-primary transition-all"
+                >
+                  Save API Key
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

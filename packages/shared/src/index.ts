@@ -356,3 +356,72 @@ export const RequestNumberInputSchema = z.object({
   idempotencyKey: z.string().uuid()
 });
 
+// SMM (Social Media Marketing) Types & Schemas
+export type SMMPlatform = 'instagram' | 'tiktok' | 'twitter' | 'youtube' | 'telegram' | 'facebook' | 'spotify' | 'threads' | 'other';
+
+export interface SMMService {
+  id: string;
+  providerServiceId: string;
+  name: string;
+  category: string;
+  platform: SMMPlatform;
+  sourceRateNgn: number;
+  retailRateNgn: number;
+  minQuantity: number;
+  maxQuantity: number;
+  description?: string;
+  isActive: boolean;
+  dripFeedSupported?: boolean;
+  refillSupported?: boolean;
+}
+
+export interface SMMOrder {
+  id: string;
+  reference: string;
+  userId: string;
+  customerEmail: string;
+  serviceId: string;
+  serviceName: string;
+  providerOrderId?: string;
+  targetLink: string;
+  quantity: number;
+  totalNgn: number;
+  sourceCostNgn: number;
+  profitNgn: number;
+  status: 'pending' | 'in_progress' | 'completed' | 'partial' | 'canceled' | 'refunded';
+  startCount: number;
+  remains: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SMMProviderConfig {
+  id: string;
+  name: string;
+  apiUrl: string;
+  apiKey: string;
+  isActive: boolean;
+  balanceNgn?: number;
+  currency?: string;
+  defaultMarkupPercent: number;
+  autoSyncEnabled: boolean;
+  lastSyncedAt?: string;
+}
+
+export const SMMOrderInputSchema = z.object({
+  serviceId: z.string().min(1),
+  targetLink: z.string().min(1, 'Target link is required'),
+  quantity: z.number().int().positive('Quantity must be greater than zero'),
+  idempotencyKey: z.string().min(1)
+});
+
+export const SMMStandardApiRequestSchema = z.object({
+  key: z.string().min(1),
+  action: z.enum(['services', 'add', 'status', 'balance']),
+  service: z.string().optional(),
+  link: z.string().optional(),
+  quantity: z.union([z.string(), z.number()]).optional(),
+  order: z.union([z.string(), z.number()]).optional()
+});
+
+

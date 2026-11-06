@@ -16,7 +16,9 @@ const EnvSchema = z.object({
   BACHS_BASE_URL: z.string().default('https://sandbox-api.bachs.io/v1'),
   BREVO_API_KEY: z.string().optional(),
   BREVO_SENDER_EMAIL: z.string().default('ojalogs@gmail.com'),
-  ADMIN_ALERT_EMAIL: z.string().default('ojalogs@gmail.com')
+  ADMIN_ALERT_EMAIL: z.string().default('ojalogs@gmail.com'),
+  LINKOCIAL_API_KEY: z.string().default('linkocial_live_token_default'),
+  LINKOCIAL_BASE_URL: z.string().default('https://linkocial.com/api/v1')
 });
 
 export const env = EnvSchema.parse(process.env);

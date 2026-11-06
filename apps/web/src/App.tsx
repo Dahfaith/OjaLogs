@@ -13,6 +13,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { ShopPage } from './pages/ShopPage';
 import { ProductDetailPage } from './pages/ProductDetailPage';
 import { VirtualNumbersPage } from './pages/VirtualNumbersPage';
+import { SocialBoostPage } from './pages/SocialBoostPage';
 import { WalletPage } from './pages/WalletPage';
 import { OrdersPage } from './pages/OrdersPage';
 import { ProfilePage } from './pages/ProfilePage';
@@ -37,6 +38,8 @@ export const App: React.FC = () => {
           <Route path="/shop" element={<ShopPage />} />
           <Route path="/product/:slug" element={<ProductDetailPage />} />
           <Route path="/virtual-numbers" element={<VirtualNumbersPage />} />
+          <Route path="/social-boost" element={<SocialBoostPage />} />
+          <Route path="/smm" element={<Navigate to="/social-boost" replace />} />
           <Route path="/wallet" element={<WalletPage />} />
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/profile" element={<ProfilePage />} />

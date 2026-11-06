@@ -63,6 +63,18 @@ export const ApiDocsPage: React.FC = () => {
     "amount": 25000,
     "currency": "NGN"
   }'`
+    },
+    {
+      server: 'Standard SMM Reseller API',
+      category: 'Social Media Marketing (SMM Protocol v1.0)',
+      endpoint: 'POST /api/v1/smm/api',
+      description: 'Industry-standard SMM protocol for external panels, bots, and resellers. Supports actions: services, add, status, and balance.',
+      curl: `curl -X POST "https://ojalogs-api.onrender.com/api/v1/smm/api" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "key": "<YOUR_OJALOGS_API_KEY>",
+    "action": "services"
+  }'`
     }
   ];
 

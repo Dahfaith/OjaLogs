@@ -5,6 +5,7 @@ import { catalogService } from '../services/catalog.service.js';
 import { serverApiRegistry } from '../adapters/server/server.registry.js';
 import { walletService } from '../services/wallet.service.js';
 import { notificationService } from '../services/notification.service.js';
+import { smmService } from '../services/smm.service.js';
 import { supabaseAdmin } from '../config/supabase.js';
 import { validateBody } from '../middleware/validate.js';
 import { z } from 'zod';
@@ -482,6 +483,101 @@ router.post('/notifications/test-email', async (req, res) => {
   res.json({
     success: result.success,
     data: result,
+    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+  });
+});
+
+// ==========================================
+// SMM & Social Boost Governance Hub
+// ==========================================
+router.get('/smm/services', (req, res) => {
+  res.json({
+    success: true,
+    data: smmService.getAdminServices(),
+    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+  });
+});
+
+const UpdateServiceRateSchema = z.object({
+  retailRateNgn: z.number().positive(),
+  isActive: z.boolean().optional()
+});
+
+router.patch('/smm/services/:id/rate', validateBody(UpdateServiceRateSchema), (req, res, next) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const { retailRateNgn, isActive } = req.body;
+    const updated = smmService.updateServiceRate(id, retailRateNgn, isActive);
+    res.json({
+      success: true,
+      data: updated,
+      meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const MarkupSchema = z.object({
+  markupPercent: z.number().min(0).max(500)
+});
+
+router.post('/smm/markup', validateBody(MarkupSchema), (req, res) => {
+  const { markupPercent } = req.body;
+  const result = smmService.setGlobalMarkup(markupPercent);
+  res.json({
+    success: true,
+    data: result,
+    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+  });
+});
+
+router.post('/smm/sync', async (req, res, next) => {
+  try {
+    const result = await smmService.syncServicesFromProvider();
+    res.json({
+      success: true,
+      data: result,
+      meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/smm/orders', (req, res) => {
+  res.json({
+    success: true,
+    data: smmService.getOrders(),
+    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+  });
+});
+
+router.get('/smm/config', async (req, res, next) => {
+  try {
+    const config = await smmService.getProviderConfig();
+    res.json({
+      success: true,
+      data: config,
+      meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const UpdateSmmConfigSchema = z.object({
+  apiKey: z.string().optional(),
+  apiUrl: z.string().optional(),
+  defaultMarkupPercent: z.number().optional(),
+  isActive: z.boolean().optional()
+});
+
+router.patch('/smm/config', validateBody(UpdateSmmConfigSchema), (req, res) => {
+  const updated = smmService.updateProviderConfig(req.body);
+  res.json({
+    success: true,
+    data: updated,
     meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
   });
 });

@@ -11,7 +11,8 @@
     "test:unit": "tsx test/api.test.ts",
     "test:bach": "tsx test/bach.test.ts",
     "test:e2e": "tsx test/e2e_phase5.test.ts",
-    "test": "tsx test/api.test.ts && tsx test/bach.test.ts && tsx test/e2e_phase5.test.ts"
+    "test:smm": "tsx test/smm.test.ts",
+    "test": "tsx test/api.test.ts && tsx test/bach.test.ts && tsx test/e2e_phase5.test.ts && tsx test/smm.test.ts"
   },
   "dependencies": {
     "@ojalogs/shared": "workspace:*",
