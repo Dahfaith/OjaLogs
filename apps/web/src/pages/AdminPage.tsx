@@ -48,7 +48,8 @@ import {
   Sparkles,
   Receipt,
   Inbox,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { mockAdminMetrics } from '../lib/mockData';
@@ -451,6 +452,28 @@ export const AdminPage: React.FC = () => {
     showToast('All notifications marked as read');
   };
 
+  const handleDeleteNotification = async (notifId: string) => {
+    setNotifications(prev => {
+      const updated = prev.filter(n => n.id !== notifId);
+      localStorage.setItem('oj_admin_notifications', JSON.stringify(updated));
+      return updated;
+    });
+    try {
+      await apiClient.deleteAdminNotification(notifId);
+    } catch {}
+    showToast('Notification deleted');
+  };
+
+  const handleClearNotifications = async () => {
+    if (!confirm('Are you sure you want to delete all admin notifications?')) return;
+    setNotifications([]);
+    localStorage.removeItem('oj_admin_notifications');
+    try {
+      await apiClient.clearAdminNotifications();
+    } catch {}
+    showToast('All notifications cleared');
+  };
+
   const [isTestingEmail, setIsTestingEmail] = useState(false);
 
   const handleSendTestEmail = async () => {
@@ -747,7 +770,7 @@ export const AdminPage: React.FC = () => {
             <div className="flex items-center gap-2">
               <Bell className="w-4 h-4 text-oj-primary" />
               <h3 className="font-heading font-bold text-sm text-oj-midnight dark:text-white">
-                New Customer Registrations & Real-time Alerts
+                Customer Activity & System Alerts
               </h3>
             </div>
             <div className="flex items-center gap-3">
@@ -765,40 +788,63 @@ export const AdminPage: React.FC = () => {
                 onClick={handleMarkNotificationsRead}
                 className="text-xs text-oj-muted hover:text-oj-primary font-bold"
               >
-                Mark all as read
+                Mark all read
               </button>
+              {notifications.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearNotifications}
+                  className="text-xs text-rose-500 hover:text-rose-700 font-bold flex items-center gap-1"
+                  title="Clear all alerts"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete all</span>
+                </button>
+              )}
             </div>
           </div>
 
           <div className="space-y-2 max-h-60 overflow-y-auto">
             {notifications.length === 0 ? (
-              <p className="text-xs text-oj-muted py-4 text-center">No new notifications. Alerts will appear here when users register or take sensitive actions.</p>
+              <p className="text-xs text-oj-muted py-4 text-center">No notifications. Alerts will appear here when users register, place orders, or take sensitive actions.</p>
             ) : (
               notifications.map(n => (
                 <div
                   key={n.id}
-                  className={`p-3 rounded-xl border text-xs flex items-start justify-between gap-3 ${
+                  className={`p-3 rounded-xl border text-xs flex items-start justify-between gap-3 group transition-all ${
                     n.read
-                      ? 'bg-oj-surface-alt/40 dark:bg-oj-dark-surface-alt/40 border-oj-border dark:border-oj-dark-border opacity-70'
+                      ? 'bg-oj-surface-alt/40 dark:bg-oj-dark-surface-alt/40 border-oj-border dark:border-oj-dark-border opacity-75'
                       : 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800'
                   }`}
                 >
-                  <div>
+                  <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                         n.type === 'NEW_USER_SIGNUP'
                           ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                          : n.type === 'ORDER_PLACED'
+                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
                           : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
                       }`}>
-                        {n.type === 'NEW_USER_SIGNUP' ? 'NEW USER' : n.type}
+                        {n.type === 'NEW_USER_SIGNUP' ? 'NEW USER' : n.type === 'ORDER_PLACED' ? 'PURCHASE' : n.type}
                       </span>
                       <p className="font-bold text-oj-midnight dark:text-white">{n.title}</p>
                     </div>
                     <p className="text-[11px] text-oj-muted mt-1">{n.message}</p>
                   </div>
-                  <span className="text-[10px] font-mono text-oj-muted whitespace-nowrap">
-                    {new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono text-oj-muted whitespace-nowrap">
+                      {new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteNotification(n.id)}
+                      className="p-1 rounded-md text-oj-muted hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
+                      title="Delete this notification"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               ))
             )}

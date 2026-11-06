@@ -37,6 +37,17 @@ class NotificationService {
     return this.notifications;
   }
 
+  deleteNotification(id: string): boolean {
+    const prevLen = this.notifications.length;
+    this.notifications = this.notifications.filter(n => n.id !== id);
+    return this.notifications.length < prevLen;
+  }
+
+  clearNotifications(): boolean {
+    this.notifications = [];
+    return true;
+  }
+
   getManagedUsers(): AdminManagedUser[] {
     return this.managedUsers;
   }
@@ -273,6 +284,217 @@ class NotificationService {
         success: false,
         message: `Network error connecting to Brevo: ${err.message}`
       };
+    }
+  }
+
+  async recordOrderAlert(order: any, customerEmail: string): Promise<boolean> {
+    const timestamp = order.createdAt || new Date().toISOString();
+    const orderRef = order.reference || `ord_${Date.now()}`;
+    const totalNgn = order.totalNgn || 0;
+    const items = order.items || [];
+    const paymentMethod = (order.paymentMethod || 'wallet').toUpperCase();
+
+    // 1. Queue In-App Super Admin Notification
+    this.notifications.unshift({
+      id: `notif_ord_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      type: 'ORDER_PLACED',
+      title: `New Order Placed: #${orderRef}`,
+      message: `${customerEmail} purchased ${items.length} item(s) for ₦${Number(totalNgn).toLocaleString()} via ${paymentMethod}`,
+      userEmail: customerEmail,
+      timestamp,
+      read: false
+    });
+
+    // 2. Increment user order count in managed users
+    const user = this.managedUsers.find(u => u.email.toLowerCase() === customerEmail.toLowerCase());
+    if (user) {
+      user.totalOrders = (user.totalOrders || 0) + 1;
+    }
+
+    // 3. Dispatch Emails via Brevo (Customer Receipt + Admin Operations Alert)
+    await Promise.allSettled([
+      this.dispatchCustomerPurchaseEmail(order, customerEmail),
+      this.dispatchAdminOrderAlertEmail(order, customerEmail)
+    ]);
+
+    return true;
+  }
+
+  async dispatchCustomerPurchaseEmail(order: any, customerEmail: string) {
+    const brevoApiKey = process.env.BREVO_API_KEY || env.BREVO_API_KEY;
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || env.BREVO_SENDER_EMAIL || 'ojalogs@gmail.com';
+
+    if (!brevoApiKey || !customerEmail || !customerEmail.includes('@')) {
+      return;
+    }
+
+    const orderRef = order.reference;
+    const totalFormatted = Number(order.totalNgn || 0).toLocaleString();
+    const itemsHtml = (order.items || []).map((it: any) => `
+      <tr style="border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 12px 8px; font-size: 13px; color: #0f172a;">
+          <strong>${it.product?.title || 'Digital Good / Service'}</strong>
+          <div style="font-size: 11px; color: #64748b; font-family: monospace;">Cluster: ${it.product?.serverCluster || 'Server 1'}</div>
+        </td>
+        <td style="padding: 12px 8px; font-size: 13px; text-align: center; color: #475569;">${it.quantity}</td>
+        <td style="padding: 12px 8px; font-size: 13px; text-align: right; font-weight: 600; color: #0f172a;">₦${Number(it.unitPriceNgn || 0).toLocaleString()}</td>
+      </tr>
+    `).join('');
+
+    const htmlContent = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+        <div style="background: #020b18; padding: 20px; border-radius: 8px; margin-bottom: 24px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 20px; letter-spacing: -0.02em;">Ojalogs Marketplace</h1>
+          <p style="color: #38bdf8; margin: 4px 0 0 0; font-size: 12px; font-weight: 600;">Digital Essentials & Fintech Marketplace</p>
+        </div>
+
+        <h2 style="color: #0f172a; margin-top: 0; font-size: 18px;">🎉 Thank You For Your Purchase!</h2>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+          Your order has been confirmed and provisioned through our automated high-speed servers. Your digital keys and credentials are now encrypted and stored in your private delivery vault.
+        </p>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <tr>
+              <td style="padding: 4px 0; color: #64748b;"><strong>Order Reference:</strong></td>
+              <td style="padding: 4px 0; text-align: right; font-family: monospace; font-weight: bold; color: #0284c7;">${orderRef}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; color: #64748b;"><strong>Payment Channel:</strong></td>
+              <td style="padding: 4px 0; text-align: right; font-weight: 600; color: #10b981;">${order.paymentMethod === 'wallet' ? 'Ojalogs NGN Wallet' : 'BACH Payment Gateway'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; color: #64748b;"><strong>Date:</strong></td>
+              <td style="padding: 4px 0; text-align: right; color: #475569;">${new Date().toUTCString()}</td>
+            </tr>
+          </table>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+          <thead>
+            <tr style="border-bottom: 2px solid #cbd5e1; text-align: left; font-size: 12px; color: #64748b;">
+              <th style="padding: 8px;">Item Description</th>
+              <th style="padding: 8px; text-align: center;">Qty</th>
+              <th style="padding: 8px; text-align: right;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="2" style="padding: 12px 8px; font-weight: bold; font-size: 14px; text-align: right; color: #0f172a;">Total Paid:</td>
+              <td style="padding: 12px 8px; font-weight: bold; font-size: 15px; text-align: right; color: #0284c7;">₦${totalFormatted}</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin: 24px 0;">
+          <h4 style="margin: 0 0 6px 0; color: #166534; font-size: 14px;">🔒 Cryptographically Sealed Delivery Vault</h4>
+          <p style="margin: 0; font-size: 13px; color: #15803d; line-height: 1.5;">
+            To protect your digital assets from interception, license keys and tokens are sealed with AES-256-GCM. Log in to your Ojalogs account to reveal and copy your keys instantly.
+          </p>
+        </div>
+
+        <div style="text-align: center; margin: 28px 0 20px 0;">
+          <a href="https://ojalogs.vercel.app/orders" style="background: #0284c7; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block;">Access My Orders & Reveal Vault Keys →</a>
+        </div>
+
+        <div style="border-top: 1px solid #e2e8f0; padding-top: 16px; text-align: center; font-size: 12px; color: #94a3b8;">
+          <p style="margin: 0;">Need help with your order? Reach our 24/7 support desk at <a href="mailto:ojalogs@gmail.com" style="color: #0284c7;">ojalogs@gmail.com</a></p>
+          <p style="margin: 4px 0 0 0;">Ojalogs Marketplace Technologies Ltd • All rights reserved</p>
+        </div>
+      </div>
+    `;
+
+    try {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': brevoApiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: { name: 'Ojalogs Marketplace', email: senderEmail },
+          to: [{ email: customerEmail, name: customerEmail.split('@')[0] }],
+          subject: `🎉 Purchase Receipt: Order #${orderRef} (₦${totalFormatted})`,
+          htmlContent
+        })
+      });
+
+      if (response.ok) {
+        console.log(`[ORDER_EMAIL] ✓ Customer receipt dispatched to ${customerEmail} for order ${orderRef}`);
+      } else {
+        const err = await response.text();
+        console.warn(`[ORDER_EMAIL] Customer receipt error: ${err}`);
+      }
+    } catch (err: any) {
+      console.warn(`[ORDER_EMAIL] Customer receipt network notice: ${err.message}`);
+    }
+  }
+
+  async dispatchAdminOrderAlertEmail(order: any, customerEmail: string) {
+    const brevoApiKey = process.env.BREVO_API_KEY || env.BREVO_API_KEY;
+    const adminEmail = process.env.ADMIN_ALERT_EMAIL || env.ADMIN_ALERT_EMAIL || 'ojalogs@gmail.com';
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || env.BREVO_SENDER_EMAIL || 'ojalogs@gmail.com';
+
+    if (!brevoApiKey) return;
+
+    const orderRef = order.reference;
+    const totalFormatted = Number(order.totalNgn || 0).toLocaleString();
+    const itemsSummary = (order.items || []).map((it: any) => `• ${it.product?.title || 'Item'} (Qty: ${it.quantity}, Cluster: ${it.product?.serverCluster || 'Server 1'})`).join('<br/>');
+
+    const htmlContent = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+        <div style="background: #020b18; padding: 16px 20px; border-radius: 8px; margin-bottom: 20px;">
+          <h2 style="color: #ffffff; margin: 0; font-size: 18px;">🛒 New Marketplace Purchase Alert</h2>
+        </div>
+        <h3 style="color: #0f172a; margin-top: 0;">Order #${orderRef} Settled Successfully</h3>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+          A customer has completed checkout on your live marketplace. Deliveries have been provisioned and recorded into the platform ledger.
+        </p>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 20px 0; font-size: 13px;">
+          <p style="margin: 0 0 8px 0; color: #64748b;"><strong>Customer:</strong> <span style="color: #0284c7; font-family: monospace; font-weight: 600;">${customerEmail}</span></p>
+          <p style="margin: 0 0 8px 0; color: #64748b;"><strong>Order Reference:</strong> <span style="font-family: monospace; font-weight: bold;">${orderRef}</span></p>
+          <p style="margin: 0 0 8px 0; color: #64748b;"><strong>Revenue:</strong> <span style="color: #10b981; font-weight: bold; font-size: 15px;">₦${totalFormatted}</span></p>
+          <p style="margin: 0 0 8px 0; color: #64748b;"><strong>Payment Channel:</strong> ${order.paymentMethod === 'wallet' ? 'Customer Wallet Debit' : 'BACH Payment Gateway'}</p>
+          <p style="margin: 0 0 8px 0; color: #64748b;"><strong>Items Purchased:</strong></p>
+          <div style="padding-left: 8px; color: #334155; line-height: 1.5;">${itemsSummary}</div>
+          <p style="margin: 8px 0 0 0; color: #64748b;"><strong>Timestamp:</strong> ${new Date().toUTCString()}</p>
+        </div>
+
+        <div style="margin-top: 24px; text-align: center;">
+          <a href="https://ojalogs.vercel.app/admin" style="background: #0284c7; color: #ffffff; padding: 10px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px; display: inline-block;">Open Admin Orders & Deliveries Console →</a>
+        </div>
+      </div>
+    `;
+
+    try {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': brevoApiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: { name: 'Ojalogs Marketplace Operations', email: senderEmail },
+          to: [{ email: adminEmail, name: 'Ojalogs Operations Alert' }],
+          subject: `🛒 New Customer Order: #${orderRef} - ₦${totalFormatted} (${customerEmail})`,
+          htmlContent
+        })
+      });
+
+      if (response.ok) {
+        console.log(`[ORDER_ALERT] ✓ Super admin order alert dispatched to ${adminEmail} for order ${orderRef}`);
+      } else {
+        const err = await response.text();
+        console.warn(`[ORDER_ALERT] Admin order alert error: ${err}`);
+      }
+    } catch (err: any) {
+      console.warn(`[ORDER_ALERT] Admin order alert notice: ${err.message}`);
     }
   }
 }

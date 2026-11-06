@@ -457,6 +457,25 @@ router.post('/notifications/mark-read', (req, res) => {
   });
 });
 
+router.delete('/notifications/:id', (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const deleted = notificationService.deleteNotification(id);
+  res.json({
+    success: true,
+    data: { id, deleted },
+    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+  });
+});
+
+router.delete('/notifications', (req, res) => {
+  notificationService.clearNotifications();
+  res.json({
+    success: true,
+    message: 'All notifications cleared',
+    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+  });
+});
+
 router.post('/notifications/test-email', async (req, res) => {
   const adminEmail = process.env.ADMIN_ALERT_EMAIL || env.ADMIN_ALERT_EMAIL || 'ojalogs@gmail.com';
   const result = await notificationService.sendTestAlert(adminEmail);

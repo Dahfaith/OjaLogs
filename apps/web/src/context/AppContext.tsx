@@ -528,6 +528,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setOrders(prev => [newOrder, ...prev]);
     clearCart();
 
+    // Ensure backend records order alert and dispatches customer + admin Brevo notification emails
+    apiClient.notifyOrderPlaced(newOrder).catch(() => {});
+
     confetti({
       particleCount: 100,
       spread: 90,
@@ -580,6 +583,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setOrders(prev => [newOrder, ...prev]);
     clearCart();
+
+    // Ensure backend records order alert and dispatches customer + admin Brevo notification emails
+    apiClient.notifyOrderPlaced(newOrder).catch(() => {});
 
     confetti({
       particleCount: 100,

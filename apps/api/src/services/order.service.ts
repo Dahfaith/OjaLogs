@@ -4,6 +4,7 @@ import { encryptPayload, decryptPayload } from '../utils/crypto.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { Order, OrderItem } from '@ojalogs/shared';
 import { bachGateway } from '../gateways/bach.gateway.js';
+import { notificationService } from './notification.service.js';
 
 interface CheckoutItemInput {
   productId: string;
@@ -126,6 +127,12 @@ export class OrderService {
 
     const userOrders = this.orders.get(userId) || [];
     this.orders.set(userId, [newOrder, ...userOrders]);
+
+    // Dispatch automated purchase confirmation to customer and operations alert to admin
+    notificationService.recordOrderAlert(newOrder, customerEmail).catch(err => {
+      console.warn('[ORDER_NOTIF_ERROR]', err.message);
+    });
+
     return { ...newOrder, gatewayCheckoutUrl };
   }
 

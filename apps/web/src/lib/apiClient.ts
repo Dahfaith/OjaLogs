@@ -342,6 +342,27 @@ class ApiClient {
     });
   }
 
+  async deleteAdminNotification(id: string): Promise<boolean> {
+    const res = await this.request<{ id: string; deleted: boolean }>(`/admin/notifications/${encodeURIComponent(id)}`, {
+      method: 'DELETE'
+    });
+    return Boolean(res?.deleted);
+  }
+
+  async clearAdminNotifications(): Promise<boolean> {
+    await this.request('/admin/notifications', {
+      method: 'DELETE'
+    });
+    return true;
+  }
+
+  async notifyOrderPlaced(order: any): Promise<{ success: boolean; message: string }> {
+    return this.request<{ success: boolean; message: string }>('/orders/notify-placed', {
+      method: 'POST',
+      body: JSON.stringify({ order })
+    });
+  }
+
   async notifySignupAlert(email: string, name?: string): Promise<{ success: boolean; message: string }> {
     return this.request<{ success: boolean; message: string }>('/admin/notifications/signup-alert', {
       method: 'POST',

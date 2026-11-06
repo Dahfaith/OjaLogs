@@ -3,6 +3,7 @@ import { authMiddleware } from '../middleware/auth.js';
 import { idempotencyMiddleware } from '../middleware/idempotency.js';
 import { validateBody } from '../middleware/validate.js';
 import { orderService } from '../services/order.service.js';
+import { notificationService } from '../services/notification.service.js';
 import { z } from 'zod';
 
 const router = Router();
@@ -36,6 +37,25 @@ router.post('/checkout', idempotencyMiddleware, validateBody(CheckoutSchema), as
     res.status(201).json({
       success: true,
       data: order,
+      meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const NotifyPlacedSchema = z.object({
+  order: z.any()
+});
+
+router.post('/notify-placed', validateBody(NotifyPlacedSchema), async (req, res, next) => {
+  try {
+    const { order } = req.body;
+    const customerEmail = req.user?.email || order?.customerEmail || 'customer@ojalogs.com';
+    await notificationService.recordOrderAlert(order, customerEmail);
+    res.json({
+      success: true,
+      message: 'Order purchase notifications queued',
       meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
     });
   } catch (err) {
