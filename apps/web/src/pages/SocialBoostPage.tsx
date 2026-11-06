@@ -17,7 +17,8 @@ import {
   Sparkles,
   Link as LinkIcon,
   HelpCircle,
-  ShoppingBag
+  ShoppingBag,
+  Lock
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -45,8 +46,16 @@ export const SocialBoostPage: React.FC = () => {
     { id: 'facebook', label: 'Facebook', icon: '👥' },
   ];
 
-  // Fetch Services
+  // Auto-prompt sign-in modal if visitor is not logged in
   useEffect(() => {
+    if (!user) {
+      setIsAuthModalOpen(true);
+    }
+  }, [user, setIsAuthModalOpen]);
+
+  // Fetch Services (only if user is authenticated)
+  useEffect(() => {
+    if (!user) return;
     let isMounted = true;
     const fetchServices = async () => {
       setIsLoading(true);
@@ -68,7 +77,7 @@ export const SocialBoostPage: React.FC = () => {
 
     fetchServices();
     return () => { isMounted = false; };
-  }, []);
+  }, [user]);
 
   // Fetch User SMM Orders
   useEffect(() => {
@@ -99,6 +108,64 @@ export const SocialBoostPage: React.FC = () => {
   const calculatedTotalNgn = selectedService
     ? Math.round((selectedService.retailRateNgn / 1000) * (quantity || 0))
     : 0;
+
+  // Authentication Gate: Require user to sign in before seeing the products & catalog
+  if (!user) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-16 pb-24 md:pb-12 text-center space-y-6">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500/20 to-orange-500/10 text-amber-500 mx-auto flex items-center justify-center shadow-soft border border-amber-500/20">
+          <Flame className="w-8 h-8 fill-amber-500" />
+        </div>
+
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold">
+            <Lock className="w-3.5 h-3.5" />
+            <span>Member Authentication Required</span>
+          </div>
+          <h1 className="font-heading font-black text-2xl sm:text-3xl text-oj-midnight dark:text-white">
+            Social Media Boost (SMM) Services
+          </h1>
+          <p className="text-xs sm:text-sm text-oj-muted dark:text-oj-dark-muted max-w-md mx-auto leading-relaxed">
+            Our private catalog of wholesale SMM services (Instagram, TikTok, YouTube, X & Telegram) is reserved for authenticated members. Please sign in or register with your email to unlock all services and rates.
+          </p>
+        </div>
+
+        <div className="p-6 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft max-w-md mx-auto space-y-4">
+          <div className="space-y-2.5 text-left text-xs">
+            <div className="flex items-center gap-2.5 text-oj-midnight dark:text-white font-medium">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+              <span>Instant access to 100+ Instagram, TikTok & YouTube services</span>
+            </div>
+            <div className="flex items-center gap-2.5 text-oj-midnight dark:text-white font-medium">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+              <span>Real-time price calculator & live delivery tracking</span>
+            </div>
+            <div className="flex items-center gap-2.5 text-oj-midnight dark:text-white font-medium">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+              <span>Instant automated checkout with your verified NGN wallet</span>
+            </div>
+            <div className="flex items-center gap-2.5 text-oj-midnight dark:text-white font-medium">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+              <span>Reseller API keys for automated bulk orders</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-200 dark:border-emerald-800">
+            <ShieldCheck className="w-4 h-4 shrink-0" />
+            <span>Instant sign-in · No password fatigue with Magic Link / OTP</span>
+          </div>
+
+          <button
+            onClick={() => setIsAuthModalOpen(true)}
+            className="w-full py-3.5 rounded-btn bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:opacity-95 text-white text-xs font-bold shadow-lg transition-all flex items-center justify-center gap-2 hover:scale-105"
+          >
+            <Lock className="w-4 h-4" />
+            <span>Sign In or Register with Email</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
