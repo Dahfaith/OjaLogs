@@ -930,6 +930,7 @@ export const AdminPage: React.FC = () => {
                 <option value="all">All Roles</option>
                 <option value="customer">Customer</option>
                 <option value="administrator">Administrator</option>
+                <option value="super_administrator">Super Administrator</option>
                 <option value="support_agent">Support Agent</option>
                 <option value="seller">Seller</option>
               </select>
@@ -992,6 +993,7 @@ export const AdminPage: React.FC = () => {
                         >
                           <option value="customer">Customer</option>
                           <option value="administrator">Administrator</option>
+                          <option value="super_administrator">Super Administrator</option>
                           <option value="support_agent">Support Agent</option>
                           <option value="seller">Seller</option>
                         </select>
