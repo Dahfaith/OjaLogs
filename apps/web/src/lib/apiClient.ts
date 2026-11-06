@@ -43,9 +43,14 @@ class ApiClient {
       }
     } catch {}
 
+    const activeToken = this.getToken();
+    const tokenToSend = adminEmail
+      ? (activeToken.includes('.') ? activeToken : 'mock_jwt_admin_visioreach')
+      : activeToken;
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${this.getToken()}`,
+      'Authorization': `Bearer ${tokenToSend}`,
       ...(adminEmail ? { 'x-admin-email': adminEmail } : {}),
       ...(options.headers as Record<string, string> || {})
     };

@@ -434,7 +434,12 @@ export const AdminPage: React.FC = () => {
         showToast(`Notice: ${res.message || 'Could not send test email'}`);
       }
     } catch (err: any) {
-      showToast(`Error: ${err.message || 'Failed to dispatch test email'}`);
+      const msg = err?.message || '';
+      if (msg.includes('Failed to fetch')) {
+        showToast('Render API is waking up or deploying. Please wait 15-20 seconds and click again!');
+      } else {
+        showToast(`Error: ${msg || 'Failed to dispatch test email'}`);
+      }
     } finally {
       setIsTestingEmail(false);
     }
@@ -453,7 +458,12 @@ export const AdminPage: React.FC = () => {
       const notifs = await apiClient.getAdminNotifications();
       if (notifs) setNotifications(notifs);
     } catch (err: any) {
-      showToast(`Sync error: ${err.message}`);
+      const msg = err?.message || '';
+      if (msg.includes('Failed to fetch')) {
+        showToast('Render API is waking up or deploying. Please wait 15-20 seconds and click again!');
+      } else {
+        showToast(`Sync error: ${msg}`);
+      }
     }
   };
 
