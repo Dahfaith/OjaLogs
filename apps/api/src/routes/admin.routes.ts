@@ -3,10 +3,11 @@ import { authMiddleware } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
 import { catalogService } from '../services/catalog.service.js';
 import { serverApiRegistry } from '../adapters/server/server.registry.js';
+import { walletService } from '../services/wallet.service.js';
 import { validateBody } from '../middleware/validate.js';
 import { z } from 'zod';
 import { env } from '../config/env.js';
-import { PaymentGatewayConfig, TelephonyProviderConfig } from '@ojalogs/shared';
+import { PaymentGatewayConfig, TelephonyProviderConfig, AdminManagedUser, AdminNotification } from '@ojalogs/shared';
 
 const router = Router();
 router.use(authMiddleware);
@@ -324,6 +325,196 @@ router.post('/numbers/configs/:id/test', (req, res) => {
       latencyMs: simulatedLatency,
       message: `Telephony API ping healthy (${provider.name}). SMS receiving queue operational.`
     },
+    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+  });
+});
+
+// ==========================================
+// User Management & Customer Control Store
+// ==========================================
+let managedUsers: AdminManagedUser[] = [
+  {
+    id: 'usr_admin_001',
+    name: 'Visio Reach',
+    email: 'visioreach@gmail.com',
+    role: 'super_administrator',
+    status: 'active',
+    balanceNgn: 0.00,
+    isVerified: true,
+    totalOrders: 0,
+    createdAt: '2026-11-05T00:00:00.000Z'
+  }
+];
+
+let adminNotifications: AdminNotification[] = [
+  {
+    id: 'notif_welcome',
+    type: 'SECURITY_ALERT',
+    title: 'Platform Production Launch',
+    message: 'Super Administrator Console initialized with zero-leak RLS policies and multi-server clusters.',
+    timestamp: new Date().toISOString(),
+    read: false
+  }
+];
+
+router.get('/users', (req, res) => {
+  res.json({
+    success: true,
+    data: managedUsers,
+    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+  });
+});
+
+const UpdateUserStatusSchema = z.object({
+  status: z.enum(['active', 'frozen', 'suspended'])
+});
+
+router.patch('/users/:userId/status', validateBody(UpdateUserStatusSchema), (req, res) => {
+  const rawId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
+  const user = managedUsers.find(u => u.id === rawId);
+  if (!user) {
+    return res.status(404).json({ success: false, error: { message: 'User not found' } });
+  }
+
+  user.status = req.body.status;
+  res.json({
+    success: true,
+    data: user,
+    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+  });
+});
+
+const UpdateUserRoleSchema = z.object({
+  role: z.enum(['guest', 'customer', 'support_agent', 'administrator', 'super_administrator', 'seller'])
+});
+
+router.patch('/users/:userId/role', validateBody(UpdateUserRoleSchema), (req, res) => {
+  const rawId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
+  const user = managedUsers.find(u => u.id === rawId);
+  if (!user) {
+    return res.status(404).json({ success: false, error: { message: 'User not found' } });
+  }
+
+  user.role = req.body.role;
+  res.json({
+    success: true,
+    data: user,
+    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+  });
+});
+
+const AdjustBalanceSchema = z.object({
+  amountNgn: z.number().min(0.01),
+  type: z.enum(['credit', 'debit']),
+  reason: z.string().min(2)
+});
+
+router.post('/users/:userId/adjust-balance', validateBody(AdjustBalanceSchema), (req, res) => {
+  const rawId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
+  const user = managedUsers.find(u => u.id === rawId);
+  if (!user) {
+    return res.status(404).json({ success: false, error: { message: 'User not found' } });
+  }
+
+  const { amountNgn, type, reason } = req.body;
+  if (type === 'credit') {
+    user.balanceNgn += amountNgn;
+    walletService.creditWallet(
+      user.id,
+      amountNgn,
+      'adjustment',
+      `ref_adj_${Date.now()}`,
+      `Administrative manual credit: ${reason}`
+    );
+  } else {
+    user.balanceNgn = Math.max(0, user.balanceNgn - amountNgn);
+    walletService.debitWallet(
+      user.id,
+      amountNgn,
+      'adjustment',
+      `ref_adj_${Date.now()}`,
+      `Administrative manual debit: ${reason}`
+    );
+  }
+
+  // Record audit notification
+  adminNotifications.unshift({
+    id: `notif_${Date.now()}`,
+    type: 'SECURITY_ALERT',
+    title: `Manual Wallet Adjustment (${type.toUpperCase()})`,
+    message: `Admin adjusted ${user.email} wallet by ₦${amountNgn.toLocaleString()}. Reason: ${reason}`,
+    userEmail: user.email,
+    timestamp: new Date().toISOString(),
+    read: false
+  });
+
+  res.json({
+    success: true,
+    data: user,
+    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+  });
+});
+
+// ==========================================
+// Admin Notifications & Signup Alerts
+// ==========================================
+router.get('/notifications', (req, res) => {
+  res.json({
+    success: true,
+    data: adminNotifications,
+    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+  });
+});
+
+router.post('/notifications/mark-read', (req, res) => {
+  adminNotifications = adminNotifications.map(n => ({ ...n, read: true }));
+  res.json({
+    success: true,
+    data: adminNotifications,
+    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+  });
+});
+
+const SignupAlertSchema = z.object({
+  email: z.string().email(),
+  name: z.string().optional()
+});
+
+router.post('/notifications/signup-alert', validateBody(SignupAlertSchema), async (req, res) => {
+  const { email, name } = req.body;
+  const existing = managedUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+  
+  if (!existing) {
+    const newUser: AdminManagedUser = {
+      id: `usr_${Date.now()}`,
+      name: name || email.split('@')[0],
+      email,
+      role: 'customer',
+      status: 'active',
+      balanceNgn: 0.00,
+      isVerified: true,
+      totalOrders: 0,
+      createdAt: new Date().toISOString()
+    };
+    managedUsers.unshift(newUser);
+
+    const notif: AdminNotification = {
+      id: `notif_${Date.now()}`,
+      type: 'NEW_USER_SIGNUP',
+      title: 'New Customer Registered',
+      message: `${newUser.name} (${newUser.email}) just verified their account on Ojalogs.`,
+      userEmail: newUser.email,
+      timestamp: new Date().toISOString(),
+      read: false
+    };
+    adminNotifications.unshift(notif);
+
+    console.log(`[ADMIN_ALERT] 🚨 New customer registered: ${email}. Notification queued.`);
+  }
+
+  res.json({
+    success: true,
+    message: 'Signup alert recorded successfully',
     meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
   });
 });

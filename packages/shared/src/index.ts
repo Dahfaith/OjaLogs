@@ -302,6 +302,29 @@ export interface TelephonyProviderConfig {
   latencyMs: number;
 }
 
+export interface AdminManagedUser {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  status: 'active' | 'frozen' | 'suspended';
+  balanceNgn: number;
+  isVerified: boolean;
+  totalOrders: number;
+  createdAt: string;
+  lastActiveAt?: string;
+}
+
+export interface AdminNotification {
+  id: string;
+  type: 'NEW_USER_SIGNUP' | 'ORDER_PLACED' | 'PAYMENT_RECEIVED' | 'SECURITY_ALERT';
+  title: string;
+  message: string;
+  userEmail?: string;
+  timestamp: string;
+  read: boolean;
+}
+
 export interface AdminMetrics {
   totalRevenueNgn: number;
   walletLiabilitiesNgn: number;

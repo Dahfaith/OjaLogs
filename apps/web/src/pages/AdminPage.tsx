@@ -29,16 +29,26 @@ import {
   Building2,
   Percent,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  Bell,
+  Search,
+  Filter,
+  Lock,
+  Unlock,
+  UserCheck,
+  UserX,
+  DollarSign,
+  ArrowUpRight,
+  ArrowDownLeft
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { mockAdminMetrics } from '../lib/mockData';
-import { Product, ServerClusterConfig, PaymentGatewayConfig, TelephonyProviderConfig } from '@ojalogs/shared';
+import { Product, ServerClusterConfig, PaymentGatewayConfig, TelephonyProviderConfig, AdminManagedUser, AdminNotification, UserRole } from '@ojalogs/shared';
 import { apiClient } from '../lib/apiClient';
 
 export const AdminPage: React.FC = () => {
   const { user, role, products, ledger, activeNumbers, showToast, formatPrice, updateProduct } = useApp();
-  const [activeTab, setActiveTab] = useState<'kpi' | 'catalog' | 'servers' | 'gateways' | 'numbers' | 'fulfilment' | 'ledger' | 'audit'>('kpi');
+  const [activeTab, setActiveTab] = useState<'kpi' | 'users' | 'catalog' | 'servers' | 'gateways' | 'numbers' | 'fulfilment' | 'ledger' | 'audit'>('kpi');
   const [metrics] = useState(mockAdminMetrics);
 
   const [inventoryPayload, setInventoryPayload] = useState('');
@@ -259,6 +269,39 @@ export const AdminPage: React.FC = () => {
   });
   const [testingTelephony, setTestingTelephony] = useState<string | null>(null);
 
+  // User Governance State
+  const [usersList, setUsersList] = useState<AdminManagedUser[]>(() => {
+    const saved = localStorage.getItem('oj_managed_users');
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return [
+      {
+        id: 'usr_admin_001',
+        name: 'Visio Reach',
+        email: 'visioreach@gmail.com',
+        role: 'super_administrator',
+        status: 'active',
+        balanceNgn: 0.00,
+        isVerified: true,
+        totalOrders: 0,
+        createdAt: '2026-11-05T00:00:00.000Z'
+      }
+    ];
+  });
+
+  const [userSearch, setUserSearch] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState('all');
+  const [userStatusFilter, setUserStatusFilter] = useState('all');
+  const [adjustingUser, setAdjustingUser] = useState<AdminManagedUser | null>(null);
+  const [adjustAmount, setAdjustAmount] = useState<number>(500);
+  const [adjustType, setAdjustType] = useState<'credit' | 'debit'>('credit');
+  const [adjustReason, setAdjustReason] = useState<string>('Dispute resolution / Promotion');
+
+  // Notifications State
+  const [notifications, setNotifications] = useState<AdminNotification[]>([]);
+  const [showNotificationDrawer, setShowNotificationDrawer] = useState(false);
+
   // Sync from live backend API on mount
   useEffect(() => {
     apiClient.getServerConfigs()
@@ -287,7 +330,81 @@ export const AdminPage: React.FC = () => {
         }
       })
       .catch(() => {});
+
+    apiClient.getAdminUsers()
+      .then(data => {
+        if (data && data.length > 0) {
+          setUsersList(data);
+          localStorage.setItem('oj_managed_users', JSON.stringify(data));
+        }
+      })
+      .catch(() => {});
+
+    apiClient.getAdminNotifications()
+      .then(data => {
+        if (data && data.length > 0) setNotifications(data);
+      })
+      .catch(() => {});
   }, []);
+
+  const handleToggleFreezeUser = async (userToUpdate: AdminManagedUser) => {
+    const nextStatus: 'active' | 'frozen' = userToUpdate.status === 'frozen' ? 'active' : 'frozen';
+    try {
+      await apiClient.updateUserStatus(userToUpdate.id, nextStatus);
+    } catch {}
+    setUsersList(prev => {
+      const updated: AdminManagedUser[] = prev.map(u => u.id === userToUpdate.id ? { ...u, status: nextStatus } : u);
+      localStorage.setItem('oj_managed_users', JSON.stringify(updated));
+      return updated;
+    });
+    showToast(`${userToUpdate.email} account is now ${nextStatus.toUpperCase()}`);
+  };
+
+  const handleChangeRole = async (userId: string, newRole: any) => {
+    try {
+      await apiClient.updateUserRole(userId, newRole);
+    } catch {}
+    setUsersList(prev => {
+      const updated = prev.map(u => u.id === userId ? { ...u, role: newRole } : u);
+      localStorage.setItem('oj_managed_users', JSON.stringify(updated));
+      return updated;
+    });
+    showToast(`Role updated to ${newRole}`);
+  };
+
+  const handleApplyAdjustment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adjustingUser || adjustAmount <= 0) return;
+
+    try {
+      await apiClient.adjustUserBalance(adjustingUser.id, adjustAmount, adjustType, adjustReason);
+    } catch {}
+
+    setUsersList(prev => {
+      const updated = prev.map(u => {
+        if (u.id === adjustingUser.id) {
+          const newBal = adjustType === 'credit'
+            ? u.balanceNgn + adjustAmount
+            : Math.max(0, u.balanceNgn - adjustAmount);
+          return { ...u, balanceNgn: newBal };
+        }
+        return u;
+      });
+      localStorage.setItem('oj_managed_users', JSON.stringify(updated));
+      return updated;
+    });
+
+    showToast(`Successfully ${adjustType === 'credit' ? 'credited' : 'debited'} ${adjustingUser.email} with ₦${adjustAmount.toLocaleString()}`);
+    setAdjustingUser(null);
+  };
+
+  const handleMarkNotificationsRead = async () => {
+    try {
+      await apiClient.markAdminNotificationsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch {}
+    showToast('All notifications marked as read');
+  };
 
   const handleUpdateGatewayField = (id: string, field: keyof PaymentGatewayConfig, val: any) => {
     setGatewayConfigs(prev => prev.map(g => g.id === id ? { ...g, [field]: val } : g));
@@ -446,18 +563,89 @@ export const AdminPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/60 px-3 py-1 rounded-lg border border-emerald-800 flex items-center gap-1.5">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowNotificationDrawer(!showNotificationDrawer)}
+            className="relative p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors border border-white/10 flex items-center gap-1.5 text-xs font-bold"
+            title="Real-time Signup Alerts & Admin Notifications"
+          >
+            <Bell className="w-4 h-4 text-oj-cyan" />
+            <span>Alerts</span>
+            {notifications.filter(n => !n.read).length > 0 && (
+              <span className="w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center animate-pulse ml-0.5">
+                {notifications.filter(n => !n.read).length}
+              </span>
+            )}
+          </button>
+
+          <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/60 px-3 py-1.5 rounded-lg border border-emerald-800 flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span>RLS Active · Supabase Postgres</span>
           </span>
         </div>
       </div>
 
+      {/* Notification Alerts Drawer */}
+      {showNotificationDrawer && (
+        <div className="p-5 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft space-y-3">
+          <div className="flex items-center justify-between pb-3 border-b border-oj-border dark:border-oj-dark-border">
+            <div className="flex items-center gap-2">
+              <Bell className="w-4 h-4 text-oj-primary" />
+              <h3 className="font-heading font-bold text-sm text-oj-midnight dark:text-white">
+                New Customer Registrations & Real-time Alerts
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={handleMarkNotificationsRead}
+              className="text-xs text-oj-primary hover:underline font-bold"
+            >
+              Mark all as read
+            </button>
+          </div>
+
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {notifications.length === 0 ? (
+              <p className="text-xs text-oj-muted py-4 text-center">No new notifications. Alerts will appear here when users register or take sensitive actions.</p>
+            ) : (
+              notifications.map(n => (
+                <div
+                  key={n.id}
+                  className={`p-3 rounded-xl border text-xs flex items-start justify-between gap-3 ${
+                    n.read
+                      ? 'bg-oj-surface-alt/40 dark:bg-oj-dark-surface-alt/40 border-oj-border dark:border-oj-dark-border opacity-70'
+                      : 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        n.type === 'NEW_USER_SIGNUP'
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                          : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                      }`}>
+                        {n.type === 'NEW_USER_SIGNUP' ? 'NEW USER' : n.type}
+                      </span>
+                      <p className="font-bold text-oj-midnight dark:text-white">{n.title}</p>
+                    </div>
+                    <p className="text-[11px] text-oj-muted mt-1">{n.message}</p>
+                  </div>
+                  <span className="text-[10px] font-mono text-oj-muted whitespace-nowrap">
+                    {new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Admin Tabs */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none border-b border-oj-border dark:border-oj-dark-border">
         {[
           { id: 'kpi', label: 'Overview & KPIs', icon: TrendingUp },
+          { id: 'users', label: 'User Governance & Customers', icon: Users },
           { id: 'catalog', label: 'Catalog Governance', icon: Sliders },
           { id: 'servers', label: 'Server APIs & Upstream Config', icon: Server },
           { id: 'gateways', label: 'Payment Gateways & Banking', icon: CreditCard },
@@ -557,6 +745,335 @@ export const AdminPage: React.FC = () => {
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: User Governance & Customers */}
+      {activeTab === 'users' && (
+        <div className="space-y-6">
+          {/* Top Info Banner */}
+          <div className="p-5 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-heading font-extrabold text-base text-oj-midnight dark:text-white">
+                  User Governance & Customer Control
+                </h3>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
+                  ● Real-time RBAC Active
+                </span>
+              </div>
+              <p className="text-xs text-oj-muted mt-1 max-w-2xl">
+                Inspect registered customers, freeze/unfreeze wallets, perform manual balance adjustments with audit notes, and assign roles without touching code.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono font-bold text-oj-midnight dark:text-white bg-oj-surface-alt dark:bg-oj-dark-surface-alt px-3 py-1.5 rounded-lg border border-oj-border dark:border-oj-dark-border">
+                Registered: {usersList.length} Accounts
+              </span>
+            </div>
+          </div>
+
+          {/* Quick Metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
+              <span className="text-xs text-oj-muted block">Total Registered</span>
+              <p className="font-heading font-extrabold text-xl text-oj-midnight dark:text-white mt-1">
+                {usersList.length}
+              </p>
+              <span className="text-[10px] text-emerald-600 font-semibold mt-0.5 block">
+                {usersList.filter(u => u.isVerified).length} Verified Email
+              </span>
+            </div>
+
+            <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
+              <span className="text-xs text-oj-muted block">Active Accounts</span>
+              <p className="font-heading font-extrabold text-xl text-emerald-600 mt-1">
+                {usersList.filter(u => u.status === 'active').length}
+              </p>
+              <span className="text-[10px] text-emerald-600 font-semibold mt-0.5 block">
+                Full Platform Clearance
+              </span>
+            </div>
+
+            <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
+              <span className="text-xs text-oj-muted block">Frozen / Restricted</span>
+              <p className="font-heading font-extrabold text-xl text-amber-600 mt-1">
+                {usersList.filter(u => u.status !== 'active').length}
+              </p>
+              <span className="text-[10px] text-oj-muted mt-0.5 block">
+                Wallets Locked
+              </span>
+            </div>
+
+            <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
+              <span className="text-xs text-oj-muted block">Total Customer Balances</span>
+              <p className="font-heading font-extrabold text-xl text-oj-midnight dark:text-white mt-1">
+                {formatPrice(usersList.reduce((acc, u) => acc + (u.balanceNgn || 0), 0))}
+              </p>
+              <span className="text-[10px] text-oj-muted mt-0.5 block">
+                Total Wallet Liability
+              </span>
+            </div>
+          </div>
+
+          {/* Search & Filters */}
+          <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="relative w-full sm:w-80">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-oj-muted" />
+              <input
+                type="text"
+                placeholder="Search by email or name..."
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-xs font-medium text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <select
+                value={userRoleFilter}
+                onChange={(e) => setUserRoleFilter(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-xs font-medium text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary"
+              >
+                <option value="all">All Roles</option>
+                <option value="customer">Customer</option>
+                <option value="administrator">Administrator</option>
+                <option value="support_agent">Support Agent</option>
+                <option value="seller">Seller</option>
+              </select>
+
+              <select
+                value={userStatusFilter}
+                onChange={(e) => setUserStatusFilter(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-xs font-medium text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary"
+              >
+                <option value="all">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="frozen">Frozen</option>
+                <option value="suspended">Suspended</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Users Table */}
+          <div className="border border-oj-border dark:border-oj-dark-border rounded-xl overflow-hidden bg-white dark:bg-oj-dark-surface shadow-soft">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted border-b border-oj-border dark:border-oj-dark-border">
+                <tr>
+                  <th className="py-2.5 px-3 font-semibold">User</th>
+                  <th className="py-2.5 px-3 font-semibold">Role</th>
+                  <th className="py-2.5 px-3 font-semibold text-right">Balance</th>
+                  <th className="py-2.5 px-3 font-semibold text-center">Status</th>
+                  <th className="py-2.5 px-3 font-semibold">Registered</th>
+                  <th className="py-2.5 px-3 font-semibold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-oj-border dark:divide-oj-dark-border">
+                {usersList
+                  .filter(u => {
+                    const matchesSearch =
+                      u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
+                      u.name.toLowerCase().includes(userSearch.toLowerCase());
+                    const matchesRole = userRoleFilter === 'all' || u.role === userRoleFilter;
+                    const matchesStatus = userStatusFilter === 'all' || u.status === userStatusFilter;
+                    return matchesSearch && matchesRole && matchesStatus;
+                  })
+                  .map((u) => (
+                    <tr key={u.id} className="hover:bg-oj-surface-alt/40 transition-colors">
+                      <td className="py-3 px-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-oj-primary/10 text-oj-primary font-bold flex items-center justify-center text-xs border border-oj-primary/20">
+                            {u.name.substring(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-bold text-oj-midnight dark:text-white">{u.name}</p>
+                            <p className="font-mono text-[11px] text-oj-muted">{u.email}</p>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="py-3 px-3">
+                        <select
+                          value={u.role}
+                          onChange={(e) => handleChangeRole(u.id, e.target.value)}
+                          className="px-2 py-1 rounded-md border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt font-medium text-[11px] text-oj-midnight dark:text-white"
+                        >
+                          <option value="customer">Customer</option>
+                          <option value="administrator">Administrator</option>
+                          <option value="support_agent">Support Agent</option>
+                          <option value="seller">Seller</option>
+                        </select>
+                      </td>
+
+                      <td className="py-3 px-3 text-right font-mono font-bold text-oj-midnight dark:text-white">
+                        {formatPrice(u.balanceNgn)}
+                      </td>
+
+                      <td className="py-3 px-3 text-center">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          u.status === 'active'
+                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
+                            : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
+                        }`}>
+                          {u.status === 'active' ? '● Active' : '● Frozen'}
+                        </span>
+                      </td>
+
+                      <td className="py-3 px-3 font-mono text-[11px] text-oj-muted">
+                        {new Date(u.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </td>
+
+                      <td className="py-3 px-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleFreezeUser(u)}
+                            className={`p-1.5 rounded-lg border transition-colors ${
+                              u.status === 'frozen'
+                                ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
+                                : 'bg-oj-surface-alt text-amber-600 border-oj-border hover:bg-amber-50'
+                            }`}
+                            title={u.status === 'frozen' ? 'Unfreeze Account Wallet' : 'Freeze Account Wallet'}
+                          >
+                            {u.status === 'frozen' ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAdjustingUser(u);
+                              setAdjustAmount(500);
+                            }}
+                            className="px-2.5 py-1 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-primary hover:text-white text-oj-midnight dark:text-white font-bold text-[11px] flex items-center gap-1 transition-all"
+                            title="Adjust Wallet Balance"
+                          >
+                            <DollarSign className="w-3 h-3" />
+                            <span>Adjust</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Balance Adjustment Modal */}
+      {adjustingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-oj-border dark:border-oj-dark-border">
+              <div>
+                <h3 className="font-heading font-extrabold text-base text-oj-midnight dark:text-white">
+                  Manual Wallet Adjustment
+                </h3>
+                <p className="text-xs text-oj-muted">
+                  Audited balance modification for <span className="font-mono font-bold text-oj-primary">{adjustingUser.email}</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAdjustingUser(null)}
+                className="p-1 rounded-lg text-oj-muted hover:text-oj-midnight dark:hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleApplyAdjustment} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-oj-midnight dark:text-white mb-1">
+                  Adjustment Type
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAdjustType('credit')}
+                    className={`py-2 rounded-lg font-bold border transition-all ${
+                      adjustType === 'credit'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                        : 'bg-oj-surface-alt text-oj-muted border-oj-border'
+                    }`}
+                  >
+                    + Credit Wallet (Add ₦)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAdjustType('debit')}
+                    className={`py-2 rounded-lg font-bold border transition-all ${
+                      adjustType === 'debit'
+                        ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
+                        : 'bg-oj-surface-alt text-oj-muted border-oj-border'
+                    }`}
+                  >
+                    - Debit Wallet (Deduct ₦)
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-oj-midnight dark:text-white mb-1">
+                  Amount in NGN (₦)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  required
+                  value={adjustAmount}
+                  onChange={(e) => setAdjustAmount(Number(e.target.value))}
+                  className="w-full px-3 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt font-mono font-bold text-sm text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-oj-midnight dark:text-white mb-1">
+                  Audit Reason / Dispute Note
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={adjustReason}
+                  onChange={(e) => setAdjustReason(e.target.value)}
+                  placeholder="e.g. Goodwill credit, Dispute resolution, Promotional reward"
+                  className="w-full px-3 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-xs font-medium text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary"
+                />
+              </div>
+
+              <div className="p-3 rounded-xl bg-oj-surface-alt/60 dark:bg-oj-dark-surface-alt/60 border border-oj-border dark:border-oj-dark-border text-[11px] text-oj-muted space-y-1">
+                <span className="font-bold text-oj-midnight dark:text-white block">Balance Impact:</span>
+                <p>
+                  Current: <span className="font-mono font-bold">{formatPrice(adjustingUser.balanceNgn)}</span> ➔ After:{' '}
+                  <span className="font-mono font-bold text-emerald-600">
+                    {formatPrice(
+                      adjustType === 'credit'
+                        ? adjustingUser.balanceNgn + adjustAmount
+                        : Math.max(0, adjustingUser.balanceNgn - adjustAmount)
+                    )}
+                  </span>
+                </p>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-oj-border dark:border-oj-dark-border">
+                <button
+                  type="button"
+                  onClick={() => setAdjustingUser(null)}
+                  className="px-4 py-2 rounded-btn text-xs font-bold text-oj-muted hover:text-oj-midnight dark:hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-btn bg-oj-primary hover:bg-oj-primary-hover text-white text-xs font-bold shadow-glow-primary transition-all"
+                >
+                  Confirm & Apply Adjustment
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

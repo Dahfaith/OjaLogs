@@ -162,6 +162,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setUser(userObj);
         if (isAdmin) setRole('admin');
         localStorage.setItem('oj_user', JSON.stringify(userObj));
+        if (u.email) {
+          apiClient.notifySignupAlert(u.email, formattedName).catch(() => {});
+        }
       }
     });
 
@@ -189,6 +192,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setUser(userObj);
         if (isAdmin) setRole('admin');
         localStorage.setItem('oj_user', JSON.stringify(userObj));
+        if (u.email) {
+          apiClient.notifySignupAlert(u.email, formattedName).catch(() => {});
+        }
         showToast(`Authenticated as ${userObj.email}!`);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);

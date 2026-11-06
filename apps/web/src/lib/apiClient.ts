@@ -7,7 +7,10 @@ import {
   ServiceOption,
   ServerClusterConfig,
   PaymentGatewayConfig,
-  TelephonyProviderConfig
+  TelephonyProviderConfig,
+  AdminManagedUser,
+  AdminNotification,
+  UserRole
 } from '@ojalogs/shared';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'https://ojalogs-api.onrender.com/api/v1';
@@ -260,6 +263,50 @@ class ApiClient {
   async testTelephonyConnection(id: string): Promise<{ healthy: boolean; latencyMs: number; message: string }> {
     return this.request<{ healthy: boolean; latencyMs: number; message: string }>(`/admin/numbers/configs/${encodeURIComponent(id)}/test`, {
       method: 'POST'
+    });
+  }
+
+  // Admin User Management
+  async getAdminUsers(): Promise<AdminManagedUser[]> {
+    return this.request<AdminManagedUser[]>('/admin/users');
+  }
+
+  async updateUserStatus(userId: string, status: 'active' | 'frozen' | 'suspended'): Promise<AdminManagedUser> {
+    return this.request<AdminManagedUser>(`/admin/users/${encodeURIComponent(userId)}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status })
+    });
+  }
+
+  async updateUserRole(userId: string, role: UserRole): Promise<AdminManagedUser> {
+    return this.request<AdminManagedUser>(`/admin/users/${encodeURIComponent(userId)}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role })
+    });
+  }
+
+  async adjustUserBalance(userId: string, amountNgn: number, type: 'credit' | 'debit', reason: string): Promise<AdminManagedUser> {
+    return this.request<AdminManagedUser>(`/admin/users/${encodeURIComponent(userId)}/adjust-balance`, {
+      method: 'POST',
+      body: JSON.stringify({ amountNgn, type, reason })
+    });
+  }
+
+  // Admin Notifications & Signup Alerts
+  async getAdminNotifications(): Promise<AdminNotification[]> {
+    return this.request<AdminNotification[]>('/admin/notifications');
+  }
+
+  async markAdminNotificationsRead(): Promise<AdminNotification[]> {
+    return this.request<AdminNotification[]>('/admin/notifications/mark-read', {
+      method: 'POST'
+    });
+  }
+
+  async notifySignupAlert(email: string, name?: string): Promise<{ success: boolean; message: string }> {
+    return this.request<{ success: boolean; message: string }>('/admin/notifications/signup-alert', {
+      method: 'POST',
+      body: JSON.stringify({ email, name })
     });
   }
 }
