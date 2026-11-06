@@ -79,8 +79,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultEm
 
   const handleVerifyOtp = async (codeToVerify?: string) => {
     const code = (codeToVerify || otpCode).trim();
-    if (!code || code.length < 4) {
-      setErrorMessage('Please enter the 6-digit confirmation code.');
+    if (!code || code.length < 6) {
+      setErrorMessage('Please enter the confirmation code from your email.');
       return;
     }
 
@@ -258,7 +258,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultEm
                     Check your email
                   </h2>
                   <p className="text-xs text-oj-muted dark:text-oj-dark-muted">
-                    We sent a magic link and 6-digit confirmation code to:
+                    We sent a magic link and confirmation code to:
                   </p>
                   <p className="font-mono text-xs font-bold text-oj-primary dark:text-oj-cyan">
                     {email}
@@ -274,28 +274,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultEm
                 <div className="space-y-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-oj-muted dark:text-oj-dark-muted block text-center">
-                      Enter 6-Digit Confirmation Code
+                      Enter Confirmation Code
                     </label>
                     <input
                       type="text"
-                      maxLength={6}
+                      maxLength={8}
                       value={otpCode}
                       onChange={e => {
                         const val = e.target.value.replace(/\D/g, '');
                         setOtpCode(val);
-                        if (val.length === 6) {
+                        if (val.length === 8) {
                           handleVerifyOtp(val);
                         }
                       }}
-                      placeholder="123456"
-                      className="w-full text-center tracking-[0.5em] font-mono text-xl py-3 rounded-xl border border-oj-border dark:border-oj-dark-border bg-white dark:bg-oj-dark-surface font-extrabold focus:outline-none focus:border-oj-primary transition-colors"
+                      placeholder="12345678"
+                      className="w-full text-center tracking-[0.3em] font-mono text-xl py-3 rounded-xl border border-oj-border dark:border-oj-dark-border bg-white dark:bg-oj-dark-surface font-extrabold focus:outline-none focus:border-oj-primary transition-colors"
                       autoFocus
                     />
                   </div>
 
                   <button
                     onClick={() => handleVerifyOtp()}
-                    disabled={isLoading || otpCode.length < 4}
+                    disabled={isLoading || otpCode.length < 6}
                     className="w-full py-3 rounded-btn bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-teal-600 hover:to-emerald-600 text-white text-xs font-bold shadow-md flex items-center justify-center gap-2 transition-all hover:scale-[1.01] disabled:opacity-50"
                   >
                     {isLoading ? (
