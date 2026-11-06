@@ -49,7 +49,7 @@ import { apiClient } from '../lib/apiClient';
 export const AdminPage: React.FC = () => {
   const { user, role, products, ledger, activeNumbers, showToast, formatPrice, updateProduct } = useApp();
   const [activeTab, setActiveTab] = useState<'kpi' | 'users' | 'catalog' | 'servers' | 'gateways' | 'numbers' | 'fulfilment' | 'ledger' | 'audit'>('kpi');
-  const [metrics] = useState(mockAdminMetrics);
+  const [metrics, setMetrics] = useState(mockAdminMetrics);
 
   const [inventoryPayload, setInventoryPayload] = useState('');
   const [selectedProductForVault, setSelectedProductForVault] = useState(products[0]?.id || '');
@@ -336,6 +336,21 @@ export const AdminPage: React.FC = () => {
         if (data && data.length > 0) {
           setUsersList(data);
           localStorage.setItem('oj_managed_users', JSON.stringify(data));
+        }
+      })
+      .catch(() => {});
+
+    apiClient.getAdminMetrics()
+      .then(data => {
+        if (data) {
+          setMetrics(prev => ({
+            ...prev,
+            totalRevenueNgn: data.totalRevenueNgn ?? 0,
+            walletLiabilitiesNgn: data.walletLiabilitiesNgn ?? 0,
+            totalOrders: data.totalOrders ?? 0,
+            activeRentalsCount: data.activeRentals ?? 0,
+            registeredCustomersCount: data.registeredCustomers ?? 1
+          }));
         }
       })
       .catch(() => {});

@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { bachGateway } from '../gateways/bach.gateway.js';
 import { walletService } from '../services/wallet.service.js';
+import { notificationService } from '../services/notification.service.js';
 import { AppError } from '../middleware/errorHandler.js';
 
 const router = Router();
@@ -136,50 +137,8 @@ router.post(['/auth/new-user', '/auth', '/new-user'], async (req: Request, res: 
 
     console.log(`[SUPABASE_AUTH_WEBHOOK] 🚨 NEW USER REGISTERED on Ojalogs: ${email} (${name}) at ${createdAt}`);
 
-    // If Brevo API key exists, send an automated alert email to the admin
-    const brevoApiKey = process.env.BREVO_API_KEY;
-    const adminEmail = process.env.ADMIN_ALERT_EMAIL || 'ojalogs@gmail.com';
-
-    if (brevoApiKey) {
-      try {
-        await fetch('https://api.brevo.com/v3/smtp/email', {
-          method: 'POST',
-          headers: {
-            'api-key': brevoApiKey,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            sender: { name: 'Ojalogs Marketplace Security', email: 'security@ojalogs.com' },
-            to: [{ email: adminEmail, name: 'Ojalogs Operations Alert' }],
-            subject: `🚨 New User Signup: ${email} on Ojalogs`,
-            htmlContent: `
-              <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
-                <div style="background: #020b18; padding: 16px 20px; border-radius: 8px; margin-bottom: 20px;">
-                  <h2 style="color: #ffffff; margin: 0; font-size: 18px;">Ojalogs Super Admin Alert</h2>
-                </div>
-                <h3 style="color: #0f172a; margin-top: 0;">A New Customer Just Registered!</h3>
-                <p style="color: #475569; font-size: 14px; line-height: 1.6;">
-                  A new customer has just verified and created an account on your live marketplace platform.
-                </p>
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 20px 0;">
-                  <p style="margin: 0 0 8px 0; font-size: 13px; color: #64748b;"><strong>Email:</strong> <span style="color: #0284c7; font-family: monospace;">${email}</span></p>
-                  <p style="margin: 0 0 8px 0; font-size: 13px; color: #64748b;"><strong>Name:</strong> ${name}</p>
-                  <p style="margin: 0 0 8px 0; font-size: 13px; color: #64748b;"><strong>Initial Wallet Balance:</strong> ₦0.00</p>
-                  <p style="margin: 0; font-size: 13px; color: #64748b;"><strong>Registered At:</strong> ${new Date(createdAt).toUTCString()}</p>
-                </div>
-                <div style="margin-top: 24px; text-align: center;">
-                  <a href="https://ojalogs.vercel.app/admin" style="background: #0284c7; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px; display: inline-block;">Open Admin User Console →</a>
-                </div>
-              </div>
-            `
-          })
-        });
-        console.log(`[SUPABASE_AUTH_WEBHOOK] ✓ Dispatched notification email to ${adminEmail}`);
-      } catch (mailErr: any) {
-        console.warn(`[SUPABASE_AUTH_WEBHOOK] Brevo alert email notice: ${mailErr.message}`);
-      }
-    }
+    // Record user in admin store, create admin notification, and dispatch email alert to ojalogs@gmail.com
+    await notificationService.recordSignupAlert(email, name, createdAt);
 
     return res.status(200).json({
       success: true,

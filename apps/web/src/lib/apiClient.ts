@@ -292,6 +292,25 @@ class ApiClient {
     });
   }
 
+  // Admin Metrics
+  async getAdminMetrics(): Promise<{
+    totalRevenueNgn: number;
+    walletLiabilitiesNgn: number;
+    totalOrders: number;
+    activeRentals: number;
+    registeredCustomers: number;
+    systemHealth: string;
+  }> {
+    return this.request<{
+      totalRevenueNgn: number;
+      walletLiabilitiesNgn: number;
+      totalOrders: number;
+      activeRentals: number;
+      registeredCustomers: number;
+      systemHealth: string;
+    }>('/admin/metrics');
+  }
+
   // Admin Notifications & Signup Alerts
   async getAdminNotifications(): Promise<AdminNotification[]> {
     return this.request<AdminNotification[]>('/admin/notifications');

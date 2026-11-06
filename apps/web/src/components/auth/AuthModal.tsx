@@ -137,6 +137,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultEm
       setUser(verifiedUser);
       localStorage.setItem('oj_user', JSON.stringify(verifiedUser));
 
+      // Trigger instant real-time admin signup notification and email alert
+      apiClient.notifySignupAlert(verifiedUser.email, verifiedUser.name).catch(() => {});
+
       confetti({
         particleCount: 100,
         spread: 80,
