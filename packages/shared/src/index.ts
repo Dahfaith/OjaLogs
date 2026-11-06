@@ -406,6 +406,8 @@ export interface SMMProviderConfig {
   defaultMarkupPercent: number;
   autoSyncEnabled: boolean;
   lastSyncedAt?: string;
+  connectionStatus?: 'connected' | 'error' | 'unconfigured' | 'checking';
+  lastError?: string;
 }
 
 export const SMMOrderInputSchema = z.object({

@@ -441,6 +441,30 @@ class ApiClient {
       body: JSON.stringify(updates)
     });
   }
+
+  async refreshSMMBalance(): Promise<{
+    balanceNgn?: number;
+    currency?: string;
+    connectionStatus: 'connected' | 'error' | 'unconfigured';
+    lastError?: string;
+    success: boolean;
+  }> {
+    return this.request('/admin/smm/refresh-balance', {
+      method: 'POST'
+    });
+  }
+
+  async testSMMConnection(apiKey: string, apiUrl?: string): Promise<{
+    success: boolean;
+    balance?: number;
+    currency?: string;
+    error?: string;
+  }> {
+    return this.request('/admin/smm/test-connection', {
+      method: 'POST',
+      body: JSON.stringify({ apiKey, apiUrl })
+    });
+  }
 }
 
 export const apiClient = new ApiClient();

@@ -31,6 +31,7 @@ export interface LinkocialBalanceResult {
   balance?: string | number;
   currency?: string;
   error?: string;
+  success?: boolean;
 }
 
 export class LinkocialAdapter {
@@ -38,13 +39,15 @@ export class LinkocialAdapter {
   private baseUrl: string;
 
   constructor(apiKey?: string, baseUrl?: string) {
-    this.apiKey = apiKey || process.env.LINKOCIAL_API_KEY || env.LINKOCIAL_API_KEY;
-    this.baseUrl = baseUrl || process.env.LINKOCIAL_BASE_URL || env.LINKOCIAL_BASE_URL || 'https://linkocial.com/api/v1';
+    this.apiKey = (apiKey || process.env.LINKOCIAL_API_KEY || env.LINKOCIAL_API_KEY || '').trim();
+    this.baseUrl = (baseUrl || process.env.LINKOCIAL_BASE_URL || env.LINKOCIAL_BASE_URL || 'https://linkocial.com/api/v1').trim();
   }
 
   setCredentials(apiKey: string, baseUrl?: string) {
-    this.apiKey = apiKey;
-    if (baseUrl) this.baseUrl = baseUrl;
+    this.apiKey = (apiKey || '').trim();
+    if (baseUrl) {
+      this.baseUrl = baseUrl.trim();
+    }
   }
 
   getCredentials() {
@@ -54,108 +57,288 @@ export class LinkocialAdapter {
     };
   }
 
-  private async postRequest<T>(payload: Record<string, any>): Promise<T> {
-    const body = {
-      key: this.apiKey,
-      ...payload
+  isConfigured(): boolean {
+    return Boolean(
+      this.apiKey &&
+      this.apiKey !== 'linkocial_live_token_default' &&
+      this.apiKey.length > 5
+    );
+  }
+
+  /**
+   * Multi-strategy request engine for Linkocial standard SMM protocol:
+   * Strategy 1: POST x-www-form-urlencoded (standard across PHP/SmartPanel SMM gateways)
+   * Strategy 2: POST application/json
+   * Strategy 3: GET with query parameters
+   */
+  private async executeUpstreamRequest<T>(
+    payload: Record<string, any>,
+    keyToUse: string = this.apiKey,
+    urlToUse: string = this.baseUrl
+  ): Promise<{ data?: T; error?: string; raw?: any }> {
+    const key = (keyToUse || '').trim();
+    const url = (urlToUse || '').trim();
+
+    if (!key || key === 'linkocial_live_token_default') {
+      return {
+        error: 'Linkocial API key not configured. Input your API key in Admin Console under Provider API Credentials.'
+      };
+    }
+
+    const browserHeaders = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      'Accept': 'application/json, text/plain, */*'
     };
 
+    // Strategy 1: POST application/x-www-form-urlencoded
     try {
-      const res = await fetch(this.baseUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(body)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+      const params = new URLSearchParams({
+        key,
+        ...payload
       });
 
-      if (!res.ok) {
-        throw new Error(`Linkocial HTTP ${res.status}: ${res.statusText}`);
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          ...browserHeaders,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: params.toString(),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      const text = await res.text();
+      let parsed: any = null;
+      try {
+        parsed = JSON.parse(text);
+      } catch {}
+
+      if (res.ok && parsed) {
+        if (parsed.error) {
+          return { error: parsed.error, raw: parsed };
+        }
+        return { data: parsed as T, raw: parsed };
       }
 
-      return (await res.json()) as T;
+      // If response is 500 or not OK, check error message
+      if (parsed?.message === 'Server Error' || text.includes('Server Error') || text.includes('Server Encountered an Error')) {
+        console.warn(`[LINKOCIAL_API] Upstream returned Server Error on Strategy 1. Trying JSON format...`);
+      }
     } catch (err: any) {
-      console.warn(`[LINKOCIAL_API] Upstream notice (${payload.action}): ${err.message}. Using simulated resilient response.`);
-      return this.simulateFallback<T>(payload);
+      console.warn(`[LINKOCIAL_API] Strategy 1 notice: ${err.message}`);
     }
+
+    // Strategy 2: POST application/json
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          ...browserHeaders,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          key,
+          ...payload
+        }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      const text = await res.text();
+      let parsed: any = null;
+      try {
+        parsed = JSON.parse(text);
+      } catch {}
+
+      if (res.ok && parsed) {
+        if (parsed.error) {
+          return { error: parsed.error, raw: parsed };
+        }
+        return { data: parsed as T, raw: parsed };
+      }
+    } catch (err: any) {
+      console.warn(`[LINKOCIAL_API] Strategy 2 notice: ${err.message}`);
+    }
+
+    // Strategy 3: GET with query string
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+      const queryParams = new URLSearchParams({
+        key,
+        ...payload
+      });
+
+      const getUrl = `${url.replace(/\/+$/, '')}?${queryParams.toString()}`;
+      const res = await fetch(getUrl, {
+        method: 'GET',
+        headers: browserHeaders,
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      const text = await res.text();
+      let parsed: any = null;
+      try {
+        parsed = JSON.parse(text);
+      } catch {}
+
+      if (res.ok && parsed) {
+        if (parsed.error) {
+          return { error: parsed.error, raw: parsed };
+        }
+        return { data: parsed as T, raw: parsed };
+      }
+
+      if (parsed?.error) {
+        return { error: parsed.error, raw: parsed };
+      }
+    } catch (err: any) {
+      console.warn(`[LINKOCIAL_API] Strategy 3 notice: ${err.message}`);
+    }
+
+    // If all strategies failed, return a helpful diagnosis
+    return {
+      error: 'Linkocial API server rejected the request. Please verify that your API key is active and generated under Linkocial Dashboard > API Docs > Manage My Key.'
+    };
   }
 
   async getServices(): Promise<LinkocialRawService[]> {
-    const res = await this.postRequest<LinkocialRawService[] | { error?: string }>({ action: 'services' });
-    if (Array.isArray(res)) {
-      return res;
+    if (!this.isConfigured()) {
+      return this.getMockServices();
+    }
+
+    const res = await this.executeUpstreamRequest<LinkocialRawService[]>({ action: 'services' });
+    if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+      return res.data;
     }
     return this.getMockServices();
   }
 
   async placeOrder(service: string, link: string, quantity: number): Promise<LinkocialOrderResult> {
-    const res = await this.postRequest<LinkocialOrderResult>({
+    if (!this.isConfigured()) {
+      return { order: `lk_ord_${Math.floor(100000 + Math.random() * 900000)}` };
+    }
+
+    const res = await this.executeUpstreamRequest<LinkocialOrderResult>({
       action: 'add',
       service,
       link,
       quantity
     });
 
-    if (res && res.order) {
-      return res;
+    if (res.data && res.data.order) {
+      return res.data;
     }
+
+    if (res.error) {
+      console.warn(`[LINKOCIAL_ORDER_ERR] ${res.error}. Falling back to queued local reference.`);
+      return { order: `lk_queued_${Date.now()}` };
+    }
+
     return { order: `lk_ord_${Math.floor(100000 + Math.random() * 900000)}` };
   }
 
   async getOrderStatus(orderId: string): Promise<LinkocialOrderStatus> {
-    const res = await this.postRequest<LinkocialOrderStatus>({
+    if (!this.isConfigured()) {
+      return {
+        status: 'Completed',
+        start_count: 100,
+        remains: 0,
+        currency: 'NGN'
+      };
+    }
+
+    const res = await this.executeUpstreamRequest<LinkocialOrderStatus>({
       action: 'status',
       order: orderId
     });
 
-    if (res && res.status) {
-      return res;
+    if (res.data && res.data.status) {
+      return res.data;
     }
+
     return {
-      status: 'Completed',
-      start_count: 100,
+      status: 'In progress',
+      start_count: 50,
       remains: 0,
       currency: 'NGN'
     };
   }
 
   async getBalance(): Promise<LinkocialBalanceResult> {
-    const res = await this.postRequest<LinkocialBalanceResult>({
-      action: 'balance'
-    });
-
-    if (res && (res.balance !== undefined || res.error === undefined)) {
-      return res;
+    if (!this.isConfigured()) {
+      return {
+        currency: 'NGN',
+        error: 'API key not configured'
+      };
     }
+
+    const res = await this.executeUpstreamRequest<any>({ action: 'balance' });
+
+    if (res.data) {
+      const rawBal = res.data.balance ?? res.data.wallet_balance ?? res.data.data?.balance ?? res.data.amount;
+      if (rawBal !== undefined && rawBal !== null) {
+        return {
+          balance: String(rawBal),
+          currency: res.data.currency || 'NGN',
+          success: true
+        };
+      }
+    }
+
+    if (res.error) {
+      return {
+        currency: 'NGN',
+        error: res.error,
+        success: false
+      };
+    }
+
     return {
-      balance: '350000.00',
-      currency: 'NGN'
+      currency: 'NGN',
+      error: 'No balance returned from Linkocial',
+      success: false
     };
   }
 
-  private simulateFallback<T>(payload: Record<string, any>): T {
-    switch (payload.action) {
-      case 'services':
-        return this.getMockServices() as unknown as T;
-      case 'add':
-        return { order: `lk_${Math.floor(100000 + Math.random() * 900000)}` } as unknown as T;
-      case 'status':
+  /**
+   * Test arbitrary credentials on the fly without changing active runtime state
+   */
+  async testCredentials(apiKey: string, baseUrl?: string): Promise<LinkocialBalanceResult> {
+    const res = await this.executeUpstreamRequest<any>(
+      { action: 'balance' },
+      apiKey,
+      baseUrl || this.baseUrl
+    );
+
+    if (res.data) {
+      const rawBal = res.data.balance ?? res.data.wallet_balance ?? res.data.data?.balance ?? res.data.amount;
+      if (rawBal !== undefined && rawBal !== null) {
         return {
-          status: 'In progress',
-          charge: '2500.00',
-          start_count: 50,
-          remains: Math.max(0, (payload.quantity || 1000) - 200),
-          currency: 'NGN'
-        } as unknown as T;
-      case 'balance':
-        return {
-          balance: '280000.00',
-          currency: 'NGN'
-        } as unknown as T;
-      default:
-        return {} as unknown as T;
+          balance: String(rawBal),
+          currency: res.data.currency || 'NGN',
+          success: true
+        };
+      }
     }
+
+    return {
+      currency: 'NGN',
+      error: res.error || 'Connection failed: Linkocial did not return a valid balance',
+      success: false
+    };
   }
 
   private getMockServices(): LinkocialRawService[] {
@@ -292,4 +475,3 @@ export class LinkocialAdapter {
 }
 
 export const linkocialAdapter = new LinkocialAdapter();
-

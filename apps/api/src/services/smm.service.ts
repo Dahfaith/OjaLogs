@@ -1,9 +1,13 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { SMMService, SMMOrder, SMMProviderConfig, SMMPlatform } from '@ojalogs/shared';
 import { linkocialAdapter, LinkocialRawService } from '../adapters/smm/linkocial.adapter.js';
 import { walletService } from './wallet.service.js';
 import { notificationService } from './notification.service.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { env } from '../config/env.js';
+
+const CONFIG_FILE = path.join(process.cwd(), 'data', 'smm_config.json');
 
 export class SMMManagerService {
   private config: SMMProviderConfig = {
@@ -12,12 +16,46 @@ export class SMMManagerService {
     apiUrl: process.env.LINKOCIAL_BASE_URL || env.LINKOCIAL_BASE_URL || 'https://linkocial.com/api/v1',
     apiKey: process.env.LINKOCIAL_API_KEY || env.LINKOCIAL_API_KEY || 'linkocial_live_token_default',
     isActive: true,
-    balanceNgn: 350000.00,
+    balanceNgn: 0.00,
     currency: 'NGN',
     defaultMarkupPercent: 30, // Default +30% profit margin
     autoSyncEnabled: true,
-    lastSyncedAt: new Date().toISOString()
+    lastSyncedAt: new Date().toISOString(),
+    connectionStatus: 'unconfigured'
   };
+
+  constructor() {
+    this.loadPersistedConfig();
+  }
+
+  private loadPersistedConfig() {
+    try {
+      if (fs.existsSync(CONFIG_FILE)) {
+        const raw = fs.readFileSync(CONFIG_FILE, 'utf-8');
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+          this.config = {
+            ...this.config,
+            ...parsed
+          };
+          if (this.config.apiKey) {
+            linkocialAdapter.setCredentials(this.config.apiKey, this.config.apiUrl);
+          }
+        }
+      }
+    } catch (err: any) {
+      console.warn(`[SMM_PERSISTENCE] Notice loading config: ${err.message}`);
+    }
+  }
+
+  private savePersistedConfig() {
+    try {
+      fs.mkdirSync(path.dirname(CONFIG_FILE), { recursive: true });
+      fs.writeFileSync(CONFIG_FILE, JSON.stringify(this.config, null, 2), 'utf-8');
+    } catch (err: any) {
+      console.warn(`[SMM_PERSISTENCE] Notice saving config: ${err.message}`);
+    }
+  }
 
   private services: SMMService[] = [
     {
@@ -438,24 +476,37 @@ export class SMMManagerService {
   }
 
   async getProviderConfig(): Promise<SMMProviderConfig> {
-    try {
-      const bal = await linkocialAdapter.getBalance();
-      if (bal && bal.balance !== undefined) {
-        this.config.balanceNgn = Number(bal.balance);
-        this.config.currency = bal.currency || 'NGN';
+    if (linkocialAdapter.isConfigured()) {
+      try {
+        const bal = await linkocialAdapter.getBalance();
+        if (bal && bal.balance !== undefined) {
+          this.config.balanceNgn = Number(bal.balance);
+          this.config.currency = bal.currency || 'NGN';
+          this.config.connectionStatus = 'connected';
+          this.config.lastError = undefined;
+        } else if (bal && bal.error) {
+          this.config.connectionStatus = 'error';
+          this.config.lastError = bal.error;
+        }
+        this.savePersistedConfig();
+      } catch (err: any) {
+        this.config.connectionStatus = 'error';
+        this.config.lastError = err.message;
       }
-    } catch {}
+    } else {
+      this.config.connectionStatus = 'unconfigured';
+    }
     return this.config;
   }
 
-  updateProviderConfig(updates: Partial<SMMProviderConfig>): SMMProviderConfig {
-    if (updates.apiKey) {
-      this.config.apiKey = updates.apiKey;
-      linkocialAdapter.setCredentials(updates.apiKey, updates.apiUrl);
-    }
-    if (updates.apiUrl) {
-      this.config.apiUrl = updates.apiUrl;
+  async updateProviderConfig(updates: Partial<SMMProviderConfig>): Promise<SMMProviderConfig> {
+    if (updates.apiKey !== undefined) {
+      this.config.apiKey = updates.apiKey.trim();
       linkocialAdapter.setCredentials(this.config.apiKey, updates.apiUrl);
+    }
+    if (updates.apiUrl !== undefined) {
+      this.config.apiUrl = updates.apiUrl.trim();
+      linkocialAdapter.setCredentials(this.config.apiKey, this.config.apiUrl);
     }
     if (updates.defaultMarkupPercent !== undefined) {
       this.config.defaultMarkupPercent = updates.defaultMarkupPercent;
@@ -463,7 +514,100 @@ export class SMMManagerService {
     if (updates.isActive !== undefined) {
       this.config.isActive = updates.isActive;
     }
+
+    if (linkocialAdapter.isConfigured()) {
+      try {
+        const bal = await linkocialAdapter.getBalance();
+        if (bal && bal.balance !== undefined) {
+          this.config.balanceNgn = Number(bal.balance);
+          this.config.currency = bal.currency || 'NGN';
+          this.config.connectionStatus = 'connected';
+          this.config.lastError = undefined;
+        } else if (bal && bal.error) {
+          this.config.connectionStatus = 'error';
+          this.config.lastError = bal.error;
+        }
+      } catch (err: any) {
+        this.config.connectionStatus = 'error';
+        this.config.lastError = err.message;
+      }
+    } else {
+      this.config.connectionStatus = 'unconfigured';
+    }
+
+    this.savePersistedConfig();
     return this.config;
+  }
+
+  async refreshBalance(): Promise<{
+    balanceNgn?: number;
+    currency?: string;
+    connectionStatus: 'connected' | 'error' | 'unconfigured';
+    lastError?: string;
+    success: boolean;
+  }> {
+    if (!linkocialAdapter.isConfigured()) {
+      return {
+        connectionStatus: 'unconfigured',
+        lastError: 'API key is not configured. Input your Linkocial API key.',
+        success: false
+      };
+    }
+
+    try {
+      const bal = await linkocialAdapter.getBalance();
+      if (bal && bal.balance !== undefined) {
+        this.config.balanceNgn = Number(bal.balance);
+        this.config.currency = bal.currency || 'NGN';
+        this.config.connectionStatus = 'connected';
+        this.config.lastError = undefined;
+        this.savePersistedConfig();
+        return {
+          balanceNgn: this.config.balanceNgn,
+          currency: this.config.currency,
+          connectionStatus: 'connected',
+          success: true
+        };
+      }
+
+      this.config.connectionStatus = 'error';
+      this.config.lastError = bal.error || 'Failed to read balance from Linkocial';
+      this.savePersistedConfig();
+      return {
+        connectionStatus: 'error',
+        lastError: this.config.lastError,
+        success: false
+      };
+    } catch (err: any) {
+      this.config.connectionStatus = 'error';
+      this.config.lastError = err.message;
+      this.savePersistedConfig();
+      return {
+        connectionStatus: 'error',
+        lastError: err.message,
+        success: false
+      };
+    }
+  }
+
+  async testConnection(apiKey: string, apiUrl?: string): Promise<{
+    success: boolean;
+    balance?: number;
+    currency?: string;
+    error?: string;
+  }> {
+    const res = await linkocialAdapter.testCredentials(apiKey, apiUrl);
+    if (res.balance !== undefined) {
+      return {
+        success: true,
+        balance: Number(res.balance),
+        currency: res.currency || 'NGN'
+      };
+    }
+    return {
+      success: false,
+      error: res.error || 'Connection failed: Linkocial rejected key'
+    };
   }
 
   // ==========================================

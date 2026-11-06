@@ -347,6 +347,9 @@ export const AdminPage: React.FC = () => {
   const [isSyncingSmm, setIsSyncingSmm] = useState(false);
   const [isUpdatingConfig, setIsUpdatingConfig] = useState(false);
   const [linkocialApiKeyInput, setLinkocialApiKeyInput] = useState('');
+  const [isRefreshingBalance, setIsRefreshingBalance] = useState(false);
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string; balance?: number } | null>(null);
 
   // Sync from live backend API on mount
   useEffect(() => {
@@ -469,13 +472,82 @@ export const AdminPage: React.FC = () => {
     }
   };
 
+  const handleRefreshBalance = async () => {
+    setIsRefreshingBalance(true);
+    try {
+      const res = await apiClient.refreshSMMBalance();
+      if (res.success && res.balanceNgn !== undefined) {
+        setSmmConfig(prev => prev ? {
+          ...prev,
+          balanceNgn: res.balanceNgn,
+          currency: res.currency || 'NGN',
+          connectionStatus: 'connected',
+          lastError: undefined
+        } : null);
+        showToast(`Live Linkocial Balance: ${formatPrice(res.balanceNgn)} (${res.currency || 'NGN'})`);
+      } else {
+        setSmmConfig(prev => prev ? {
+          ...prev,
+          connectionStatus: 'error',
+          lastError: res.lastError
+        } : null);
+        showToast(res.lastError || 'Could not read balance from Linkocial');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to refresh balance from Linkocial');
+    } finally {
+      setIsRefreshingBalance(false);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    const key = linkocialApiKeyInput.trim();
+    if (!key) {
+      showToast('Please paste your API key to test');
+      return;
+    }
+    setIsTestingConnection(true);
+    setTestResult(null);
+    try {
+      const res = await apiClient.testSMMConnection(key);
+      if (res.success && res.balance !== undefined) {
+        setTestResult({
+          success: true,
+          balance: res.balance,
+          message: `Connected successfully! Live balance: ${formatPrice(res.balance)} (${res.currency || 'NGN'})`
+        });
+      } else {
+        setTestResult({
+          success: false,
+          message: res.error || 'Linkocial rejected this key. Please verify key under Linkocial > Manage My Key.'
+        });
+      }
+    } catch (err: any) {
+      setTestResult({
+        success: false,
+        message: err.message || 'Connection test failed'
+      });
+    } finally {
+      setIsTestingConnection(false);
+    }
+  };
+
   const handleSaveSmmConfig = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const updated = await apiClient.updateSMMProviderConfig({ apiKey: linkocialApiKeyInput });
+      const trimmedKey = linkocialApiKeyInput.trim();
+      const updated = await apiClient.updateSMMProviderConfig({ apiKey: trimmedKey });
       setSmmConfig(updated);
       setIsUpdatingConfig(false);
-      showToast('Linkocial provider credentials saved successfully');
+      setTestResult(null);
+
+      if (updated.connectionStatus === 'connected' && updated.balanceNgn !== undefined) {
+        showToast(`Linkocial Connected! Live balance: ${formatPrice(updated.balanceNgn)}`);
+      } else if (updated.connectionStatus === 'error') {
+        showToast(updated.lastError || 'Credentials saved, but Linkocial reported a connection issue.');
+      } else {
+        showToast('Linkocial provider credentials saved successfully');
+      }
     } catch {
       showToast('Failed to update provider config');
     }
@@ -2574,14 +2646,26 @@ export const AdminPage: React.FC = () => {
           {/* Top Banner: Linkocial Provider Hub */}
           <div className="p-6 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Flame className="w-5 h-5 text-amber-500" />
                 <h3 className="font-heading font-extrabold text-base text-oj-midnight dark:text-white">
                   SMM & Social Boost Engine (Linkocial API v1.0)
                 </h3>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                  ● Upstream Connected
-                </span>
+                {smmConfig?.connectionStatus === 'connected' ? (
+                  <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    ● Live Linkocial Connected
+                  </span>
+                ) : smmConfig?.connectionStatus === 'error' ? (
+                  <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3 h-3 text-rose-500" />
+                    ● Upstream Error
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                    ● Key Required
+                  </span>
+                )}
               </div>
               <p className="text-xs text-oj-muted max-w-2xl">
                 Manage social media marketing services, customize profit margins per service (e.g. cost ₦5,000 ➔ retail ₦6,500), and inspect customer boost deliveries.
@@ -2589,6 +2673,17 @@ export const AdminPage: React.FC = () => {
             </div>
 
             <div className="flex items-center flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleRefreshBalance}
+                disabled={isRefreshingBalance}
+                className="px-3 py-2 rounded-xl border border-oj-border dark:border-oj-dark-border bg-white dark:bg-oj-dark-surface text-oj-midnight dark:text-white hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
+                title="Query live Linkocial wallet balance"
+              >
+                <RotateCw className={`w-3.5 h-3.5 ${isRefreshingBalance ? 'animate-spin text-oj-primary' : ''}`} />
+                <span>{isRefreshingBalance ? 'Checking...' : '↻ Refresh Balance'}</span>
+              </button>
+
               <button
                 type="button"
                 onClick={handleSyncSmmFromProvider}
@@ -2602,7 +2697,10 @@ export const AdminPage: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => setIsUpdatingConfig(true)}
+                onClick={() => {
+                  setTestResult(null);
+                  setIsUpdatingConfig(true);
+                }}
                 className="px-3 py-2 rounded-xl border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-midnight dark:text-white hover:bg-oj-border text-xs font-bold flex items-center gap-1.5 transition-colors"
               >
                 <KeyRound className="w-3.5 h-3.5 text-oj-primary" />
@@ -2611,16 +2709,65 @@ export const AdminPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Upstream Error Alert Banner if connection failed */}
+          {smmConfig?.lastError && (
+            <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-rose-500 flex-shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-bold text-rose-800 dark:text-rose-200">
+                  Linkocial Upstream Notice
+                </p>
+                <p className="font-mono text-[11px] bg-rose-100/50 dark:bg-rose-900/40 p-2 rounded-lg border border-rose-200/50 dark:border-rose-800">
+                  {smmConfig.lastError}
+                </p>
+                <p className="text-[11px] text-oj-muted">
+                  Make sure your key is generated from your Linkocial account under <strong>API Docs &rarr; Manage My Key</strong>. Paste it into Provider API Credentials without extra leading or trailing spaces.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Metrics & Upstream Balance */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
-              <span className="text-xs text-oj-muted block">Linkocial Provider Balance</span>
-              <p className="font-heading font-extrabold text-xl text-emerald-600 mt-1">
-                {smmConfig?.balanceNgn !== undefined ? formatPrice(smmConfig.balanceNgn) : '₦350,000'}
+            <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft relative overflow-hidden group">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-oj-muted block">Linkocial Provider Balance</span>
+                <button
+                  type="button"
+                  onClick={handleRefreshBalance}
+                  disabled={isRefreshingBalance}
+                  className="p-1 rounded-lg text-oj-muted hover:text-oj-primary hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt transition-colors"
+                  title="Check live balance from Linkocial now"
+                >
+                  <RotateCw className={`w-3.5 h-3.5 ${isRefreshingBalance ? 'animate-spin text-oj-primary' : ''}`} />
+                </button>
+              </div>
+              <p className={`font-heading font-extrabold text-xl mt-1 ${
+                smmConfig?.connectionStatus === 'connected'
+                  ? 'text-emerald-600'
+                  : smmConfig?.connectionStatus === 'error'
+                  ? 'text-rose-600'
+                  : 'text-oj-midnight dark:text-white'
+              }`}>
+                {smmConfig?.connectionStatus === 'connected' && smmConfig?.balanceNgn !== undefined
+                  ? formatPrice(smmConfig.balanceNgn)
+                  : smmConfig?.connectionStatus === 'error'
+                  ? 'Check Key'
+                  : '₦0'}
               </p>
-              <span className="text-[10px] text-oj-muted mt-0.5 block">
-                Live Upstream Working Capital
-              </span>
+              <div className="mt-0.5 flex items-center justify-between text-[10px]">
+                <span className="text-oj-muted">
+                  {smmConfig?.connectionStatus === 'connected' ? `Live Capital (${smmConfig.currency || 'NGN'})` : 'Click Refresh to test'}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleRefreshBalance}
+                  disabled={isRefreshingBalance}
+                  className="text-oj-primary font-bold hover:underline"
+                >
+                  {isRefreshingBalance ? 'Checking...' : '↻ Refresh'}
+                </button>
+              </div>
             </div>
 
             <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
@@ -3000,33 +3147,75 @@ export const AdminPage: React.FC = () => {
                 <label className="block font-bold text-oj-midnight dark:text-white mb-1">
                   Linkocial API Key *
                 </label>
-                <input
-                  type="text"
-                  required
-                  value={linkocialApiKeyInput}
-                  onChange={(e) => setLinkocialApiKeyInput(e.target.value)}
-                  placeholder="Paste your Linkocial API key here..."
-                  className="w-full px-3 py-2 rounded-xl border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt font-mono text-xs text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary"
-                />
-                <p className="text-[11px] text-oj-muted mt-1">
-                  Obtained from your Linkocial account under <em>API Docs ➔ Manage My Key</em>.
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    value={linkocialApiKeyInput}
+                    onChange={(e) => {
+                      setLinkocialApiKeyInput(e.target.value);
+                      if (testResult) setTestResult(null);
+                    }}
+                    placeholder="Paste your Linkocial API key here..."
+                    className="w-full px-3 py-2.5 rounded-xl border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt font-mono text-xs text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary"
+                  />
+                </div>
+                <p className="text-[11px] text-oj-muted mt-1.5 leading-relaxed">
+                  Go to <a href="https://linkocial.com/api/docs" target="_blank" rel="noopener noreferrer" className="text-oj-primary font-bold underline inline-flex items-center gap-0.5">linkocial.com/api/docs <ExternalLink className="w-3 h-3" /></a> and click <strong>Manage My Key</strong>. Copy your key and paste it here with no extra spaces.
                 </p>
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-2 border-t border-oj-border dark:border-oj-dark-border">
+              {/* Live Test Feedback Banner */}
+              {testResult && (
+                <div className={`p-3 rounded-xl text-xs flex items-start gap-2.5 border ${
+                  testResult.success
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
+                    : 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200'
+                }`}>
+                  {testResult.success ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                  ) : (
+                    <XCircle className="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5" />
+                  )}
+                  <div className="space-y-0.5">
+                    <p className="font-bold">
+                      {testResult.success ? '✅ Verified with Linkocial API' : '❌ Verification Failed'}
+                    </p>
+                    <p className="text-[11px] font-mono leading-relaxed">{testResult.message}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-oj-border dark:border-oj-dark-border">
                 <button
                   type="button"
-                  onClick={() => setIsUpdatingConfig(false)}
-                  className="px-4 py-2 rounded-btn text-xs font-bold text-oj-muted hover:text-oj-midnight dark:hover:text-white"
+                  onClick={handleTestConnection}
+                  disabled={isTestingConnection || !linkocialApiKeyInput.trim()}
+                  className="w-full sm:w-auto px-3 py-2 rounded-btn border border-oj-border dark:border-oj-dark-border text-xs font-bold text-oj-midnight dark:text-white hover:bg-oj-border flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+                  title="Test if this API key is active on Linkocial"
                 >
-                  Cancel
+                  <Zap className={`w-3.5 h-3.5 text-amber-500 ${isTestingConnection ? 'animate-spin' : ''}`} />
+                  <span>{isTestingConnection ? 'Testing Key...' : '⚡ Test Connection'}</span>
                 </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-btn bg-oj-primary hover:bg-oj-primary-hover text-white text-xs font-bold shadow-glow-primary transition-all"
-                >
-                  Save API Key
-                </button>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsUpdatingConfig(false);
+                      setTestResult(null);
+                    }}
+                    className="px-4 py-2 rounded-btn text-xs font-bold text-oj-muted hover:text-oj-midnight dark:hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-btn bg-oj-primary hover:bg-oj-primary-hover text-white text-xs font-bold shadow-glow-primary transition-all"
+                  >
+                    Save & Activate Key
+                  </button>
+                </div>
               </div>
             </form>
           </div>

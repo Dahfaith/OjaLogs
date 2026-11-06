@@ -573,13 +573,48 @@ const UpdateSmmConfigSchema = z.object({
   isActive: z.boolean().optional()
 });
 
-router.patch('/smm/config', validateBody(UpdateSmmConfigSchema), (req, res) => {
-  const updated = smmService.updateProviderConfig(req.body);
-  res.json({
-    success: true,
-    data: updated,
-    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
-  });
+router.patch('/smm/config', validateBody(UpdateSmmConfigSchema), async (req, res, next) => {
+  try {
+    const updated = await smmService.updateProviderConfig(req.body);
+    res.json({
+      success: true,
+      data: updated,
+      meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/smm/refresh-balance', async (req, res, next) => {
+  try {
+    const result = await smmService.refreshBalance();
+    res.json({
+      success: true,
+      data: result,
+      meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const TestConnectionSchema = z.object({
+  apiKey: z.string().min(1, 'API Key is required'),
+  apiUrl: z.string().optional()
+});
+
+router.post('/smm/test-connection', validateBody(TestConnectionSchema), async (req, res, next) => {
+  try {
+    const result = await smmService.testConnection(req.body.apiKey, req.body.apiUrl);
+    res.json({
+      success: true,
+      data: result,
+      meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 export const adminRouter = router;
