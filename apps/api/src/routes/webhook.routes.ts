@@ -138,7 +138,7 @@ router.post(['/auth/new-user', '/auth', '/new-user'], async (req: Request, res: 
 
     // If Brevo API key exists, send an automated alert email to the admin
     const brevoApiKey = process.env.BREVO_API_KEY;
-    const adminEmail = process.env.ADMIN_ALERT_EMAIL || 'visioreach@gmail.com';
+    const adminEmail = process.env.ADMIN_ALERT_EMAIL || 'ojalogs@gmail.com';
 
     if (brevoApiKey) {
       try {
@@ -151,7 +151,7 @@ router.post(['/auth/new-user', '/auth', '/new-user'], async (req: Request, res: 
           },
           body: JSON.stringify({
             sender: { name: 'Ojalogs Marketplace Security', email: 'security@ojalogs.com' },
-            to: [{ email: adminEmail, name: 'Visio Reach (Admin)' }],
+            to: [{ email: adminEmail, name: 'Ojalogs Operations Alert' }],
             subject: `🚨 New User Signup: ${email} on Ojalogs`,
             htmlContent: `
               <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
