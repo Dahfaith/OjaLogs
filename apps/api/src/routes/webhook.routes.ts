@@ -53,6 +53,15 @@ router.post('/bach', async (req: Request, res: Response, next: NextFunction) => 
       );
 
       console.log(`[BACH_WEBHOOK] Credited ₦${webhookEvent.amountNgn} to wallet for user ${userId}. Tx: ${tx.id}`);
+
+      // Dispatch real-time deposit email alert to admin
+      const customerEmail = webhookEvent.rawPayload.data?.customer?.email || 'customer@ojalogs.com';
+      notificationService.recordDepositAlert(
+        userId,
+        customerEmail,
+        webhookEvent.amountNgn,
+        webhookEvent.reference
+      ).catch(() => {});
     }
 
     return res.status(200).json({

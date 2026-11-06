@@ -1,4 +1,5 @@
 import { walletService } from './wallet.service.js';
+import { notificationService } from './notification.service.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { VirtualNumberSession, CountryOption, ServiceOption, SmsMessage } from '@ojalogs/shared';
 import { COUNTRIES, SERVICES } from '../data/products.js';
@@ -57,6 +58,16 @@ export class NumbersService {
     const phoneNumber = `${country.dialCode} ${randNum.toString().substring(0, 3)} ${randNum.toString().substring(3)}`;
     const durationSeconds = rentalType === 'long_term_rental' ? 86400 * 7 : 900; // 7 days vs 15 mins
 
+    // Dispatch real-time telephony lease alert to admin
+    notificationService.recordTelephonyAlert(
+      userId.includes('@') ? userId : 'customer@ojalogs.com',
+      country.name,
+      service.name,
+      phoneNumber,
+      price,
+      sessionRef
+    ).catch(() => {});
+
     const session: VirtualNumberSession = {
       id: `num_ses_${Date.now()}`,
       reference: sessionRef,
@@ -105,6 +116,14 @@ export class NumbersService {
 
     session.status = 'cancelled';
     session.canCancel = false;
+
+    // Dispatch real-time refund alert to admin
+    notificationService.recordRefundAlert(
+      userId.includes('@') ? userId : 'customer@ojalogs.com',
+      refundAmount,
+      refundRef,
+      `Cancelled virtual number allocation (${session.phoneNumber})`
+    ).catch(() => {});
 
     return {
       cancelled: true,

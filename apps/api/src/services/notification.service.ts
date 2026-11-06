@@ -1,8 +1,14 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { AdminNotification, AdminManagedUser, UserRole } from '@ojalogs/shared';
 import { env } from '../config/env.js';
 import { walletService } from './wallet.service.js';
 
+const ALERTED_SIGNUPS_FILE = path.join(process.cwd(), 'data', 'alerted_signups.json');
+
 class NotificationService {
+  private alertedSignups: Set<string> = new Set();
+
   private notifications: AdminNotification[] = [
     {
       id: 'notif_welcome',
@@ -27,6 +33,38 @@ class NotificationService {
       createdAt: '2026-11-05T00:00:00.000Z'
     }
   ];
+
+  constructor() {
+    this.loadAlertedSignups();
+  }
+
+  private loadAlertedSignups() {
+    try {
+      if (fs.existsSync(ALERTED_SIGNUPS_FILE)) {
+        const raw = fs.readFileSync(ALERTED_SIGNUPS_FILE, 'utf-8');
+        const list = JSON.parse(raw);
+        if (Array.isArray(list)) {
+          this.alertedSignups = new Set(list.map(e => String(e).toLowerCase().trim()));
+        }
+      }
+    } catch (err: any) {
+      console.warn(`[NOTIF_PERSISTENCE] Notice loading alerted signups: ${err.message}`);
+    }
+  }
+
+  private saveAlertedSignups() {
+    try {
+      fs.mkdirSync(path.dirname(ALERTED_SIGNUPS_FILE), { recursive: true });
+      fs.writeFileSync(ALERTED_SIGNUPS_FILE, JSON.stringify(Array.from(this.alertedSignups), null, 2), 'utf-8');
+    } catch (err: any) {
+      console.warn(`[NOTIF_PERSISTENCE] Notice saving alerted signups: ${err.message}`);
+    }
+  }
+
+  hasUser(email: string): boolean {
+    const emailLower = (email || '').toLowerCase().trim();
+    return this.managedUsers.some(u => u.email.toLowerCase() === emailLower) || this.alertedSignups.has(emailLower);
+  }
 
   getNotifications(): AdminNotification[] {
     return this.notifications;
@@ -129,23 +167,10 @@ class NotificationService {
   }
 
   async recordSignupAlert(email: string, name?: string, createdAt?: string): Promise<boolean> {
-    const emailLower = email.toLowerCase();
+    const emailLower = email.toLowerCase().trim();
     const isAdmin = emailLower === 'visioreach@gmail.com' || emailLower === 'ojalogs@gmail.com';
     const formattedName = name || (email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1));
     const timestamp = createdAt || new Date().toISOString();
-
-    const alreadyNotified = this.notifications.some(n => n.userEmail?.toLowerCase() === emailLower);
-    if (!alreadyNotified && !isAdmin) {
-      this.notifications.unshift({
-        id: `notif_${Date.now()}`,
-        type: 'NEW_USER_SIGNUP',
-        title: 'New Customer Registered',
-        message: `${formattedName} (${email}) verified their account on Ojalogs.`,
-        userEmail: email,
-        timestamp,
-        read: false
-      });
-    }
 
     const existingUser = this.managedUsers.find(u => u.email.toLowerCase() === emailLower);
     if (!existingUser) {
@@ -163,6 +188,37 @@ class NotificationService {
       });
     }
 
+    // In-App Notification (Admin Command Console only)
+    const alreadyNotified = this.notifications.some(n => n.userEmail?.toLowerCase() === emailLower);
+    if (!alreadyNotified && !isAdmin) {
+      this.notifications.unshift({
+        id: `notif_${Date.now()}`,
+        type: 'NEW_USER_SIGNUP',
+        title: 'New Customer Registered',
+        message: `${formattedName} (${email}) registered on Ojalogs.`,
+        userEmail: email,
+        timestamp,
+        read: false
+      });
+    }
+
+    // STRICT FIRST-SIGNUP-ONLY EMAIL DEDUPLICATION:
+    // 1. Never email for administrators
+    if (isAdmin) {
+      return false;
+    }
+
+    // 2. If this user has ALREADY been emailed previously, DO NOT send again!
+    if (this.alertedSignups.has(emailLower)) {
+      console.log(`[SIGNUP_ALERT] User ${emailLower} already notified on initial signup. Suppressing routine login email alert.`);
+      return false;
+    }
+
+    // 3. Mark as alerted in persistent storage so all future logins are completely silent
+    this.alertedSignups.add(emailLower);
+    this.saveAlertedSignups();
+
+    // 4. Dispatch single, verified first-time welcome email to admin
     await this.dispatchEmailAlert(email, formattedName, timestamp);
     return true;
   }
@@ -495,6 +551,181 @@ class NotificationService {
       }
     } catch (err: any) {
       console.warn(`[ORDER_ALERT] Admin order alert notice: ${err.message}`);
+    }
+  }
+
+  async recordDepositAlert(userId: string, userEmail: string, amountNgn: number, reference: string) {
+    const timestamp = new Date().toISOString();
+    const formattedAmount = Number(amountNgn).toLocaleString();
+
+    this.notifications.unshift({
+      id: `notif_dep_${Date.now()}`,
+      type: 'PAYMENT_RECEIVED',
+      title: `Deposit Credited: ₦${formattedAmount}`,
+      message: `${userEmail} funded their wallet with ₦${formattedAmount} via BACH Gateway (Ref: ${reference})`,
+      userEmail,
+      timestamp,
+      read: false
+    });
+
+    const brevoApiKey = process.env.BREVO_API_KEY || env.BREVO_API_KEY;
+    const adminEmail = process.env.ADMIN_ALERT_EMAIL || env.ADMIN_ALERT_EMAIL || 'ojalogs@gmail.com';
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || env.BREVO_SENDER_EMAIL || 'ojalogs@gmail.com';
+
+    if (!brevoApiKey) return;
+
+    try {
+      await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': brevoApiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: { name: 'Ojalogs Finance Engine', email: senderEmail },
+          to: [{ email: adminEmail, name: 'Ojalogs Operations Alert' }],
+          subject: `💳 Wallet Deposit: ₦${formattedAmount} credited (${userEmail})`,
+          htmlContent: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+              <div style="background: #020b18; padding: 16px 20px; border-radius: 8px; margin-bottom: 20px;">
+                <h2 style="color: #ffffff; margin: 0; font-size: 18px;">💳 Customer Wallet Deposit</h2>
+              </div>
+              <h3 style="color: #0f172a; margin-top: 0;">Deposit Verified by BACH Gateway</h3>
+              <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+                A customer has successfully funded their NGN wallet on your marketplace. Ledger balance has been updated.
+              </p>
+              <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin: 20px 0; font-size: 13px;">
+                <p style="margin: 0 0 8px 0; color: #166534;"><strong>Customer:</strong> ${userEmail}</p>
+                <p style="margin: 0 0 8px 0; color: #166534;"><strong>Deposit Amount:</strong> <span style="font-size: 16px; font-weight: bold; color: #15803d;">₦${formattedAmount}</span></p>
+                <p style="margin: 0 0 8px 0; color: #166534;"><strong>Gateway Reference:</strong> <span style="font-family: monospace;">${reference}</span></p>
+                <p style="margin: 0; color: #166534;"><strong>Date:</strong> ${new Date().toUTCString()}</p>
+              </div>
+              <div style="margin-top: 24px; text-align: center;">
+                <a href="https://ojalogs.vercel.app/admin" style="background: #15803d; color: #ffffff; padding: 10px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px; display: inline-block;">Open Admin Ledger Inspector →</a>
+              </div>
+            </div>
+          `
+        })
+      });
+      console.log(`[DEPOSIT_ALERT] ✓ Admin deposit alert sent for ${reference} (₦${formattedAmount})`);
+    } catch (err: any) {
+      console.warn(`[DEPOSIT_ALERT] Deposit alert notice: ${err.message}`);
+    }
+  }
+
+  async recordTelephonyAlert(userEmail: string, country: string, service: string, phoneNumber: string, amountNgn: number, sessionRef: string) {
+    const timestamp = new Date().toISOString();
+    const formattedAmount = Number(amountNgn).toLocaleString();
+
+    this.notifications.unshift({
+      id: `notif_tel_${Date.now()}`,
+      type: 'ORDER_PLACED',
+      title: `Virtual Number Leased: ${service} (${country})`,
+      message: `${userEmail} allocated ${phoneNumber} for ${service} (₦${formattedAmount})`,
+      userEmail,
+      timestamp,
+      read: false
+    });
+
+    const brevoApiKey = process.env.BREVO_API_KEY || env.BREVO_API_KEY;
+    const adminEmail = process.env.ADMIN_ALERT_EMAIL || env.ADMIN_ALERT_EMAIL || 'ojalogs@gmail.com';
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || env.BREVO_SENDER_EMAIL || 'ojalogs@gmail.com';
+
+    if (!brevoApiKey) return;
+
+    try {
+      await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': brevoApiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: { name: 'Ojalogs Telephony Engine', email: senderEmail },
+          to: [{ email: adminEmail, name: 'Ojalogs Operations Alert' }],
+          subject: `📞 Virtual Number Leased: ${service} (${country}) - ₦${formattedAmount} (${userEmail})`,
+          htmlContent: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+              <div style="background: #020b18; padding: 16px 20px; border-radius: 8px; margin-bottom: 20px;">
+                <h2 style="color: #ffffff; margin: 0; font-size: 18px;">📞 Telephony Virtual Line Leased</h2>
+              </div>
+              <h3 style="color: #0f172a; margin-top: 0;">SMS Verification Line Active</h3>
+              <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+                A customer has rented a dedicated private number with automated 15-minute SMS listener.
+              </p>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 20px 0; font-size: 13px;">
+                <p style="margin: 0 0 8px 0; color: #64748b;"><strong>Customer:</strong> ${userEmail}</p>
+                <p style="margin: 0 0 8px 0; color: #64748b;"><strong>Service:</strong> <span style="font-weight: bold; color: #0284c7;">${service}</span></p>
+                <p style="margin: 0 0 8px 0; color: #64748b;"><strong>Country:</strong> ${country}</p>
+                <p style="margin: 0 0 8px 0; color: #64748b;"><strong>Allocated Number:</strong> <span style="font-family: monospace; font-weight: bold;">${phoneNumber}</span></p>
+                <p style="margin: 0; color: #64748b;"><strong>Debit Amount:</strong> ₦${formattedAmount}</p>
+              </div>
+              <div style="margin-top: 24px; text-align: center;">
+                <a href="https://ojalogs.vercel.app/admin" style="background: #0284c7; color: #ffffff; padding: 10px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px; display: inline-block;">Open Admin Telephony Console →</a>
+              </div>
+            </div>
+          `
+        })
+      });
+    } catch (err: any) {
+      console.warn(`[TELEPHONY_ALERT] Telephony alert notice: ${err.message}`);
+    }
+  }
+
+  async recordRefundAlert(userEmail: string, amountNgn: number, reference: string, reason: string) {
+    const timestamp = new Date().toISOString();
+    const formattedAmount = Number(amountNgn).toLocaleString();
+
+    this.notifications.unshift({
+      id: `notif_ref_${Date.now()}`,
+      type: 'SECURITY_ALERT',
+      title: `Refund Credited: ₦${formattedAmount}`,
+      message: `100% Refund credited to ${userEmail} for ${reference}. Reason: ${reason}`,
+      userEmail,
+      timestamp,
+      read: false
+    });
+
+    const brevoApiKey = process.env.BREVO_API_KEY || env.BREVO_API_KEY;
+    const adminEmail = process.env.ADMIN_ALERT_EMAIL || env.ADMIN_ALERT_EMAIL || 'ojalogs@gmail.com';
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || env.BREVO_SENDER_EMAIL || 'ojalogs@gmail.com';
+
+    if (!brevoApiKey) return;
+
+    try {
+      await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': brevoApiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: { name: 'Ojalogs Refund Engine', email: senderEmail },
+          to: [{ email: adminEmail, name: 'Ojalogs Operations Alert' }],
+          subject: `💸 Refund Processed: ₦${formattedAmount} (${userEmail})`,
+          htmlContent: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+              <div style="background: #020b18; padding: 16px 20px; border-radius: 8px; margin-bottom: 20px;">
+                <h2 style="color: #ffffff; margin: 0; font-size: 18px;">💸 Customer Refund Processed</h2>
+              </div>
+              <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+                An automated 100% refund has been credited back to the customer's wallet balance.
+              </p>
+              <div style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 16px; margin: 20px 0; font-size: 13px;">
+                <p style="margin: 0 0 8px 0; color: #9a3412;"><strong>Customer:</strong> ${userEmail}</p>
+                <p style="margin: 0 0 8px 0; color: #9a3412;"><strong>Refund Amount:</strong> <span style="font-size: 16px; font-weight: bold;">₦${formattedAmount}</span></p>
+                <p style="margin: 0 0 8px 0; color: #9a3412;"><strong>Reference:</strong> ${reference}</p>
+                <p style="margin: 0; color: #9a3412;"><strong>Reason:</strong> ${reason}</p>
+              </div>
+            </div>
+          `
+        })
+      });
+    } catch (err: any) {
+      console.warn(`[REFUND_ALERT] Refund alert notice: ${err.message}`);
     }
   }
 }

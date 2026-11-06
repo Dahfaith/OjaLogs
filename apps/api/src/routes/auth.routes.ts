@@ -5,6 +5,7 @@ import { authLimiter } from '../middleware/rateLimiter.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { supabaseAdmin } from '../config/supabase.js';
 import { walletService } from '../services/wallet.service.js';
+import { notificationService } from '../services/notification.service.js';
 
 const router = Router();
 
@@ -133,6 +134,15 @@ router.post('/verify-otp', authLimiter, validateBody(VerifyOtpSchema), async (re
       // Initialize with default or keep at 0
     }
 
+    // Check if brand-new customer or returning customer
+    const isKnown = notificationService.hasUser(cleanEmail);
+    const isNewUser = !isKnown;
+
+    // Dispatch initial registration alert ONLY if brand-new user
+    if (isNewUser) {
+      notificationService.recordSignupAlert(cleanEmail, formattedName).catch(() => {});
+    }
+
     const sessionToken = `mock_jwt_customer_${userId}`;
 
     res.status(200).json({
@@ -145,7 +155,8 @@ router.post('/verify-otp', authLimiter, validateBody(VerifyOtpSchema), async (re
           name: formattedName,
           initials: formattedName.substring(0, 2).toUpperCase(),
           role: 'customer',
-          isVerified: true
+          isVerified: true,
+          isNewUser
         }
       },
       meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
