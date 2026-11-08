@@ -20,7 +20,7 @@ export const ApiDocsPage: React.FC = () => {
       category: 'VPNs, Residential Proxies & eSIM',
       endpoint: 'GET /api/v1/server1/stock',
       description: 'Fetches real-time inventory levels, proxy subnet allocations, and travel eSIM profiles.',
-      curl: `curl -X GET "https://ojalogs-api.onrender.com/api/v1/catalog/products?cluster=Server%201" \\
+      curl: `curl -X GET "https://api.ojalogs.com.ng/api/v1/catalog/products?cluster=Server%201" \\
   -H "Authorization: Bearer <YOUR_API_KEY>" \\
   -H "Accept: application/json"`
     },
@@ -29,7 +29,7 @@ export const ApiDocsPage: React.FC = () => {
       category: 'Social Accounts & Cloud Credits',
       endpoint: 'POST /api/v1/server2/provision',
       description: 'Dispatches instant aged social profiles, Facebook Business Managers, and AWS/DigitalOcean cloud codes.',
-      curl: `curl -X POST "https://ojalogs-api.onrender.com/api/v1/orders/checkout" \\
+      curl: `curl -X POST "https://api.ojalogs.com.ng/api/v1/orders/checkout" \\
   -H "Authorization: Bearer <YOUR_API_KEY>" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -42,7 +42,7 @@ export const ApiDocsPage: React.FC = () => {
       category: 'Division B: Virtual Numbers',
       endpoint: 'POST /api/v1/numbers/allocate',
       description: 'Provisions a carrier-backed phone number for SMS verification with a 15-minute listener countdown.',
-      curl: `curl -X POST "https://ojalogs-api.onrender.com/api/v1/numbers/request" \\
+      curl: `curl -X POST "https://api.ojalogs.com.ng/api/v1/numbers/request" \\
   -H "Authorization: Bearer <YOUR_API_KEY>" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -56,7 +56,7 @@ export const ApiDocsPage: React.FC = () => {
       category: 'Fintech & NGN Ledger',
       endpoint: 'POST /api/v1/wallet/fund',
       description: 'Initiates a funding request provisioning a safe dynamic bank transfer virtual account.',
-      curl: `curl -X POST "https://ojalogs-api.onrender.com/api/v1/wallet/fund" \\
+      curl: `curl -X POST "https://api.ojalogs.com.ng/api/v1/wallet/fund" \\
   -H "Authorization: Bearer <YOUR_API_KEY>" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -69,7 +69,7 @@ export const ApiDocsPage: React.FC = () => {
       category: 'Social Media Marketing (SMM Protocol v1.0)',
       endpoint: 'POST /api/v1/smm/api',
       description: 'Industry-standard SMM protocol for external panels, bots, and resellers. Supports actions: services, add, status, and balance.',
-      curl: `curl -X POST "https://ojalogs-api.onrender.com/api/v1/smm/api" \\
+      curl: `curl -X POST "https://api.ojalogs.com.ng/api/v1/smm/api" \\
   -H "Content-Type: application/json" \\
   -d '{
     "key": "<YOUR_OJALOGS_API_KEY>",
@@ -111,13 +111,13 @@ export const ApiDocsPage: React.FC = () => {
             Production Endpoint
           </span>
           <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-            Live on Render
+            Live on api.ojalogs.com.ng
           </span>
         </div>
         <div className="p-3 rounded-xl bg-slate-900 text-slate-200 font-mono text-xs flex items-center justify-between overflow-x-auto">
-          <code>https://ojalogs-api.onrender.com/api/v1</code>
+          <code>https://api.ojalogs.com.ng/api/v1</code>
           <button
-            onClick={() => handleCopy('https://ojalogs-api.onrender.com/api/v1', 999)}
+            onClick={() => handleCopy('https://api.ojalogs.com.ng/api/v1', 999)}
             className="p-1 text-slate-400 hover:text-white"
           >
             {copiedIndex === 999 ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}

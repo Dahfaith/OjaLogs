@@ -32,13 +32,22 @@ export const ProductDetailPage: React.FC = () => {
   const relatedProducts = products.filter(p => p.serverCluster === product.serverCluster && p.id !== product.id).slice(0, 3);
 
   const handleBuyNow = async () => {
-    addToCart(product, quantity);
     if (!user) {
       setIsAuthModalOpen(true);
-      showToast('Please sign in with your email to complete checkout.');
+      showToast('Please sign in or register with your email to make a purchase.');
       return;
     }
+    addToCart(product, quantity);
     navigate('/orders');
+  };
+
+  const handleAddToCartClick = () => {
+    if (!user) {
+      setIsAuthModalOpen(true);
+      showToast('Please sign in or register with your email to make a purchase.');
+      return;
+    }
+    addToCart(product, quantity);
   };
 
   return (
@@ -191,7 +200,7 @@ export const ProductDetailPage: React.FC = () => {
 
               <div className="flex gap-2">
                 <button
-                  onClick={() => addToCart(product, quantity)}
+                  onClick={handleAddToCartClick}
                   className="flex-1 py-2.5 rounded-btn border border-oj-border dark:border-oj-dark-border bg-white dark:bg-oj-dark-surface hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt text-xs font-bold text-oj-midnight dark:text-white flex items-center justify-center gap-2 transition-colors"
                 >
                   <ShoppingCart className="w-4 h-4 text-oj-primary" />

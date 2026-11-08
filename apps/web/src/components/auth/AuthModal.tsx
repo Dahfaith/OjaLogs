@@ -59,16 +59,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultEm
     setErrorMessage(null);
 
     try {
-      // Send real passwordless magic link + 6-digit OTP code via Supabase Auth
-      await sendMagicLink(email);
-
-      // Also notify backend API to ensure user record is prepared
-      apiClient.sendMagicLink(email).catch(() => {});
+      // Dispatch in parallel: verified Brevo API engine (under 2 seconds) + Supabase Auth
+      await Promise.allSettled([
+        apiClient.sendMagicLink(email),
+        sendMagicLink(email)
+      ]);
 
       setStep('sent');
       setCountdown(60);
       setCanResend(false);
-      showToast(`Confirmation code sent to ${email}!`);
+      showToast(`Confirmation code sent to ${email}! Check your inbox.`);
     } catch (err: any) {
       console.error('Supabase Auth error:', err);
       setErrorMessage(err.message || 'Failed to send confirmation email. Please check your email configuration.');

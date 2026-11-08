@@ -207,26 +207,48 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                 </div>
 
                 {/* Checkout Buttons */}
-                <div className="space-y-2 pt-1">
-                  <button
-                    disabled={isProcessing}
-                    onClick={handleWalletCheckout}
-                    className="w-full py-3 px-4 rounded-btn bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white text-xs font-bold shadow-glow-primary flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-                  >
-                    <Wallet className="w-4 h-4" />
-                    <span>Pay with NGN Wallet (Instant Delivery)</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
+                {!user ? (
+                  <div className="space-y-2 pt-1">
+                    <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <p className="text-[11px] leading-relaxed">
+                        <strong>Account Required:</strong> Please register or sign in with your email to complete checkout and decrypt your credentials.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        onClose();
+                        setIsAuthModalOpen(true);
+                      }}
+                      className="w-full py-3 px-4 rounded-btn bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:opacity-95 text-white text-xs font-bold shadow-lg flex items-center justify-center gap-2 transition-all hover:scale-[1.01]"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>Sign In or Register to Checkout</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2 pt-1">
+                    <button
+                      disabled={isProcessing}
+                      onClick={handleWalletCheckout}
+                      className="w-full py-3 px-4 rounded-btn bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white text-xs font-bold shadow-glow-primary flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                    >
+                      <Wallet className="w-4 h-4" />
+                      <span>Pay with NGN Wallet (Instant Delivery)</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
 
-                  <button
-                    disabled={isProcessing}
-                    onClick={handleGatewayCheckout}
-                    className="w-full py-2.5 px-4 rounded-btn border border-oj-border dark:border-oj-dark-border bg-white dark:bg-oj-dark-surface hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt text-oj-midnight dark:text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-                  >
-                    <CreditCard className="w-4 h-4 text-emerald-600" />
-                    <span>Direct Payment via BACH Gateway</span>
-                  </button>
-                </div>
+                    <button
+                      disabled={isProcessing}
+                      onClick={handleGatewayCheckout}
+                      className="w-full py-2.5 px-4 rounded-btn border border-oj-border dark:border-oj-dark-border bg-white dark:bg-oj-dark-surface hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt text-oj-midnight dark:text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                    >
+                      <CreditCard className="w-4 h-4 text-emerald-600" />
+                      <span>Direct Payment via BACH Gateway</span>
+                    </button>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-center gap-1.5 text-[10px] text-oj-muted text-center pt-1">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />

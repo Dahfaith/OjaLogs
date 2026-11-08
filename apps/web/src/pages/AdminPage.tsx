@@ -857,7 +857,7 @@ export const AdminPage: React.FC = () => {
   };
 
   const handleCopyWebhook = (cluster: string, id: string) => {
-    const url = `https://ojalogs-api.onrender.com/api/v1/webhooks/${id}`;
+    const url = `https://api.ojalogs.com.ng/api/v1/webhooks/${id}`;
     navigator.clipboard.writeText(url);
     setCopiedWebhookCluster(cluster);
     showToast(`Copied ${cluster} Webhook Callback URL`);
@@ -2226,7 +2226,7 @@ export const AdminPage: React.FC = () => {
                         <input
                           type="text"
                           readOnly
-                          value={`https://ojalogs-api.onrender.com/api/v1/webhooks/${server.id}`}
+                          value={`https://api.ojalogs.com.ng/api/v1/webhooks/${server.id}`}
                           className="flex-1 px-3 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt/50 dark:bg-oj-dark-surface-alt/50 font-mono text-[11px] text-oj-muted select-all"
                         />
                         <button

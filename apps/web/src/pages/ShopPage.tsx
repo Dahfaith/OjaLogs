@@ -20,7 +20,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { APPROVED_CATEGORIES } from '@ojalogs/shared';
 
 export const ShopPage: React.FC = () => {
-  const { products, favourites, toggleFavourite, addToCart, formatPrice } = useApp();
+  const { products, favourites, toggleFavourite, addToCart, formatPrice, user, setIsAuthModalOpen, showToast } = useApp();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -350,15 +350,31 @@ export const ShopPage: React.FC = () => {
 
                     <div className="flex items-center gap-1.5">
                       <button
-                        onClick={() => addToCart(product, 1)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!user) {
+                            setIsAuthModalOpen(true);
+                            showToast('Please sign in or create an account to purchase products.');
+                            return;
+                          }
+                          addToCart(product, 1);
+                        }}
                         className="p-2 rounded-btn bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-border dark:hover:bg-oj-dark-border text-oj-midnight dark:text-white transition-colors"
-                        title="Add to Cart"
+                        title={user ? "Add to Cart" : "Sign in to purchase"}
                       >
                         <ShoppingCart className="w-4 h-4" />
                       </button>
 
                       <button
-                        onClick={() => navigate(`/product/${product.slug}`)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!user) {
+                            setIsAuthModalOpen(true);
+                            showToast('Please sign in or create an account to purchase products.');
+                            return;
+                          }
+                          navigate(`/product/${product.slug}`);
+                        }}
                         className="py-2 px-3 rounded-btn bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white text-xs font-bold shadow-glow-primary flex items-center gap-1 transition-all"
                       >
                         <Zap className="w-3.5 h-3.5" />

@@ -16,7 +16,7 @@ import {
   SMMProviderConfig
 } from '@ojalogs/shared';
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || 'https://ojalogs-api.onrender.com/api/v1';
+const API_BASE = (import.meta as any).env?.VITE_API_URL || 'https://api.ojalogs.com.ng/api/v1';
 
 class ApiClient {
   private token: string = 'mock_jwt_customer_usr_oj_001';

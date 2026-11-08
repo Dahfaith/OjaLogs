@@ -90,6 +90,23 @@ export const VirtualNumbersPage: React.FC = () => {
         </div>
       </div>
 
+      {!user && (
+        <div className="p-4 rounded-2xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5 text-amber-900 dark:text-amber-200">
+            <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
+            <span>
+              <strong>Browsing Mode:</strong> You can explore all available countries, services, and live pricing. Sign in with your email to allocate a line and receive SMS verification codes.
+            </span>
+          </div>
+          <button
+            onClick={() => setIsAuthModalOpen(true)}
+            className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold whitespace-nowrap transition-all shadow-sm"
+          >
+            Sign In / Register
+          </button>
+        </div>
+      )}
+
       {/* Number Provisioning Form Card */}
       <div className="p-5 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft space-y-5">
         <h2 className="font-heading font-bold text-base text-oj-midnight dark:text-white flex items-center gap-2">
@@ -211,19 +228,32 @@ export const VirtualNumbersPage: React.FC = () => {
                 {formatPrice(price)}
               </span>
               <span className="text-xs text-oj-muted">
-                (Wallet Balance: {formatPrice(wallet.balanceNgn)})
+                {user ? `(Wallet Balance: ${formatPrice(wallet.balanceNgn)})` : '(Sign in required to allocate)'}
               </span>
             </div>
           </div>
 
-          <button
-            onClick={handleRequest}
-            disabled={isRequesting || wallet.balanceNgn < price}
-            className="py-3 px-6 rounded-btn bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white text-xs font-bold shadow-glow-primary flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-          >
-            <Zap className="w-4 h-4 fill-white" />
-            <span>{isRequesting ? 'Allocating line...' : 'Allocate Virtual Number'}</span>
-          </button>
+          {!user ? (
+            <button
+              onClick={() => {
+                setIsAuthModalOpen(true);
+                showToast('Please sign in or enter your email to allocate a virtual number.');
+              }}
+              className="py-3 px-6 rounded-btn bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:opacity-95 text-white text-xs font-bold shadow-lg flex items-center justify-center gap-2 transition-all hover:scale-105"
+            >
+              <Zap className="w-4 h-4 fill-white" />
+              <span>Sign In to Allocate Number</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleRequest}
+              disabled={isRequesting || wallet.balanceNgn < price}
+              className="py-3 px-6 rounded-btn bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white text-xs font-bold shadow-glow-primary flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+            >
+              <Zap className="w-4 h-4 fill-white" />
+              <span>{isRequesting ? 'Allocating line...' : 'Allocate Virtual Number'}</span>
+            </button>
+          )}
         </div>
       </div>
 

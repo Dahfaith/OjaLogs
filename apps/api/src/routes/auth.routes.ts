@@ -6,6 +6,7 @@ import { authMiddleware } from '../middleware/auth.js';
 import { supabaseAdmin } from '../config/supabase.js';
 import { walletService } from '../services/wallet.service.js';
 import { notificationService } from '../services/notification.service.js';
+import { env } from '../config/env.js';
 
 const router = Router();
 
@@ -55,9 +56,48 @@ router.post('/magic-link', authLimiter, validateBody(MagicLinkSchema), async (re
       console.warn(`[SUPABASE_AUTH_ERR] ${e.message}`);
     }
 
-    // 2. Fallback / Dev Code generation for instant sandbox testing
+    // 2. Fast OTP generation & dispatch via verified Brevo API engine
     const devCode = Math.floor(100000 + Math.random() * 900000).toString();
     devOtpStore.set(cleanEmail, { code: devCode, expiresAt: Date.now() + 10 * 60 * 1000 });
+
+    // 3. Dispatch Lightning-Fast Branded Confirmation Code via Verified Brevo Sender
+    const brevoApiKey = process.env.BREVO_API_KEY || env.BREVO_API_KEY;
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || env.BREVO_SENDER_EMAIL || 'noreply@ojalogs.com.ng';
+
+    if (brevoApiKey) {
+      try {
+        await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'api-key': brevoApiKey,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            sender: { name: 'OjaLogs Security', email: senderEmail },
+            to: [{ email: cleanEmail }],
+            subject: `🔐 ${devCode} is your Ojalogs verification code`,
+            htmlContent: `
+              <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+                <div style="background: #020b18; padding: 18px 24px; border-radius: 8px; margin-bottom: 24px; text-align: center;">
+                  <h2 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.5px;">OjaLogs</h2>
+                  <p style="color: #94a3b8; font-size: 11px; margin: 4px 0 0 0; text-transform: uppercase; letter-spacing: 1px;">Marketplace Verification</p>
+                </div>
+                <p style="color: #0f172a; font-size: 16px; font-weight: 600; margin-bottom: 8px;">Your one-time sign-in code</p>
+                <p style="color: #64748b; font-size: 13px; line-height: 1.5; margin-bottom: 20px;">Use the 6-digit confirmation code below to complete your sign-in to Ojalogs. This code expires in 10 minutes.</p>
+                <div style="background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 10px; padding: 20px; text-align: center; margin-bottom: 24px;">
+                  <span style="font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #0284c7;">${devCode}</span>
+                </div>
+                <p style="color: #94a3b8; font-size: 11px; text-align: center; margin: 0;">If you did not request this verification code, please ignore this email.</p>
+              </div>
+            `
+          })
+        });
+        console.log(`[BREVO_OTP] ✓ Dispatched fast OTP (${devCode}) to ${cleanEmail} via ${senderEmail}`);
+      } catch (err: any) {
+        console.warn(`[BREVO_OTP_NOTICE] ${err.message}`);
+      }
+    }
 
     res.status(200).json({
       success: true,
