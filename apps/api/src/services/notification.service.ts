@@ -4,6 +4,7 @@ import { AdminNotification, AdminManagedUser, UserRole } from '@ojalogs/shared';
 import { env } from '../config/env.js';
 import { walletService } from './wallet.service.js';
 
+const PLATFORM_URL = process.env.PUBLIC_APP_URL || 'https://ojalogs.com.ng';
 const ALERTED_SIGNUPS_FILE = path.join(process.cwd(), 'data', 'alerted_signups.json');
 
 class NotificationService {
@@ -263,7 +264,7 @@ class NotificationService {
                 <p style="margin: 0; font-size: 13px; color: #64748b;"><strong>Registered At:</strong> ${new Date(registeredAt).toUTCString()}</p>
               </div>
               <div style="margin-top: 24px; text-align: center;">
-                <a href="https://ojalogs.vercel.app/admin" style="background: #0284c7; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px; display: inline-block;">Open Admin User Governance Console →</a>
+                <a href="${PLATFORM_URL}/admin" style="background: #0284c7; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px; display: inline-block;">Open Admin User Governance Console →</a>
               </div>
             </div>
           `
@@ -453,7 +454,7 @@ class NotificationService {
         </div>
 
         <div style="text-align: center; margin: 28px 0 20px 0;">
-          <a href="https://ojalogs.vercel.app/orders" style="background: #0284c7; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block;">Access My Orders & Reveal Vault Keys →</a>
+          <a href="${PLATFORM_URL}/orders" style="background: #0284c7; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block;">Access My Orders & Reveal Vault Keys →</a>
         </div>
 
         <div style="border-top: 1px solid #e2e8f0; padding-top: 16px; text-align: center; font-size: 12px; color: #94a3b8;">
@@ -522,7 +523,7 @@ class NotificationService {
         </div>
 
         <div style="margin-top: 24px; text-align: center;">
-          <a href="https://ojalogs.vercel.app/admin" style="background: #0284c7; color: #ffffff; padding: 10px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px; display: inline-block;">Open Admin Orders & Deliveries Console →</a>
+          <a href="${PLATFORM_URL}/admin" style="background: #0284c7; color: #ffffff; padding: 10px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px; display: inline-block;">Open Admin Orders & Deliveries Console →</a>
         </div>
       </div>
     `;
@@ -602,7 +603,7 @@ class NotificationService {
                 <p style="margin: 0; color: #166534;"><strong>Date:</strong> ${new Date().toUTCString()}</p>
               </div>
               <div style="margin-top: 24px; text-align: center;">
-                <a href="https://ojalogs.vercel.app/admin" style="background: #15803d; color: #ffffff; padding: 10px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px; display: inline-block;">Open Admin Ledger Inspector →</a>
+                <a href="${PLATFORM_URL}/admin" style="background: #15803d; color: #ffffff; padding: 10px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px; display: inline-block;">Open Admin Ledger Inspector →</a>
               </div>
             </div>
           `
@@ -663,7 +664,7 @@ class NotificationService {
                 <p style="margin: 0; color: #64748b;"><strong>Debit Amount:</strong> ₦${formattedAmount}</p>
               </div>
               <div style="margin-top: 24px; text-align: center;">
-                <a href="https://ojalogs.vercel.app/admin" style="background: #0284c7; color: #ffffff; padding: 10px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px; display: inline-block;">Open Admin Telephony Console →</a>
+                <a href="${PLATFORM_URL}/admin" style="background: #0284c7; color: #ffffff; padding: 10px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px; display: inline-block;">Open Admin Telephony Console →</a>
               </div>
             </div>
           `
