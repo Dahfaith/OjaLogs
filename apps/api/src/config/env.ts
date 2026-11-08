@@ -15,7 +15,7 @@ const EnvSchema = z.object({
   BACHS_WEBHOOK_SECRET: z.string().default('whsec_sandbox_ojalogs_secret_2026'),
   BACHS_BASE_URL: z.string().default('https://sandbox-api.bachs.io/v1'),
   BREVO_API_KEY: z.string().optional(),
-  BREVO_SENDER_EMAIL: z.string().default('ojalogs@gmail.com'),
+  BREVO_SENDER_EMAIL: z.string().default('noreply@ojalogs.com.ng'),
   ADMIN_ALERT_EMAIL: z.string().default('ojalogs@gmail.com'),
   LINKOCIAL_API_KEY: z.string().default('linkocial_live_token_default'),
   LINKOCIAL_BASE_URL: z.string().default('https://linkocial.com/api/v1')

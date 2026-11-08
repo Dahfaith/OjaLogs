@@ -227,7 +227,7 @@ class NotificationService {
   async dispatchEmailAlert(userEmail: string, userName: string, registeredAt: string) {
     const brevoApiKey = process.env.BREVO_API_KEY || env.BREVO_API_KEY;
     const adminEmail = process.env.ADMIN_ALERT_EMAIL || env.ADMIN_ALERT_EMAIL || 'ojalogs@gmail.com';
-    const senderEmail = process.env.BREVO_SENDER_EMAIL || env.BREVO_SENDER_EMAIL || 'ojalogs@gmail.com';
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || env.BREVO_SENDER_EMAIL || 'noreply@ojalogs.com.ng';
 
     console.log(`[SIGNUP_ALERT] 📧 Queueing email alert to ${adminEmail} for new user ${userEmail} via verified sender ${senderEmail}...`);
 
@@ -284,7 +284,7 @@ class NotificationService {
 
   async sendTestAlert(targetEmail: string): Promise<{ success: boolean; message: string; details?: any }> {
     const brevoApiKey = process.env.BREVO_API_KEY || env.BREVO_API_KEY;
-    const senderEmail = process.env.BREVO_SENDER_EMAIL || env.BREVO_SENDER_EMAIL || 'ojalogs@gmail.com';
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || env.BREVO_SENDER_EMAIL || 'noreply@ojalogs.com.ng';
 
     if (!brevoApiKey) {
       return {
@@ -379,7 +379,7 @@ class NotificationService {
 
   async dispatchCustomerPurchaseEmail(order: any, customerEmail: string) {
     const brevoApiKey = process.env.BREVO_API_KEY || env.BREVO_API_KEY;
-    const senderEmail = process.env.BREVO_SENDER_EMAIL || env.BREVO_SENDER_EMAIL || 'ojalogs@gmail.com';
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || env.BREVO_SENDER_EMAIL || 'noreply@ojalogs.com.ng';
 
     if (!brevoApiKey || !customerEmail || !customerEmail.includes('@')) {
       return;
@@ -494,7 +494,7 @@ class NotificationService {
   async dispatchAdminOrderAlertEmail(order: any, customerEmail: string) {
     const brevoApiKey = process.env.BREVO_API_KEY || env.BREVO_API_KEY;
     const adminEmail = process.env.ADMIN_ALERT_EMAIL || env.ADMIN_ALERT_EMAIL || 'ojalogs@gmail.com';
-    const senderEmail = process.env.BREVO_SENDER_EMAIL || env.BREVO_SENDER_EMAIL || 'ojalogs@gmail.com';
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || env.BREVO_SENDER_EMAIL || 'noreply@ojalogs.com.ng';
 
     if (!brevoApiKey) return;
 
@@ -571,7 +571,7 @@ class NotificationService {
 
     const brevoApiKey = process.env.BREVO_API_KEY || env.BREVO_API_KEY;
     const adminEmail = process.env.ADMIN_ALERT_EMAIL || env.ADMIN_ALERT_EMAIL || 'ojalogs@gmail.com';
-    const senderEmail = process.env.BREVO_SENDER_EMAIL || env.BREVO_SENDER_EMAIL || 'ojalogs@gmail.com';
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || env.BREVO_SENDER_EMAIL || 'noreply@ojalogs.com.ng';
 
     if (!brevoApiKey) return;
 
@@ -631,7 +631,7 @@ class NotificationService {
 
     const brevoApiKey = process.env.BREVO_API_KEY || env.BREVO_API_KEY;
     const adminEmail = process.env.ADMIN_ALERT_EMAIL || env.ADMIN_ALERT_EMAIL || 'ojalogs@gmail.com';
-    const senderEmail = process.env.BREVO_SENDER_EMAIL || env.BREVO_SENDER_EMAIL || 'ojalogs@gmail.com';
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || env.BREVO_SENDER_EMAIL || 'noreply@ojalogs.com.ng';
 
     if (!brevoApiKey) return;
 
@@ -691,7 +691,7 @@ class NotificationService {
 
     const brevoApiKey = process.env.BREVO_API_KEY || env.BREVO_API_KEY;
     const adminEmail = process.env.ADMIN_ALERT_EMAIL || env.ADMIN_ALERT_EMAIL || 'ojalogs@gmail.com';
-    const senderEmail = process.env.BREVO_SENDER_EMAIL || env.BREVO_SENDER_EMAIL || 'ojalogs@gmail.com';
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || env.BREVO_SENDER_EMAIL || 'noreply@ojalogs.com.ng';
 
     if (!brevoApiKey) return;
 
