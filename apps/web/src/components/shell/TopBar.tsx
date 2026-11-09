@@ -45,43 +45,39 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenCart }) => {
           {user && (
             <Link
               to="/dashboard"
-              className={`px-3 py-1.5 rounded-lg transition-colors ${
-                location.pathname === '/dashboard'
+              className={`px-3 py-1.5 rounded-lg transition-colors ${location.pathname === '/dashboard'
                   ? 'bg-oj-primary/10 text-oj-primary font-semibold dark:bg-oj-primary/20'
                   : 'text-oj-muted hover:text-oj-midnight dark:text-oj-dark-muted dark:hover:text-white'
-              }`}
+                }`}
             >
               Dashboard
             </Link>
           )}
           <Link
             to="/shop"
-            className={`px-3 py-1.5 rounded-lg transition-colors ${
-              location.pathname === '/shop'
+            className={`px-3 py-1.5 rounded-lg transition-colors ${location.pathname === '/shop'
                 ? 'bg-oj-primary/10 text-oj-primary font-semibold dark:bg-oj-primary/20'
                 : 'text-oj-muted hover:text-oj-midnight dark:text-oj-dark-muted dark:hover:text-white'
-            }`}
+              }`}
           >
             Storefront
           </Link>
           <Link
             to="/virtual-numbers"
-            className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
-              location.pathname === '/virtual-numbers'
+            className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${location.pathname === '/virtual-numbers'
                 ? 'bg-oj-primary/10 text-oj-primary font-semibold dark:bg-oj-primary/20'
                 : 'text-oj-muted hover:text-oj-midnight dark:text-oj-dark-muted dark:hover:text-white'
-            }`}
+              }`}
           >
             <PhoneCall className="w-3.5 h-3.5 text-oj-cyan" />
             <span>Virtual Numbers</span>
           </Link>
           <Link
             to="/social-boost"
-            className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
-              location.pathname === '/social-boost'
+            className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${location.pathname === '/social-boost'
                 ? 'bg-oj-primary/10 text-oj-primary font-semibold dark:bg-oj-primary/20'
                 : 'text-oj-muted hover:text-oj-midnight dark:text-oj-dark-muted dark:hover:text-white'
-            }`}
+              }`}
           >
             <Zap className="w-3.5 h-3.5 text-amber-500" />
             <span>Social Boost</span>
@@ -93,21 +89,19 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenCart }) => {
             <>
               <Link
                 to="/wallet"
-                className={`px-3 py-1.5 rounded-lg transition-colors ${
-                  location.pathname === '/wallet'
+                className={`px-3 py-1.5 rounded-lg transition-colors ${location.pathname === '/wallet'
                     ? 'bg-oj-primary/10 text-oj-primary font-semibold dark:bg-oj-primary/20'
                     : 'text-oj-muted hover:text-oj-midnight dark:text-oj-dark-muted dark:hover:text-white'
-                }`}
+                  }`}
               >
                 Wallet
               </Link>
               <Link
                 to="/orders"
-                className={`px-3 py-1.5 rounded-lg transition-colors ${
-                  location.pathname === '/orders'
+                className={`px-3 py-1.5 rounded-lg transition-colors ${location.pathname === '/orders'
                     ? 'bg-oj-primary/10 text-oj-primary font-semibold dark:bg-oj-primary/20'
                     : 'text-oj-muted hover:text-oj-midnight dark:text-oj-dark-muted dark:hover:text-white'
-                }`}
+                  }`}
               >
                 Orders
               </Link>
@@ -121,11 +115,10 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenCart }) => {
           {user?.role === 'administrator' && (
             <button
               onClick={() => setRole(role === 'customer' ? 'admin' : 'customer')}
-              className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 ${
-                role === 'admin'
+              className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 ${role === 'admin'
                   ? 'bg-oj-midnight text-oj-cyan border-oj-cyan/40 shadow-glow-cyan'
                   : 'bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted dark:text-oj-dark-muted border-oj-border dark:border-oj-dark-border hover:border-oj-primary/40'
-              }`}
+                }`}
               title="Toggle between Customer Storefront and Super Admin View"
             >
               <Shield className="w-3.5 h-3.5" />

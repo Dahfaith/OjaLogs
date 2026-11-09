@@ -23,9 +23,9 @@ services:
       - key: SERVER_ENCRYPTION_KEY
         value: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
       - key: BACHS_API_KEY
-        value: sk_sandbox_1e154c00_0BVnqwslBHTZ0amGc9VsYFKVyZC2_Vx43TiwFGe6CHg
+        sync: false
       - key: BACHS_WEBHOOK_SECRET
-        value: whsec_sandbox_ojalogs_secret_2026
+        sync: false
       - key: BACHS_BASE_URL
-        value: https://sandbox-api.bachs.io/v1
+        value: https://api.bachs.io/v1
 

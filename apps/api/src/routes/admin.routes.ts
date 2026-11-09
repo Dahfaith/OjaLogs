@@ -10,6 +10,7 @@ import { supabaseAdmin } from '../config/supabase.js';
 import { validateBody } from '../middleware/validate.js';
 import { z } from 'zod';
 import { env } from '../config/env.js';
+import { bachGateway } from '../gateways/bach.gateway.js';
 import { PaymentGatewayConfig, TelephonyProviderConfig, AdminManagedUser, AdminNotification } from '@ojalogs/shared';
 
 const router = Router();
@@ -279,6 +280,16 @@ router.patch('/gateways/:id', validateBody(UpdateGatewayConfigSchema), (req, res
   }
 
   paymentGateways[idx] = { ...paymentGateways[idx], ...req.body };
+
+  // If updating Bachs, sync live gateway runtime immediately
+  if (rawId === 'bach') {
+    bachGateway.updateCredentials({
+      apiKey: req.body.secretKey,
+      webhookSecret: req.body.webhookSecret,
+      baseUrl: req.body.baseUrl
+    });
+  }
+
   res.json({
     success: true,
     data: paymentGateways[idx],
@@ -286,11 +297,67 @@ router.patch('/gateways/:id', validateBody(UpdateGatewayConfigSchema), (req, res
   });
 });
 
-router.post('/gateways/:id/test', (req, res) => {
+router.post('/gateways/:id/test', async (req, res) => {
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const gateway = paymentGateways.find(g => g.id === rawId);
   if (!gateway) {
     return res.status(404).json({ success: false, error: { message: 'Gateway not found' } });
+  }
+
+  const startTime = Date.now();
+
+  if (rawId === 'bach' && gateway.secretKey) {
+    try {
+      const resp = await fetch(`${gateway.baseUrl}/checkout-sessions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${gateway.secretKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          pricing: { amount: '10.00', currency: 'NGN' },
+          customer_email: 'test@ojalogs.com',
+          reference: `test_${Date.now()}`
+        })
+      });
+
+      const latencyMs = Date.now() - startTime;
+      let healthy = false;
+      let message = '';
+
+      if (resp.status === 201 || resp.status === 200 || resp.status === 400) {
+        healthy = true;
+        message = `Live connection verified with Bachs API (HTTP ${resp.status}).`;
+      } else if (resp.status === 401 || resp.status === 403) {
+        healthy = false;
+        message = `Bachs authentication failed (HTTP ${resp.status}). Please check API Secret Key.`;
+      } else {
+        healthy = false;
+        message = `Bachs returned HTTP ${resp.status}`;
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          gatewayId: rawId,
+          healthy,
+          latencyMs,
+          message
+        },
+        meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+      });
+    } catch (err: any) {
+      return res.json({
+        success: true,
+        data: {
+          gatewayId: rawId,
+          healthy: false,
+          latencyMs: Date.now() - startTime,
+          message: `Network error connecting to Bachs: ${err.message}`
+        },
+        meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+      });
+    }
   }
 
   const simulatedLatency = Math.floor(38 + Math.random() * 35);

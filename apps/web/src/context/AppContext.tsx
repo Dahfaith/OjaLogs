@@ -66,7 +66,18 @@ interface AppContextType {
   // Wallet & Ledger
   wallet: WalletState;
   ledger: LedgerTransaction[];
-  fundWallet: (amount: number) => Promise<{ reference: string; checkoutUrl?: string }>;
+  fundWallet: (amount: number) => Promise<{
+    reference: string;
+    gatewayReference?: string;
+    checkoutUrl?: string;
+    dynamicAccountDetails?: {
+      bankName: string;
+      accountNumber: string;
+      accountName: string;
+      amountNgn: number;
+      expiresInMinutes: number;
+    };
+  }>;
   refreshWallet: () => Promise<void>;
   
   // Orders
@@ -394,46 +405,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     refreshWallet();
   }, [refreshWallet]);
 
-  const fundWallet = async (amount: number): Promise<{ reference: string; checkoutUrl?: string }> => {
-    let reference = `ref_oj_${Math.floor(1000000 + Math.random() * 9000000)}`;
-    let checkoutUrl: string | undefined;
-
-    try {
-      const res = await apiClient.initiateFunding(amount);
-      reference = res.reference;
-      checkoutUrl = res.checkoutUrl;
-    } catch (e: any) {
-      console.warn('Backend funding call failed, using sandbox fallback:', e.message);
-    }
-
-    const newBalance = wallet.balanceNgn + amount;
-    const newTx: LedgerTransaction = {
-      id: `ldg_${Date.now()}`,
-      reference,
-      type: 'credit',
-      category: 'deposit',
-      amountNgn: amount,
-      balanceAfterNgn: newBalance,
-      description: `Wallet top-up via BACH Gateway (${reference})`,
-      status: 'successful',
-      timestamp: new Date().toISOString()
+  const fundWallet = async (amount: number): Promise<{
+    reference: string;
+    gatewayReference?: string;
+    checkoutUrl?: string;
+    dynamicAccountDetails?: {
+      bankName: string;
+      accountNumber: string;
+      accountName: string;
+      amountNgn: number;
+      expiresInMinutes: number;
     };
-
-    setWallet(prev => ({
-      ...prev,
-      balanceNgn: newBalance
-    }));
-
-    setLedger(prev => [newTx, ...prev]);
-
-    confetti({
-      particleCount: 80,
-      spread: 70,
-      origin: { y: 0.6 }
-    });
-
-    showToast(`Successfully credited ${formatPrice(amount)} to your wallet!`);
-    return { reference, checkoutUrl };
+  }> => {
+    return await apiClient.initiateFunding(amount);
   };
 
   // Orders: Strictly empty for new accounts and guests (real orders loaded from backend)

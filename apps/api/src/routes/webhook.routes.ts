@@ -14,15 +14,25 @@ const processedEvents = new Set<string>();
  */
 router.post('/bach', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const signature = req.headers['x-bachs-signature-v2'] as string;
-    const timestamp = req.headers['x-bachs-timestamp'] as string;
+    const signature = (
+      req.headers['bachs-signature'] ||
+      req.headers['x-bachs-signature-v2'] ||
+      req.headers['x-bachs-signature'] ||
+      req.headers['webhook-signature'] ||
+      req.headers['svix-signature']
+    ) as string;
+    const timestamp = (
+      req.headers['bachs-timestamp'] ||
+      req.headers['x-bachs-timestamp'] ||
+      req.headers['webhook-timestamp']
+    ) as string;
 
     if (!signature) {
-      throw new AppError('Missing X-Bachs-Signature-V2 header', 400, 'MISSING_SIGNATURE');
+      throw new AppError('Missing Bachs-Signature / X-Bachs-Signature-V2 header', 400, 'MISSING_SIGNATURE');
     }
 
-    // Capture raw body
-    const rawBody = JSON.stringify(req.body);
+    // Capture exact raw body buffer preserved during express.json verification
+    const rawBody = (req as any).rawBody || Buffer.from(JSON.stringify(req.body));
 
     // 1. Verify Signature & Anti-Replay Timestamp
     const webhookEvent = await bachGateway.handleWebhook(rawBody, signature, timestamp);
@@ -40,8 +50,9 @@ router.post('/bach', async (req: Request, res: Response, next: NextFunction) => 
     processedEvents.add(webhookEvent.eventId);
 
     // 3. Process Valid Payment Event
-    if (webhookEvent.status === 'successful') {
-      const userId = webhookEvent.rawPayload.data?.metadata?.user_id || 'usr_oj_001';
+    if (webhookEvent.status === 'successful' && webhookEvent.amountNgn > 0) {
+      const payload = webhookEvent.rawPayload;
+      const userId = payload.data?.metadata?.user_id || payload.metadata?.user_id || payload.data?.metadata?.userId || 'usr_oj_001';
 
       // Atomic Ledger Credit
       const tx = walletService.creditWallet(
@@ -55,7 +66,7 @@ router.post('/bach', async (req: Request, res: Response, next: NextFunction) => 
       console.log(`[BACH_WEBHOOK] Credited ₦${webhookEvent.amountNgn} to wallet for user ${userId}. Tx: ${tx.id}`);
 
       // Dispatch real-time deposit email alert to admin
-      const customerEmail = webhookEvent.rawPayload.data?.customer?.email || 'customer@ojalogs.com';
+      const customerEmail = payload.data?.customer_email || payload.data?.customer?.email || 'customer@ojalogs.com';
       notificationService.recordDepositAlert(
         userId,
         customerEmail,
