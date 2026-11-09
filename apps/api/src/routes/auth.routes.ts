@@ -32,41 +32,20 @@ router.post('/magic-link', authLimiter, validateBody(MagicLinkSchema), async (re
     const { email, redirectTo } = req.body;
     const cleanEmail = email.toLowerCase().trim();
 
-    // 1. Try sending real Supabase Magic Link
-    let supabaseSuccess = false;
-    let errorMessage: string | undefined;
-
-    try {
-      const { error } = await supabaseAdmin.auth.signInWithOtp({
-        email: cleanEmail,
-        options: {
-          emailRedirectTo: redirectTo,
-          shouldCreateUser: true
-        }
-      });
-
-      if (!error) {
-        supabaseSuccess = true;
-      } else {
-        errorMessage = error.message;
-        console.warn(`[SUPABASE_AUTH_NOTICE] ${error.message}. Generating backup dev code.`);
-      }
-    } catch (e: any) {
-      errorMessage = e.message;
-      console.warn(`[SUPABASE_AUTH_ERR] ${e.message}`);
-    }
-
-    // 2. Fast OTP generation & dispatch via verified Brevo API engine
-    const devCode = Math.floor(100000 + Math.random() * 900000).toString();
-    devOtpStore.set(cleanEmail, { code: devCode, expiresAt: Date.now() + 10 * 60 * 1000 });
-
-    // 3. Dispatch Lightning-Fast Branded Confirmation Code via Verified Brevo Sender
+    // 1. Check if Brevo is available for instant 1-second OTP delivery
     const brevoApiKey = process.env.BREVO_API_KEY || env.BREVO_API_KEY;
     const senderEmail = process.env.BREVO_SENDER_EMAIL || env.BREVO_SENDER_EMAIL || 'noreply@ojalogs.com.ng';
 
+    // 2. Fast 6-digit OTP generation
+    const devCode = Math.floor(100000 + Math.random() * 900000).toString();
+    devOtpStore.set(cleanEmail, { code: devCode, expiresAt: Date.now() + 10 * 60 * 1000 });
+
+    let emailDispatched = false;
+
+    // 3. Dispatch Lightning-Fast Branded Confirmation Code via Verified Brevo Sender
     if (brevoApiKey) {
       try {
-        await fetch('https://api.brevo.com/v3/smtp/email', {
+        const brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
           method: 'POST',
           headers: {
             'api-key': brevoApiKey,
@@ -93,9 +72,30 @@ router.post('/magic-link', authLimiter, validateBody(MagicLinkSchema), async (re
             `
           })
         });
-        console.log(`[BREVO_OTP] ✓ Dispatched fast OTP (${devCode}) to ${cleanEmail} via ${senderEmail}`);
+
+        if (brevoRes.ok) {
+          emailDispatched = true;
+          console.log(`[BREVO_OTP] ✓ Dispatched fast 6-digit OTP (${devCode}) to ${cleanEmail} via ${senderEmail}`);
+        }
       } catch (err: any) {
         console.warn(`[BREVO_OTP_NOTICE] ${err.message}`);
+      }
+    }
+
+    // 4. Fallback to Supabase ONLY if Brevo was not configured
+    let supabaseSuccess = false;
+    if (!emailDispatched) {
+      try {
+        const { error } = await supabaseAdmin.auth.signInWithOtp({
+          email: cleanEmail,
+          options: {
+            emailRedirectTo: redirectTo,
+            shouldCreateUser: true
+          }
+        });
+        if (!error) supabaseSuccess = true;
+      } catch (e: any) {
+        console.warn(`[SUPABASE_AUTH_ERR] ${e.message}`);
       }
     }
 

@@ -59,11 +59,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultEm
     setErrorMessage(null);
 
     try {
-      // Dispatch in parallel: verified Brevo API engine (under 2 seconds) + Supabase Auth
-      await Promise.allSettled([
-        apiClient.sendMagicLink(email),
-        sendMagicLink(email)
-      ]);
+      // Primary: Verified Brevo API engine (delivers single 6-digit code in 1-2 seconds)
+      try {
+        await apiClient.sendMagicLink(email);
+      } catch (backendErr) {
+        // Fallback to Supabase only if backend API was unreachable
+        await sendMagicLink(email);
+      }
 
       setStep('sent');
       setCountdown(60);
