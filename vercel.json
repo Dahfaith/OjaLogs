@@ -3,6 +3,19 @@
   "buildCommand": "pnpm --filter @ojalogs/shared build && pnpm --filter web build",
   "outputDirectory": "apps/web/dist",
   "framework": "vite",
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "ojalogs.vercel.app"
+        }
+      ],
+      "destination": "https://ojalogs.com.ng/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",
