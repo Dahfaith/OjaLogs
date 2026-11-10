@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { TopBar } from './components/shell/TopBar';
 import { BottomTabBar } from './components/shell/BottomTabBar';
@@ -24,13 +24,6 @@ import { ApiDocsPage } from './pages/ApiDocsPage';
 
 export const App: React.FC = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
-
-  // Canonical domain redirect from ojalogs.vercel.app to https://ojalogs.com.ng
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.location.hostname === 'ojalogs.vercel.app') {
-      window.location.replace(`https://ojalogs.com.ng${window.location.pathname}${window.location.search}${window.location.hash}`);
-    }
-  }, []);
 
   return (
     <div className="min-h-screen bg-oj-bg dark:bg-oj-dark-bg text-oj-midnight dark:text-oj-dark-text flex flex-col font-sans transition-colors duration-200">
