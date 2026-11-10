@@ -34,6 +34,22 @@ export class NumbersService {
     return this.sessions.get(sessionId)?.session;
   }
 
+  findSessionByPhoneOrRef(phoneOrRef: string): VirtualNumberSession | undefined {
+    if (!phoneOrRef) return undefined;
+    const cleanTarget = phoneOrRef.replace(/\D/g, '');
+    for (const item of this.sessions.values()) {
+      const cleanPhone = item.session.phoneNumber.replace(/\D/g, '');
+      if (
+        item.session.reference === phoneOrRef ||
+        item.session.id === phoneOrRef ||
+        (cleanTarget.length > 5 && (cleanPhone === cleanTarget || cleanPhone.endsWith(cleanTarget) || cleanTarget.endsWith(cleanPhone)))
+      ) {
+        return item.session;
+      }
+    }
+    return undefined;
+  }
+
   async requestNumber(
     userId: string,
     country: CountryOption,

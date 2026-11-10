@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { bachGateway } from '../gateways/bach.gateway.js';
 import { walletService } from '../services/wallet.service.js';
 import { notificationService } from '../services/notification.service.js';
+import { numbersService } from '../services/numbers.service.js';
 import { AppError } from '../middleware/errorHandler.js';
 
 const router = Router();
@@ -169,6 +170,39 @@ router.post(['/auth/new-user', '/auth', '/new-user'], async (req: Request, res: 
   } catch (err) {
     console.error('[SUPABASE_AUTH_WEBHOOK] Error handling new user webhook:', err);
     return res.status(200).json({ success: true, processed: false });
+  }
+});
+
+/**
+ * TextPlug Telephony Webhook: Real-Time Incoming SMS Receiver
+ * Webhook URL: https://api.ojalogs.com.ng/api/v1/webhooks/textplug
+ */
+router.post(['/textplug', '/sms/textplug'], async (req: Request, res: Response) => {
+  try {
+    const body = req.body || {};
+    const { serviceName, channel, phoneNumber, reference, code, message, text } = body;
+    console.log(`[TEXTPLUG_WEBHOOK] 📩 Incoming SMS from TextPlug:`, { phoneNumber, reference, code, serviceName });
+
+    const smsCode = code || (text ? (text.match(/\b\d{4,8}\b/) || [])[0] : '') || '';
+    const fullText = message || text || `Your ${serviceName || 'verification'} code is ${smsCode}`;
+    const sender = serviceName || 'TextPlug';
+
+    const session = numbersService.findSessionByPhoneOrRef(reference || phoneNumber);
+    if (session) {
+      numbersService.receiveIncomingSms(session.id, sender, smsCode, fullText);
+      console.log(`[TEXTPLUG_WEBHOOK] ✓ Successfully matched session ${session.id} (${session.phoneNumber}) with OTP code: ${smsCode}`);
+    } else {
+      console.warn(`[TEXTPLUG_WEBHOOK] No active session found for ref=${reference}, phone=${phoneNumber}. Recording in log.`);
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'SMS received and processed successfully',
+      matched: Boolean(session)
+    });
+  } catch (err: any) {
+    console.error('[TEXTPLUG_WEBHOOK] Error processing TextPlug webhook:', err);
+    return res.status(200).json({ status: 'error', message: err.message });
   }
 });
 

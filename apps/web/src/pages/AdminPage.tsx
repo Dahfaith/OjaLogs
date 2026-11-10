@@ -181,6 +181,7 @@ export const AdminPage: React.FC = () => {
   const [revealedKeys, setRevealedKeys] = useState<Record<string, boolean>>({});
   const [testingCluster, setTestingCluster] = useState<string | null>(null);
   const [copiedWebhookCluster, setCopiedWebhookCluster] = useState<string | null>(null);
+  const [copiedTextplugWebhook, setCopiedTextplugWebhook] = useState(false);
 
   // Payment Gateways Configurations State
   const [gatewayConfigs, setGatewayConfigs] = useState<PaymentGatewayConfig[]>(() => {
@@ -265,37 +266,38 @@ export const AdminPage: React.FC = () => {
     }
     return [
       {
+        id: 'provider-textplug',
+        name: 'TextPlug Telephony Hub',
+        badge: 'Primary Virtual SMS Hub (textplug.net)',
+        apiUrl: 'https://merchant.textplug.net',
+        apiKey: '',
+        webhookSecret: 'whsec_textplug_ojalogs',
+        markupPercent: 25,
+        autoRefundTimeoutSeconds: 900,
+        status: 'connected',
+        latencyMs: 38
+      },
+      {
         id: 'provider-5sim',
         name: '5sim.net Virtual SMS Hub',
-        badge: 'Primary High-Yield Telephony',
+        badge: 'Secondary Automated Fallback',
         apiUrl: 'https://5sim.net/v1/user',
         apiKey: 'Bearer 5sim_prod_token_3921',
         markupPercent: 25,
         autoRefundTimeoutSeconds: 900,
-        status: 'connected',
+        status: 'standby',
         latencyMs: 52
       },
       {
         id: 'provider-smsactivate',
         name: 'SMS-Activate Global Telephony',
-        badge: 'Secondary Automated Fallback',
+        badge: 'Third-Tier Fallback Telephony',
         apiUrl: 'https://api.sms-activate.org/stubs/handler_api.php',
         apiKey: 'smsactivate_key_88412',
         markupPercent: 25,
         autoRefundTimeoutSeconds: 900,
         status: 'standby',
         latencyMs: 88
-      },
-      {
-        id: 'provider-tigersms',
-        name: 'Tiger SMS Direct Provider',
-        badge: 'Global Redundancy Hub',
-        apiUrl: 'https://tiger-sms.com/api/v1',
-        apiKey: 'tiger_token_99182',
-        markupPercent: 30,
-        autoRefundTimeoutSeconds: 900,
-        status: 'standby',
-        latencyMs: 110
       }
     ];
   });
@@ -796,6 +798,7 @@ export const AdminPage: React.FC = () => {
       await apiClient.updateTelephonyConfig(provider.id, {
         apiUrl: provider.apiUrl,
         apiKey: provider.apiKey,
+        webhookSecret: provider.webhookSecret,
         markupPercent: provider.markupPercent,
         autoRefundTimeoutSeconds: provider.autoRefundTimeoutSeconds,
         status: provider.status
@@ -2519,6 +2522,55 @@ export const AdminPage: React.FC = () => {
             </div>
           </div>
 
+          {/* TextPlug Webhook Integration Guide Card */}
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-transparent border border-amber-500/30 dark:border-amber-500/20 shadow-soft space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-lg shadow-md">
+                  ⚡
+                </div>
+                <div>
+                  <h4 className="font-heading font-extrabold text-sm text-oj-midnight dark:text-white">
+                    TextPlug Real-Time Webhook Configuration
+                  </h4>
+                  <p className="text-[11px] text-oj-muted">
+                    Paste this exact URL into your TextPlug Dashboard (<span className="font-mono text-oj-primary">textplug.net/dashboard/settings#apiKey</span>)
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText('https://api.ojalogs.com.ng/api/v1/webhooks/textplug');
+                    setCopiedTextplugWebhook(true);
+                    setTimeout(() => setCopiedTextplugWebhook(false), 2500);
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white flex items-center gap-1.5 transition-all shadow-sm"
+                >
+                  {copiedTextplugWebhook ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedTextplugWebhook ? 'Copied URL!' : 'Copy Webhook URL'}</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-1">
+              <div className="p-3 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border">
+                <span className="text-[11px] font-bold text-oj-muted block mb-1">Your Webhook URL (for TextPlug):</span>
+                <code className="font-mono text-xs font-bold text-oj-primary dark:text-oj-cyan select-all break-all">
+                  https://api.ojalogs.com.ng/api/v1/webhooks/textplug
+                </code>
+              </div>
+              <div className="p-3 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border">
+                <span className="text-[11px] font-bold text-oj-muted block mb-1">Webhook Secret (for TextPlug):</span>
+                <code className="font-mono text-xs font-bold text-oj-midnight dark:text-white select-all">
+                  whsec_textplug_ojalogs
+                </code>
+              </div>
+            </div>
+          </div>
+
           {/* Grid of Telephony Providers */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {telephonyConfigs.map((provider) => {
@@ -2573,7 +2625,7 @@ export const AdminPage: React.FC = () => {
                           type={isRevealed ? 'text' : 'password'}
                           value={provider.apiKey}
                           onChange={(e) => handleUpdateTelephonyField(provider.id, 'apiKey', e.target.value)}
-                          placeholder="Bearer token..."
+                          placeholder="Bearer token / 32-character API key..."
                           className="w-full pl-3 pr-10 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt font-mono font-medium text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary"
                         />
                         <button
@@ -2584,6 +2636,19 @@ export const AdminPage: React.FC = () => {
                           {isRevealed ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-oj-midnight dark:text-white mb-1">
+                        Provider Webhook Secret (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={provider.webhookSecret || ''}
+                        onChange={(e) => handleUpdateTelephonyField(provider.id, 'webhookSecret', e.target.value)}
+                        placeholder="whsec_textplug_ojalogs"
+                        className="w-full px-3 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt font-mono font-medium text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary"
+                      />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">

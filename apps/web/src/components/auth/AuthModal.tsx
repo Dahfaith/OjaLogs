@@ -281,21 +281,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultEm
                 <div className="space-y-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-oj-muted dark:text-oj-dark-muted block text-center">
-                      Enter Confirmation Code
+                      Enter 6-Digit Confirmation Code
                     </label>
                     <input
                       type="text"
-                      maxLength={8}
+                      maxLength={6}
                       value={otpCode}
                       onChange={e => {
-                        const val = e.target.value.replace(/\D/g, '');
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 6);
                         setOtpCode(val);
-                        if (val.length === 8) {
+                        if (val.length === 6) {
                           handleVerifyOtp(val);
                         }
                       }}
-                      placeholder="12345678"
-                      className="w-full text-center tracking-[0.3em] font-mono text-xl py-3 rounded-xl border border-oj-border dark:border-oj-dark-border bg-white dark:bg-oj-dark-surface font-extrabold focus:outline-none focus:border-oj-primary transition-colors"
+                      placeholder="1 2 3 4 5 6"
+                      className="w-full text-center tracking-[0.4em] font-mono text-2xl py-3 rounded-xl border border-oj-border dark:border-oj-dark-border bg-white dark:bg-oj-dark-surface font-extrabold focus:outline-none focus:border-oj-primary transition-colors"
                       autoFocus
                     />
                   </div>

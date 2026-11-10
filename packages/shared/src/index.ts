@@ -296,6 +296,7 @@ export interface TelephonyProviderConfig {
   badge: string;
   apiUrl: string;
   apiKey: string;
+  webhookSecret?: string;
   markupPercent: number;
   autoRefundTimeoutSeconds: number;
   status: 'connected' | 'standby' | 'offline';

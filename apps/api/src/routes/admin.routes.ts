@@ -106,37 +106,38 @@ let paymentGateways: PaymentGatewayConfig[] = [
 
 let telephonyProviders: TelephonyProviderConfig[] = [
   {
+    id: 'provider-textplug',
+    name: 'TextPlug Telephony Hub',
+    badge: 'Primary Virtual SMS Hub (textplug.net)',
+    apiUrl: 'https://merchant.textplug.net',
+    apiKey: '',
+    webhookSecret: '',
+    markupPercent: 25,
+    autoRefundTimeoutSeconds: 900,
+    status: 'connected',
+    latencyMs: 38
+  },
+  {
     id: 'provider-5sim',
     name: '5sim.net Virtual SMS Hub',
-    badge: 'Primary High-Yield Telephony',
+    badge: 'Secondary Automated Fallback',
     apiUrl: 'https://5sim.net/v1/user',
     apiKey: 'Bearer 5sim_prod_token_3921',
     markupPercent: 25,
     autoRefundTimeoutSeconds: 900,
-    status: 'connected',
+    status: 'standby',
     latencyMs: 52
   },
   {
     id: 'provider-smsactivate',
     name: 'SMS-Activate Global Telephony',
-    badge: 'Secondary Automated Fallback',
+    badge: 'Third-Tier Fallback Telephony',
     apiUrl: 'https://api.sms-activate.org/stubs/handler_api.php',
     apiKey: 'smsactivate_key_88412',
     markupPercent: 25,
     autoRefundTimeoutSeconds: 900,
     status: 'standby',
     latencyMs: 88
-  },
-  {
-    id: 'provider-tigersms',
-    name: 'Tiger SMS Direct Provider',
-    badge: 'Global Redundancy Hub',
-    apiUrl: 'https://tiger-sms.com/api/v1',
-    apiKey: 'tiger_token_99182',
-    markupPercent: 30,
-    autoRefundTimeoutSeconds: 900,
-    status: 'standby',
-    latencyMs: 110
   }
 ];
 
@@ -386,7 +387,8 @@ router.get('/numbers/configs', (req, res) => {
 
 const UpdateTelephonyConfigSchema = z.object({
   apiUrl: z.string().url().optional(),
-  apiKey: z.string().min(1).optional(),
+  apiKey: z.string().optional(),
+  webhookSecret: z.string().optional(),
   markupPercent: z.number().min(0).max(500).optional(),
   autoRefundTimeoutSeconds: z.number().min(60).max(7200).optional(),
   status: z.enum(['connected', 'standby', 'offline']).optional()
@@ -407,11 +409,62 @@ router.patch('/numbers/configs/:id', validateBody(UpdateTelephonyConfigSchema), 
   });
 });
 
-router.post('/numbers/configs/:id/test', (req, res) => {
+router.post('/numbers/configs/:id/test', async (req, res) => {
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const provider = telephonyProviders.find(p => p.id === rawId);
   if (!provider) {
     return res.status(404).json({ success: false, error: { message: 'Provider not found' } });
+  }
+
+  const startTime = Date.now();
+
+  if (rawId === 'provider-textplug' && provider.apiKey) {
+    try {
+      const resp = await fetch(`${provider.apiUrl}/v1/sms/swift/service-list`, {
+        method: 'GET',
+        headers: {
+          'x-api-key': provider.apiKey.trim(),
+          'Accept': 'application/json'
+        }
+      });
+
+      const latencyMs = Date.now() - startTime;
+      let healthy = false;
+      let message = '';
+
+      if (resp.status === 200) {
+        healthy = true;
+        message = `Live connection verified with TextPlug API (HTTP 200). Ready to lease virtual lines!`;
+      } else if (resp.status === 401 || resp.status === 403) {
+        healthy = false;
+        message = `TextPlug rejected API Key (HTTP ${resp.status}). Please verify your 32-character key from textplug.net.`;
+      } else {
+        healthy = false;
+        message = `TextPlug returned HTTP ${resp.status}`;
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          providerId: rawId,
+          healthy,
+          latencyMs,
+          message
+        },
+        meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+      });
+    } catch (err: any) {
+      return res.json({
+        success: true,
+        data: {
+          providerId: rawId,
+          healthy: false,
+          latencyMs: Date.now() - startTime,
+          message: `Network error connecting to TextPlug: ${err.message}`
+        },
+        meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+      });
+    }
   }
 
   const simulatedLatency = Math.floor(45 + Math.random() * 45);
