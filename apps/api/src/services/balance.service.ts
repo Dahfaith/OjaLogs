@@ -94,19 +94,20 @@ export class BalanceService {
     // 3. TextPlug Telephony Hub
     try {
       const textplug = telephonyRegistry.get('provider-textplug');
-      const hasKey = Boolean(textplug?.apiKey && textplug.apiKey.trim().length > 10);
+      const hasKey = Boolean((textplug?.apiKey || process.env.TEXTPLUG_API_KEY || '').trim().length > 5);
       const activeCount = numbersService.getActiveSessionsCount();
+      const tpBal = await telephonyRegistry.getBalance('provider-textplug');
 
       results.push({
         id: 'textplug',
         name: 'TextPlug Telephony Hub',
         category: 'telephony_provider',
-        balance: activeCount, // Number of active line rentals
-        currency: 'Lines',
+        balance: tpBal.balance, // Real live NGN balance, e.g. ₦1,150.00
+        currency: 'NGN',
         status: hasKey ? 'connected' : 'unconfigured',
         latencyMs: textplug?.latencyMs || 42,
         note: hasKey
-          ? `Online (textplug.net) · ${activeCount} active lines leased`
+          ? `TextPlug Wallet: ₦${tpBal.balance.toLocaleString()} · ${activeCount} active lines leased (${tpBal.purchasedNumbers || 0} lifetime)`
           : 'API Key required to query real line pools',
         lastChecked: now
       });
@@ -116,7 +117,7 @@ export class BalanceService {
         name: 'TextPlug Telephony Hub',
         category: 'telephony_provider',
         balance: 0,
-        currency: 'Lines',
+        currency: 'NGN',
         status: 'error',
         note: err.message,
         lastChecked: now

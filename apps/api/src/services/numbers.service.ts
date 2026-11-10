@@ -13,11 +13,36 @@ interface UserSessionMap {
 export class NumbersService {
   private sessions = new Map<string, UserSessionMap>();
 
+  private liveServicesCache: ServiceOption[] | null = null;
+
   getCountries(): CountryOption[] {
     return COUNTRIES;
   }
 
   getServices(): ServiceOption[] {
+    return this.liveServicesCache || SERVICES;
+  }
+
+  async refreshServices(): Promise<ServiceOption[]> {
+    try {
+      const live = await telephonyRegistry.fetchLiveServices('provider-textplug');
+      if (live && live.length > 0) {
+        const seen = new Set<string>();
+        const merged: ServiceOption[] = [];
+        for (const item of live) {
+          const key = item.name.toLowerCase().trim();
+          if (!seen.has(key)) { seen.add(key); merged.push(item); }
+        }
+        for (const item of SERVICES) {
+          const key = item.name.toLowerCase().trim();
+          if (!seen.has(key)) { seen.add(key); merged.push(item); }
+        }
+        this.liveServicesCache = merged;
+        return merged;
+      }
+    } catch (err: any) {
+      console.warn(`[NUMBERS_SERVICES] Live query notice: ${err.message}`);
+    }
     return SERVICES;
   }
 
@@ -83,18 +108,28 @@ export class NumbersService {
 
     // Live TextPlug API Integration
     const textplug = telephonyRegistry.get('provider-textplug');
-    if (textplug && textplug.apiKey && textplug.apiKey.trim().length > 10) {
+    const apiKey = (textplug?.apiKey || process.env.TEXTPLUG_API_KEY || '').trim();
+    if (apiKey && apiKey.length > 5) {
       try {
-        console.log(`[TEXTPLUG] Ordering real virtual line for: ${service.name} (${country.code})...`);
-        const tpRes = await fetch(`${textplug.apiUrl || 'https://merchant.textplug.net'}/v1/sms/swift/order`, {
+        let tpServiceName = service.name;
+        if (service.id === '1688' || service.name.startsWith('1688')) {
+          tpServiceName = '1688';
+        } else if (service.name.includes('/')) {
+          tpServiceName = service.name.split('/')[0].trim();
+        } else if (service.name.includes('(')) {
+          tpServiceName = service.name.split('(')[0].trim();
+        }
+
+        console.log(`[TEXTPLUG] Ordering real virtual line for: ${tpServiceName} (${country.code})...`);
+        const tpRes = await fetch(`${textplug?.apiUrl || process.env.TEXTPLUG_BASE_URL || 'https://merchant.textplug.net'}/v1/sms/swift/order`, {
           method: 'POST',
           headers: {
-            'x-api-key': textplug.apiKey.trim(),
+            'x-api-key': apiKey,
             'Content-Type': 'application/json',
             'Accept': 'application/json'
           },
           body: JSON.stringify({
-            serviceName: service.name
+            serviceName: tpServiceName
           })
         });
 

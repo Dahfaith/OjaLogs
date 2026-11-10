@@ -16,7 +16,11 @@ import {
   XCircle,
   MessageSquare,
   Zap,
-  TrendingUp
+  TrendingUp,
+  Search,
+  ChevronDown,
+  Filter,
+  ShoppingBag
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { mockCountries, mockServices } from '../lib/mockData';
@@ -32,6 +36,11 @@ export const VirtualNumbersPage: React.FC = () => {
   const [isRequesting, setIsRequesting] = useState(false);
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
 
+  // Search & Dropdown State (Matching TextPlug Dynamic SMS experience)
+  const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false);
+  const [serviceSearchQuery, setServiceSearchQuery] = useState('');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
+
   useEffect(() => {
     apiClient.getNumberOptions().then(res => {
       if (res?.countries?.length) setCountries(res.countries);
@@ -42,6 +51,22 @@ export const VirtualNumbersPage: React.FC = () => {
   const selectedCountry = countries.find(c => c.code === selectedCountryCode) || countries[0] || mockCountries[0];
   const selectedService = services.find(s => s.id === selectedServiceId) || services[0] || mockServices[0];
   const price = rentalType === 'long_term_rental' ? selectedService.priceNgn * 5 : selectedService.priceNgn;
+
+  const filteredServices = services.filter(s => {
+    if (selectedCategoryFilter !== 'all') {
+      if (selectedCategoryFilter === 'popular' && !s.popular) return false;
+      if (selectedCategoryFilter !== 'popular' && s.category?.toLowerCase() !== selectedCategoryFilter.toLowerCase()) return false;
+    }
+    if (serviceSearchQuery.trim()) {
+      const q = serviceSearchQuery.toLowerCase().trim();
+      return (
+        s.name.toLowerCase().includes(q) ||
+        s.id.toLowerCase().includes(q) ||
+        s.category?.toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
 
   const handleRequest = async () => {
     if (!user) {
@@ -157,42 +182,186 @@ export const VirtualNumbersPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Step 2: Service Selection */}
-        <div>
-          <label className="block text-xs font-semibold text-oj-midnight dark:text-white mb-2">
-            2. Select Service or Platform
-          </label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {services.map((s) => {
-              const isSelected = selectedServiceId === s.id;
+        {/* Step 2: Service Selection (Searchable Dropdown + Quick Chips matching TextPlug) */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-semibold text-oj-midnight dark:text-white">
+              2. Select Service or Platform ({services.length} Total Services)
+            </label>
+            {selectedService && (
+              <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                Selected: {selectedService.name.split('/')[0].trim()} · {formatPrice(price)}
+              </span>
+            )}
+          </div>
+
+          {/* Quick-Access Popular Chips */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            {['1688', 'whatsapp', 'telegram', 'openai', 'google', 'instagram', 'tiktok', 'netflix', 'twitter', 'binance'].map(popularId => {
+              const svc = services.find(s => s.id === popularId);
+              if (!svc) return null;
+              const isSelected = selectedServiceId === svc.id;
               return (
                 <button
-                  key={s.id}
+                  key={svc.id}
                   type="button"
-                  onClick={() => setSelectedServiceId(s.id)}
-                  className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                  onClick={() => {
+                    setSelectedServiceId(svc.id);
+                    setIsServiceDropdownOpen(false);
+                  }}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
                     isSelected
-                      ? 'bg-oj-midnight text-white border-oj-midnight dark:bg-oj-primary dark:border-oj-primary shadow-glow-primary'
-                      : 'bg-oj-surface-alt/60 dark:bg-oj-dark-surface-alt/60 border-oj-border dark:border-oj-dark-border hover:border-oj-primary/40 text-oj-midnight dark:text-white'
+                      ? 'bg-oj-midnight text-white border-oj-midnight dark:bg-oj-primary dark:border-oj-primary shadow-sm'
+                      : 'bg-oj-surface-alt/60 dark:bg-oj-dark-surface-alt/60 border-oj-border dark:border-oj-dark-border text-oj-muted hover:text-oj-midnight dark:hover:text-white'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold truncate">{s.name}</span>
-                    {s.popular && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-orange-500/20 text-orange-400">
-                        HOT
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="font-mono font-bold">{formatPrice(s.priceNgn)}</span>
-                    <span className={`text-[10px] ${isSelected ? 'text-cyan-300' : 'text-emerald-600'}`}>
-                      {s.successRate}% Success
-                    </span>
-                  </div>
+                  {svc.name.split(' / ')[0].split('(')[0].trim()}
                 </button>
               );
             })}
+          </div>
+
+          {/* Searchable Dropdown Picker (TextPlug Dynamic SMS style) */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsServiceDropdownOpen(!isServiceDropdownOpen)}
+              className="w-full p-3.5 rounded-xl border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt/40 dark:bg-oj-dark-surface-alt/40 hover:border-oj-primary/50 text-left flex items-center justify-between transition-all shadow-sm"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-oj-primary/10 text-oj-primary flex items-center justify-center font-bold text-xs shrink-0">
+                  {selectedService.name.substring(0, 2).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-oj-midnight dark:text-white truncate">
+                    {selectedService.name}
+                  </p>
+                  <p className="text-[10px] text-oj-muted">
+                    {selectedService.category} · {selectedService.successRate}% Success Rate · 15m Delivery
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 shrink-0">
+                <span className="text-xs font-mono font-extrabold text-emerald-600 dark:text-emerald-400">
+                  {formatPrice(selectedService.priceNgn)}
+                </span>
+                <ChevronDown className={`w-4 h-4 text-oj-muted transition-transform duration-200 ${isServiceDropdownOpen ? 'rotate-180 text-oj-primary' : ''}`} />
+              </div>
+            </button>
+
+            {/* Dropdown Menu Overlay */}
+            <AnimatePresence>
+              {isServiceDropdownOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  className="absolute left-0 right-0 top-full mt-2 z-40 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-2xl overflow-hidden max-h-80 flex flex-col"
+                >
+                  {/* Search Bar Input */}
+                  <div className="p-3 border-b border-oj-border dark:border-oj-dark-border bg-oj-surface-alt/40 dark:bg-oj-dark-surface-alt/40 flex items-center gap-2">
+                    <Search className="w-4 h-4 text-oj-muted shrink-0" />
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="Search services (1688, WhatsApp, Telegram, Google, OpenAI)..."
+                      value={serviceSearchQuery}
+                      onChange={(e) => setServiceSearchQuery(e.target.value)}
+                      className="w-full text-xs bg-transparent text-oj-midnight dark:text-white focus:outline-none placeholder:text-oj-muted"
+                    />
+                    {serviceSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setServiceSearchQuery('')}
+                        className="text-oj-muted hover:text-oj-midnight dark:hover:text-white text-xs font-bold px-1.5"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Category Filter Chips inside Dropdown */}
+                  <div className="p-2 border-b border-oj-border/50 dark:border-oj-dark-border/50 flex items-center gap-1 overflow-x-auto scrollbar-none text-[10px]">
+                    {[
+                      { id: 'all', label: 'All Services' },
+                      { id: 'popular', label: '🔥 Popular' },
+                      { id: 'messaging', label: 'Messaging' },
+                      { id: 'social', label: 'Social' },
+                      { id: 'e-commerce', label: 'Shopping' },
+                      { id: 'crypto & finance', label: 'Crypto' }
+                    ].map(tab => (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setSelectedCategoryFilter(tab.id)}
+                        className={`px-2 py-0.5 rounded-md font-semibold whitespace-nowrap transition-colors ${
+                          selectedCategoryFilter === tab.id
+                            ? 'bg-oj-primary text-white'
+                            : 'bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted hover:text-oj-midnight dark:hover:text-white'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* List of Services */}
+                  <div className="overflow-y-auto divide-y divide-oj-border/40 dark:divide-oj-dark-border/40 max-h-60">
+                    {filteredServices.length === 0 ? (
+                      <div className="p-8 text-center text-xs text-oj-muted">
+                        No service matching "{serviceSearchQuery}" found.
+                      </div>
+                    ) : (
+                      filteredServices.map(s => {
+                        const isSelected = selectedServiceId === s.id;
+                        return (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedServiceId(s.id);
+                              setIsServiceDropdownOpen(false);
+                            }}
+                            className={`w-full p-2.5 px-3 text-left transition-colors flex items-center justify-between ${
+                              isSelected
+                                ? 'bg-oj-primary/10 dark:bg-oj-primary/20 text-oj-primary font-bold'
+                                : 'hover:bg-oj-surface-alt/50 dark:hover:bg-oj-dark-surface-alt/50 text-oj-midnight dark:text-white'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <span className="w-6 h-6 rounded-md bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted flex items-center justify-center text-[10px] font-bold shrink-0">
+                                {s.name.substring(0, 2).toUpperCase()}
+                              </span>
+                              <div className="min-w-0">
+                                <p className="text-xs font-semibold truncate flex items-center gap-1.5">
+                                  <span>{s.name}</span>
+                                  {s.popular && (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-500">
+                                      POPULAR
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="text-[10px] text-oj-muted">
+                                  {s.category} · {s.successRate}% Success
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                                {formatPrice(rentalType === 'long_term_rental' ? s.priceNgn * 5 : s.priceNgn)}
+                              </span>
+                              {isSelected && <Check className="w-4 h-4 text-oj-primary" />}
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 

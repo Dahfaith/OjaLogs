@@ -18,7 +18,10 @@ const EnvSchema = z.object({
   BREVO_SENDER_EMAIL: z.string().default('noreply@ojalogs.com.ng'),
   ADMIN_ALERT_EMAIL: z.string().default('ojalogs@gmail.com'),
   LINKOCIAL_API_KEY: z.string().default('linkocial_live_token_default'),
-  LINKOCIAL_BASE_URL: z.string().default('https://linkocial.com/api/v1')
+  LINKOCIAL_BASE_URL: z.string().default('https://linkocial.com/api/v1'),
+  TEXTPLUG_API_KEY: z.string().optional().default(''),
+  TEXTPLUG_BASE_URL: z.string().default('https://merchant.textplug.net'),
+  TEXTPLUG_WEBHOOK_SECRET: z.string().default('whsec_textplug_ojalogs')
 });
 
 export const env = EnvSchema.parse(process.env);

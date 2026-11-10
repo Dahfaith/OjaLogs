@@ -10,12 +10,13 @@ const router = Router();
 router.use(authMiddleware);
 
 // Get available countries & services
-router.get('/options', (req, res) => {
+router.get('/options', async (req, res) => {
+  const services = await numbersService.refreshServices();
   res.json({
     success: true,
     data: {
       countries: numbersService.getCountries(),
-      services: numbersService.getServices()
+      services
     },
     meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
   });
