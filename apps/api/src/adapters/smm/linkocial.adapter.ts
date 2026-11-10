@@ -90,6 +90,8 @@ export class LinkocialAdapter {
       'Accept': 'application/json, text/plain, */*'
     };
 
+    let upstream500 = false;
+
     // Strategy 1: POST application/x-www-form-urlencoded
     try {
       const controller = new AbortController();
@@ -112,6 +114,10 @@ export class LinkocialAdapter {
 
       clearTimeout(timeoutId);
 
+      if (res.status === 500) {
+        upstream500 = true;
+      }
+
       const text = await res.text();
       let parsed: any = null;
       try {
@@ -127,6 +133,7 @@ export class LinkocialAdapter {
 
       // If response is 500 or not OK, check error message
       if (parsed?.message === 'Server Error' || text.includes('Server Error') || text.includes('Server Encountered an Error')) {
+        upstream500 = true;
         console.warn(`[LINKOCIAL_API] Upstream returned Server Error on Strategy 1. Trying JSON format...`);
       }
     } catch (err: any) {
@@ -152,6 +159,10 @@ export class LinkocialAdapter {
       });
 
       clearTimeout(timeoutId);
+
+      if (res.status === 500) {
+        upstream500 = true;
+      }
 
       const text = await res.text();
       let parsed: any = null;
@@ -188,6 +199,10 @@ export class LinkocialAdapter {
 
       clearTimeout(timeoutId);
 
+      if (res.status === 500) {
+        upstream500 = true;
+      }
+
       const text = await res.text();
       let parsed: any = null;
       try {
@@ -206,6 +221,13 @@ export class LinkocialAdapter {
       }
     } catch (err: any) {
       console.warn(`[LINKOCIAL_API] Strategy 3 notice: ${err.message}`);
+    }
+
+    // If upstream returned 500 Server Error
+    if (upstream500) {
+      return {
+        error: `Linkocial server encountered an internal 500 error on their backend (${url}). Your API key is securely saved. If your Linkocial account has an updated API endpoint, you can edit the API Base URL.`
+      };
     }
 
     // If all strategies failed, return a helpful diagnosis

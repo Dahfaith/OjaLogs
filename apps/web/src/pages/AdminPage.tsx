@@ -381,6 +381,7 @@ export const AdminPage: React.FC = () => {
   const [isSyncingSmm, setIsSyncingSmm] = useState(false);
   const [isUpdatingConfig, setIsUpdatingConfig] = useState(false);
   const [linkocialApiKeyInput, setLinkocialApiKeyInput] = useState('');
+  const [linkocialApiUrlInput, setLinkocialApiUrlInput] = useState('https://linkocial.com/api/v1');
   const [isRefreshingBalance, setIsRefreshingBalance] = useState(false);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string; balance?: number } | null>(null);
@@ -554,6 +555,7 @@ export const AdminPage: React.FC = () => {
           setSmmConfig(data);
           setSmmGlobalMarkupInput(data.defaultMarkupPercent || 30);
           setLinkocialApiKeyInput(data.apiKey || '');
+          setLinkocialApiUrlInput(data.apiUrl || 'https://linkocial.com/api/v1');
         }
       })
       .catch(() => { });
@@ -643,6 +645,7 @@ export const AdminPage: React.FC = () => {
 
   const handleTestConnection = async () => {
     const key = linkocialApiKeyInput.trim();
+    const url = linkocialApiUrlInput.trim();
     if (!key) {
       showToast('Please paste your API key to test');
       return;
@@ -650,7 +653,7 @@ export const AdminPage: React.FC = () => {
     setIsTestingConnection(true);
     setTestResult(null);
     try {
-      const res = await apiClient.testSMMConnection(key);
+      const res = await apiClient.testSMMConnection(key, url);
       if (res.success && res.balance !== undefined) {
         setTestResult({
           success: true,
@@ -677,7 +680,8 @@ export const AdminPage: React.FC = () => {
     e.preventDefault();
     try {
       const trimmedKey = linkocialApiKeyInput.trim();
-      const updated = await apiClient.updateSMMProviderConfig({ apiKey: trimmedKey });
+      const trimmedUrl = linkocialApiUrlInput.trim();
+      const updated = await apiClient.updateSMMProviderConfig({ apiKey: trimmedKey, apiUrl: trimmedUrl });
       setSmmConfig(updated);
       setIsUpdatingConfig(false);
       setTestResult(null);
@@ -3452,6 +3456,27 @@ export const AdminPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleSaveSmmConfig} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-oj-midnight dark:text-white mb-1">
+                  Linkocial API Base URL
+                </label>
+                <div className="relative">
+                  <input
+                    type="url"
+                    value={linkocialApiUrlInput}
+                    onChange={(e) => {
+                      setLinkocialApiUrlInput(e.target.value);
+                      if (testResult) setTestResult(null);
+                    }}
+                    placeholder="https://linkocial.com/api/v1"
+                    className="w-full px-3 py-2.5 rounded-xl border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt font-mono text-xs text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary"
+                  />
+                </div>
+                <p className="text-[11px] text-oj-muted mt-1">
+                  Default endpoint: <span className="font-mono text-oj-primary">https://linkocial.com/api/v1</span>. If your provider dashboard gives a custom SMM endpoint, update it here.
+                </p>
+              </div>
+
               <div>
                 <label className="block font-bold text-oj-midnight dark:text-white mb-1">
                   Linkocial API Key *
