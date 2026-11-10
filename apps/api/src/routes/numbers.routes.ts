@@ -7,9 +7,8 @@ import { numbersService } from '../services/numbers.service.js';
 import { z } from 'zod';
 
 const router = Router();
-router.use(authMiddleware);
 
-// Get available countries & services
+// Public Catalog Endpoint: Get available countries & services (accessible before auth)
 router.get('/options', async (req, res) => {
   const services = await numbersService.refreshServices();
   res.json({
@@ -21,6 +20,9 @@ router.get('/options', async (req, res) => {
     meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
   });
 });
+
+// All routes below require customer authentication
+router.use(authMiddleware);
 
 // Get user's active & past virtual number sessions
 router.get('/', (req, res) => {

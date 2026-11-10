@@ -447,13 +447,24 @@ export const AdminPage: React.FC = () => {
     }
   };
 
-  // Sync from live backend API on mount
+  // Sync from live backend API on mount with Smart-Merge (preserves local keys if remote is empty)
   useEffect(() => {
     apiClient.getServerConfigs()
       .then(data => {
         if (data && data.length > 0) {
-          setServerConfigs(data);
-          localStorage.setItem('oj_server_configs', JSON.stringify(data));
+          setServerConfigs(prev => {
+            const merged = data.map(remoteItem => {
+              const local = prev.find(p => p.cluster === remoteItem.cluster);
+              return {
+                ...remoteItem,
+                apiKey: remoteItem.apiKey?.trim() || local?.apiKey || '',
+                apiUrl: remoteItem.apiUrl?.trim() || local?.apiUrl || '',
+                webhookSecret: remoteItem.webhookSecret?.trim() || local?.webhookSecret || ''
+              };
+            });
+            localStorage.setItem('oj_server_configs', JSON.stringify(merged));
+            return merged;
+          });
         }
       })
       .catch(() => { });
@@ -461,8 +472,20 @@ export const AdminPage: React.FC = () => {
     apiClient.getGatewayConfigs()
       .then(data => {
         if (data && data.length > 0) {
-          setGatewayConfigs(data);
-          localStorage.setItem('oj_gateway_configs', JSON.stringify(data));
+          setGatewayConfigs(prev => {
+            const merged = data.map(remoteItem => {
+              const local = prev.find(p => p.id === remoteItem.id);
+              return {
+                ...remoteItem,
+                secretKey: remoteItem.secretKey?.trim() || local?.secretKey || '',
+                publicKey: remoteItem.publicKey?.trim() || local?.publicKey || '',
+                webhookSecret: remoteItem.webhookSecret?.trim() || local?.webhookSecret || '',
+                baseUrl: remoteItem.baseUrl?.trim() || local?.baseUrl || ''
+              };
+            });
+            localStorage.setItem('oj_gateway_configs', JSON.stringify(merged));
+            return merged;
+          });
         }
       })
       .catch(() => { });
@@ -470,8 +493,19 @@ export const AdminPage: React.FC = () => {
     apiClient.getTelephonyConfigs()
       .then(data => {
         if (data && data.length > 0) {
-          setTelephonyConfigs(data);
-          localStorage.setItem('oj_telephony_configs', JSON.stringify(data));
+          setTelephonyConfigs(prev => {
+            const merged = data.map(remoteItem => {
+              const local = prev.find(p => p.id === remoteItem.id);
+              return {
+                ...remoteItem,
+                apiKey: remoteItem.apiKey?.trim() || local?.apiKey || '',
+                apiUrl: remoteItem.apiUrl?.trim() || local?.apiUrl || '',
+                webhookSecret: remoteItem.webhookSecret?.trim() || local?.webhookSecret || ''
+              };
+            });
+            localStorage.setItem('oj_telephony_configs', JSON.stringify(merged));
+            return merged;
+          });
         }
       })
       .catch(() => { });
@@ -861,6 +895,10 @@ export const AdminPage: React.FC = () => {
   };
 
   const handleSaveGateway = async (gateway: PaymentGatewayConfig) => {
+    const nextList = gatewayConfigs.map(g => g.id === gateway.id ? { ...g, ...gateway } : g);
+    setGatewayConfigs(nextList);
+    localStorage.setItem('oj_gateway_configs', JSON.stringify(nextList));
+
     try {
       await apiClient.updateGatewayConfig(gateway.id, {
         isActive: gateway.isActive,
@@ -873,10 +911,10 @@ export const AdminPage: React.FC = () => {
         settlementBank: gateway.settlementBank,
         settlementAccountNumber: gateway.settlementAccountNumber
       });
-    } catch { }
-
-    localStorage.setItem('oj_gateway_configs', JSON.stringify(gatewayConfigs));
-    showToast(`Saved ${gateway.name} configuration!`);
+      showToast(`Saved and synced ${gateway.name} to server!`);
+    } catch {
+      showToast(`Saved ${gateway.name} configuration locally!`);
+    }
   };
 
   const handleTestGateway = async (id: string) => {
@@ -899,6 +937,10 @@ export const AdminPage: React.FC = () => {
   };
 
   const handleSaveTelephony = async (provider: TelephonyProviderConfig) => {
+    const nextList = telephonyConfigs.map(p => p.id === provider.id ? { ...p, ...provider } : p);
+    setTelephonyConfigs(nextList);
+    localStorage.setItem('oj_telephony_configs', JSON.stringify(nextList));
+
     try {
       await apiClient.updateTelephonyConfig(provider.id, {
         apiUrl: provider.apiUrl,
@@ -908,10 +950,10 @@ export const AdminPage: React.FC = () => {
         autoRefundTimeoutSeconds: provider.autoRefundTimeoutSeconds,
         status: provider.status
       });
-    } catch { }
-
-    localStorage.setItem('oj_telephony_configs', JSON.stringify(telephonyConfigs));
-    showToast(`Saved ${provider.name} settings!`);
+      showToast(`Saved and synced ${provider.name} settings to server!`);
+    } catch {
+      showToast(`Saved ${provider.name} settings locally!`);
+    }
   };
 
   const handleTestTelephony = async (id: string) => {
@@ -934,6 +976,10 @@ export const AdminPage: React.FC = () => {
   };
 
   const handleSaveServer = async (server: ServerClusterConfig) => {
+    const nextList = serverConfigs.map(s => s.cluster === server.cluster ? { ...s, ...server } : s);
+    setServerConfigs(nextList);
+    localStorage.setItem('oj_server_configs', JSON.stringify(nextList));
+
     try {
       await apiClient.updateServerConfig(server.cluster, {
         apiUrl: server.apiUrl,
@@ -941,12 +987,10 @@ export const AdminPage: React.FC = () => {
         fulfillmentMode: server.fulfillmentMode,
         webhookSecret: server.webhookSecret
       });
+      showToast(`Saved and synced ${server.cluster} configuration! Target: ${server.apiUrl}`);
     } catch {
-      // Local fallback
+      showToast(`Saved ${server.cluster} configuration locally!`);
     }
-
-    localStorage.setItem('oj_server_configs', JSON.stringify(serverConfigs));
-    showToast(`Saved ${server.cluster} configuration! Target: ${server.apiUrl}`);
   };
 
   const handleTestPing = async (cluster: string) => {

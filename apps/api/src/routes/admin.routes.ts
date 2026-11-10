@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
@@ -106,6 +108,41 @@ let paymentGateways: PaymentGatewayConfig[] = [
     latencyMs: 76
   }
 ];
+
+const DATA_DIR = path.join(process.cwd(), 'data');
+const GATEWAY_CONFIG_FILE = path.join(DATA_DIR, 'gateway_configs.json');
+
+function loadPersistedGateways() {
+  try {
+    if (fs.existsSync(GATEWAY_CONFIG_FILE)) {
+      const raw = fs.readFileSync(GATEWAY_CONFIG_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        for (const item of parsed) {
+          const idx = paymentGateways.findIndex(g => g.id === item.id);
+          if (idx !== -1) {
+            paymentGateways[idx] = { ...paymentGateways[idx], ...item };
+          }
+        }
+      }
+    }
+  } catch (err: any) {
+    console.warn(`[GATEWAY_CONFIG] Load notice: ${err.message}`);
+  }
+}
+
+function savePersistedGateways() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(GATEWAY_CONFIG_FILE, JSON.stringify(paymentGateways, null, 2), 'utf-8');
+  } catch (err: any) {
+    console.warn(`[GATEWAY_CONFIG] Save notice: ${err.message}`);
+  }
+}
+
+loadPersistedGateways();
 
 router.get('/metrics', async (req, res) => {
   let customerCount = 1;
@@ -300,6 +337,7 @@ router.patch('/gateways/:id', validateBody(UpdateGatewayConfigSchema), (req, res
   }
 
   paymentGateways[idx] = { ...paymentGateways[idx], ...req.body };
+  savePersistedGateways();
 
   // If updating Bachs, sync live gateway runtime immediately
   if (rawId === 'bach') {

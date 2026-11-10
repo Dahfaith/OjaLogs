@@ -157,6 +157,7 @@ export interface ServiceOption {
   priceNgn: number;
   successRate: number;
   popular?: boolean;
+  stock?: number;
 }
 
 export interface SmsMessage {

@@ -505,6 +505,12 @@ export const SERVICES: ServiceOption[] = [
   { id: 'facebook', name: 'Facebook', category: 'Social', icon: 'Share2', priceNgn: 1150, successRate: 98.2, popular: true },
   { id: 'netflix', name: 'Netflix', category: 'Entertainment', icon: 'Tv', priceNgn: 1400, successRate: 97.8, popular: true },
   { id: 'twitter', name: 'X / Twitter Verification', category: 'Social', icon: 'AtSign', priceNgn: 1350, successRate: 96.0, popular: true },
+  { id: 'plentyoffish', name: 'Plenty Of Fish / POF', category: 'Dating & Social', icon: 'Heart', priceNgn: 480, stock: 11506, successRate: 98.6, popular: true },
+  { id: 'tinder', name: 'Tinder Verification', category: 'Dating & Social', icon: 'Heart', priceNgn: 395, stock: 13617, successRate: 98.9, popular: true },
+  { id: 'bumble', name: 'Bumble Dating', category: 'Dating & Social', icon: 'Heart', priceNgn: 480, stock: 13686, successRate: 98.3, popular: true },
+  { id: 'hinge', name: 'Hinge Dating', category: 'Dating & Social', icon: 'Heart', priceNgn: 655, stock: 13845, successRate: 97.9, popular: true },
+  { id: 'badoo', name: 'Badoo Dating & Chat', category: 'Dating & Social', icon: 'Heart', priceNgn: 450, stock: 9400, successRate: 98.0, popular: true },
+  { id: 'asian-dating', name: 'Asian Dating', category: 'Dating & Social', icon: 'Heart', priceNgn: 1005, stock: 13978, successRate: 97.5, popular: true },
 
   // Alphabetical TextPlug Catalog (1-9 & A-Z)
   { id: '1q', name: '1Q', category: 'Surveys & Rewards', icon: 'HelpCircle', priceNgn: 950, successRate: 96.5 },

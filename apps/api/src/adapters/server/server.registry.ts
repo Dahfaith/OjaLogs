@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { IServerApiAdapter } from './server.interface.js';
 import { Server1ApiAdapter } from './server1.adapter.js';
 import { Server2ApiAdapter } from './server2.adapter.js';
@@ -6,6 +8,9 @@ import { Server4ApiAdapter } from './server4.adapter.js';
 import { logspollAdapter } from '../logspoll/logspoll.adapter.js';
 import { AppError } from '../../middleware/errorHandler.js';
 import { ServerClusterConfig } from '@ojalogs/shared';
+
+const DATA_DIR = path.join(process.cwd(), 'data');
+const SERVER_CONFIG_FILE = path.join(DATA_DIR, 'server_configs.json');
 
 export class ServerApiRegistry {
   private adapters = new Map<string, IServerApiAdapter>();
@@ -80,6 +85,38 @@ export class ServerApiRegistry {
     for (const cfg of defaults) {
       this.serverConfigs.set(cfg.cluster, cfg);
     }
+    this.loadPersisted();
+  }
+
+  private loadPersisted() {
+    try {
+      if (fs.existsSync(SERVER_CONFIG_FILE)) {
+        const raw = fs.readFileSync(SERVER_CONFIG_FILE, 'utf-8');
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          for (const item of parsed) {
+            if (item?.cluster) {
+              const current = this.serverConfigs.get(item.cluster) || item;
+              this.serverConfigs.set(item.cluster, { ...current, ...item });
+            }
+          }
+        }
+      }
+    } catch (err: any) {
+      console.warn(`[SERVER_REGISTRY] Load notice: ${err.message}`);
+    }
+  }
+
+  private savePersisted() {
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+      const list = Array.from(this.serverConfigs.values());
+      fs.writeFileSync(SERVER_CONFIG_FILE, JSON.stringify(list, null, 2), 'utf-8');
+    } catch (err: any) {
+      console.warn(`[SERVER_REGISTRY] Save notice: ${err.message}`);
+    }
   }
 
   register(adapter: IServerApiAdapter) {
@@ -115,6 +152,7 @@ export class ServerApiRegistry {
       lastChecked: new Date().toISOString()
     };
     this.serverConfigs.set(cluster, updated);
+    this.savePersisted();
 
     // Keep LogsPoll adapter credentials in sync if Server 2 or Server 4 is updated
     if (cluster === 'Server 2' || cluster === 'Server 4' || (updated.apiUrl && updated.apiUrl.includes('logspoll'))) {

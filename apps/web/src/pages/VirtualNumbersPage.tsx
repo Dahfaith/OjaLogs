@@ -197,8 +197,8 @@ export const VirtualNumbersPage: React.FC = () => {
 
           {/* Quick-Access Popular Chips */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-            {['1688', 'whatsapp', 'telegram', 'openai', 'google', 'instagram', 'tiktok', 'netflix', 'twitter', 'binance'].map(popularId => {
-              const svc = services.find(s => s.id === popularId);
+            {['1688', 'whatsapp', 'telegram', 'openai', 'google', 'instagram', 'tiktok', 'tinder', 'bumble', 'plentyoffish', 'netflix', 'twitter', 'binance'].map(popularId => {
+              const svc = services.find(s => s.id === popularId || s.id.includes(popularId) || s.name.toLowerCase().includes(popularId));
               if (!svc) return null;
               const isSelected = selectedServiceId === svc.id;
               return (
@@ -286,10 +286,12 @@ export const VirtualNumbersPage: React.FC = () => {
                     {[
                       { id: 'all', label: 'All Services' },
                       { id: 'popular', label: '🔥 Popular' },
-                      { id: 'messaging', label: 'Messaging' },
-                      { id: 'social', label: 'Social' },
-                      { id: 'e-commerce', label: 'Shopping' },
-                      { id: 'crypto & finance', label: 'Crypto' }
+                      { id: 'dating & social', label: '❤️ Dating & Match' },
+                      { id: 'messaging', label: '💬 Messaging' },
+                      { id: 'social', label: '📱 Social Media' },
+                      { id: 'e-commerce', label: '🛍️ Shopping' },
+                      { id: 'crypto & finance', label: '💰 Crypto & Pay' },
+                      { id: 'ai tools', label: '🤖 AI & Tech' }
                     ].map(tab => (
                       <button
                         key={tab.id}
@@ -343,7 +345,7 @@ export const VirtualNumbersPage: React.FC = () => {
                                   )}
                                 </p>
                                 <p className="text-[10px] text-oj-muted">
-                                  {s.category} · {s.successRate}% Success
+                                  {s.category} {typeof s.stock === 'number' ? `· ${s.stock.toLocaleString()} available` : ''} · {s.successRate}% Success
                                 </p>
                               </div>
                             </div>
