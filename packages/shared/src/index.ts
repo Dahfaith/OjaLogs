@@ -341,20 +341,20 @@ export interface AdminMetrics {
 // Zod Schemas
 export const FundWalletInputSchema = z.object({
   amountNgn: z.number().min(100, 'Minimum funding amount is ₦100').max(5000000, 'Maximum single deposit is ₦5,000,000'),
-  currency: z.literal('NGN'),
-  idempotencyKey: z.string().uuid()
+  currency: z.literal('NGN').optional().default('NGN'),
+  idempotencyKey: z.string().min(1)
 });
 
 export const CheckoutInputSchema = z.object({
   paymentMethod: z.enum(['wallet', 'bach_direct']),
-  idempotencyKey: z.string().uuid()
+  idempotencyKey: z.string().min(1)
 });
 
 export const RequestNumberInputSchema = z.object({
   countryCode: z.string().min(2).max(4),
   serviceId: z.string().min(1),
   rentalType: z.enum(['one_time_sms', 'long_term_rental']),
-  idempotencyKey: z.string().uuid()
+  idempotencyKey: z.string().min(1)
 });
 
 // SMM (Social Media Marketing) Types & Schemas

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, ArrowRight, ShieldCheck, CheckCircle2, RotateCw, X, Sparkles, KeyRound } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -13,7 +13,7 @@ interface AuthModalProps {
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultEmail = '' }) => {
-  const { setUser, showToast } = useApp();
+  const { setUser, showToast, setRole } = useApp();
   const [step, setStep] = useState<'input' | 'sent'>('input');
   const [email, setEmail] = useState(defaultEmail);
   const [otpCode, setOtpCode] = useState('');
@@ -21,6 +21,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultEm
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(60);
   const [canResend, setCanResend] = useState(false);
+  const autoVerifyTimer = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (autoVerifyTimer.current) clearTimeout(autoVerifyTimer.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -91,6 +98,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultEm
 
     try {
       let verifiedUser: any = null;
+      const cleanEmail = email.toLowerCase().trim();
+      const isAdminEmail = (
+        cleanEmail === 'visioreach@gmail.com' ||
+        cleanEmail === 'ojalogs@gmail.com' ||
+        cleanEmail === 'dahfaith@gmail.com' ||
+        cleanEmail === 'admin@ojalogs.com'
+      );
 
       // 1. Try Supabase verification
       try {
@@ -101,7 +115,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultEm
             email: sbRes.user.email || email,
             name: sbRes.user.user_metadata?.full_name || email.split('@')[0],
             initials: (email.substring(0, 2)).toUpperCase(),
-            role: 'customer',
+            role: isAdminEmail ? 'administrator' : (sbRes.user.user_metadata?.role || 'customer'),
             isVerified: true
           };
         }
@@ -131,9 +145,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultEm
           email,
           name: formatted,
           initials: formatted.substring(0, 2).toUpperCase(),
-          role: 'customer',
+          role: isAdminEmail ? 'administrator' : 'customer',
           isVerified: true
         };
+      }
+
+      if (isAdminEmail) {
+        verifiedUser.role = 'administrator';
+        setRole('admin');
+        apiClient.setToken(`mock_jwt_admin_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`);
       }
 
       setUser(verifiedUser);
@@ -281,21 +301,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultEm
                 <div className="space-y-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-oj-muted dark:text-oj-dark-muted block text-center">
-                      Enter 6-Digit Confirmation Code
+                      Enter Confirmation Code (6 or 8 digits)
                     </label>
                     <input
                       type="text"
-                      maxLength={6}
+                      maxLength={8}
                       value={otpCode}
                       onChange={e => {
-                        const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 8);
                         setOtpCode(val);
-                        if (val.length === 6) {
+                        if (val.length === 8) {
+                          if (autoVerifyTimer.current) clearTimeout(autoVerifyTimer.current);
                           handleVerifyOtp(val);
+                        } else if (val.length === 6) {
+                          if (autoVerifyTimer.current) clearTimeout(autoVerifyTimer.current);
+                          autoVerifyTimer.current = setTimeout(() => {
+                            handleVerifyOtp(val);
+                          }, 600);
                         }
                       }}
-                      placeholder="1 2 3 4 5 6"
-                      className="w-full text-center tracking-[0.4em] font-mono text-2xl py-3 rounded-xl border border-oj-border dark:border-oj-dark-border bg-white dark:bg-oj-dark-surface font-extrabold focus:outline-none focus:border-oj-primary transition-colors"
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && otpCode.length >= 6) {
+                          e.preventDefault();
+                          if (autoVerifyTimer.current) clearTimeout(autoVerifyTimer.current);
+                          handleVerifyOtp(otpCode);
+                        }
+                      }}
+                      placeholder="Enter verification code"
+                      className="w-full text-center tracking-[0.25em] font-mono text-2xl py-3 rounded-xl border border-oj-border dark:border-oj-dark-border bg-white dark:bg-oj-dark-surface font-extrabold focus:outline-none focus:border-oj-primary transition-colors"
                       autoFocus
                     />
                   </div>

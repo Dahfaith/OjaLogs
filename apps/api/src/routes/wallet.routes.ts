@@ -38,9 +38,9 @@ router.post(
     try {
       const { amountNgn, idempotencyKey } = req.body;
       const result = await walletService.initiateFunding(
-        req.user!.id,
+        req.user?.id || 'usr_customer_01',
         amountNgn,
-        req.user!.email,
+        req.user?.email || 'customer@ojalogs.com',
         idempotencyKey
       );
 

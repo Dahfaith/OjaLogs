@@ -29,7 +29,12 @@ export class BachGateway implements IPaymentGateway {
    */
   async initializePayment(input: InitializePaymentInput): Promise<InitializePaymentResult> {
     try {
-      const response = await fetch(`${this.baseUrl}/checkout-sessions`, {
+      const cleanEmail = (input.customerEmail || 'customer@ojalogs.com.ng').trim();
+      const cleanName = cleanEmail.split('@')[0] || 'Customer';
+      const normalizedBase = (this.baseUrl || 'https://api.bachs.io').replace(/\/+$/, '').replace(/\/v1$/, '');
+      const endpoint = `${normalizedBase}/v1/checkout-sessions`;
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
@@ -41,7 +46,10 @@ export class BachGateway implements IPaymentGateway {
             amount: input.amountNgn.toFixed(2),
             currency: 'NGN'
           },
-          customer_email: input.customerEmail,
+          customer: {
+            email: cleanEmail,
+            name: cleanName
+          },
           reference: input.reference,
           success_url: 'https://ojalogs.com.ng/dashboard?payment=success',
           cancel_url: 'https://ojalogs.com.ng/dashboard?payment=cancelled',
@@ -56,10 +64,17 @@ export class BachGateway implements IPaymentGateway {
       if (!response.ok) {
         const errorText = await response.text();
         console.warn(`[BACH_GATEWAY] Remote initialization response ${response.status}: ${errorText}`);
-        
-        // If live production key, throw real error instead of mocking
+
+        let userMessage = `Bachs Gateway (${response.status}): `;
+        try {
+          const parsed = JSON.parse(errorText);
+          userMessage += parsed.message || parsed.error || errorText;
+        } catch {
+          userMessage += errorText;
+        }
+
         if (env.NODE_ENV === 'production' && this.apiKey.startsWith('sk_live_')) {
-          throw new AppError(`Bachs Gateway rejected session: ${errorText}`, response.status, 'GATEWAY_ERROR');
+          throw new AppError(userMessage, response.status, 'GATEWAY_ERROR');
         }
         return this.getSandboxFallbackSession(input);
       }
@@ -76,13 +91,13 @@ export class BachGateway implements IPaymentGateway {
         dynamicAccountDetails: va ? {
           bankName: va.bank_name || va.bankName || 'Wema Bank / BACH Pay',
           accountNumber: va.account_number || va.accountNumber,
-          accountName: va.account_name || va.accountName || `Ojalogs · ${input.customerEmail.split('@')[0]}`,
+          accountName: va.account_name || va.accountName || `Ojalogs · ${cleanName}`,
           amountNgn: input.amountNgn,
           expiresInMinutes: va.expires_in_minutes || 30
         } : undefined
       };
     } catch (err: any) {
-      if (err instanceof AppError) throw err;
+      if (err instanceof AppError || (err && typeof err.statusCode === 'number')) throw err;
       console.warn('[BACH_GATEWAY] Network attempt failed:', err.message);
       if (env.NODE_ENV === 'production' && this.apiKey.startsWith('sk_live_')) {
         throw new AppError(`Bachs Gateway network failure: ${err.message}`, 502, 'GATEWAY_NETWORK_ERROR');
@@ -92,6 +107,8 @@ export class BachGateway implements IPaymentGateway {
   }
 
   private getSandboxFallbackSession(input: InitializePaymentInput): InitializePaymentResult {
+    const cleanEmail = (input.customerEmail || 'customer@ojalogs.com').trim();
+    const cleanName = cleanEmail.split('@')[0] || 'Customer';
     const sessionRef = `cs_sandbox_${Math.floor(100000 + Math.random() * 900000)}`;
     return {
       gatewayReference: sessionRef,
@@ -99,7 +116,7 @@ export class BachGateway implements IPaymentGateway {
       dynamicAccountDetails: {
         bankName: 'Wema Bank / BACH Pay',
         accountNumber: '0198423910',
-        accountName: `Ojalogs · ${input.customerEmail.split('@')[0]}`,
+        accountName: `Ojalogs · ${cleanName}`,
         amountNgn: input.amountNgn,
         expiresInMinutes: 30
       }
@@ -111,7 +128,8 @@ export class BachGateway implements IPaymentGateway {
    */
   async verifyPayment(gatewayReference: string): Promise<VerifyPaymentResult> {
     try {
-      const response = await fetch(`${this.baseUrl}/checkout-sessions/${gatewayReference}`, {
+      const normalizedBase = (this.baseUrl || 'https://api.bachs.io').replace(/\/+$/, '').replace(/\/v1$/, '');
+      const response = await fetch(`${normalizedBase}/v1/checkout-sessions/${gatewayReference}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
@@ -134,7 +152,8 @@ export class BachGateway implements IPaymentGateway {
       // Fallback verification if offline / sandbox
     }
 
-    if (env.NODE_ENV !== 'production' || !this.apiKey.startsWith('sk_live_')) {
+    // For automated test runs where reference is explicitly a mock/sandbox test
+    if (gatewayReference.startsWith('cs_sandbox_') && env.NODE_ENV !== 'production') {
       return {
         status: 'successful',
         amountNgn: 25000,
@@ -200,10 +219,10 @@ export class BachGateway implements IPaymentGateway {
       possibleSecrets.push({ secret: stripped, encoding: 'base64' });
       try {
         possibleSecrets.push({ secret: Buffer.from(stripped, 'base64'), encoding: 'base64' });
-      } catch {}
+      } catch { }
       try {
         possibleSecrets.push({ secret: Buffer.from(stripped, 'hex'), encoding: 'hex' });
-      } catch {}
+      } catch { }
     }
 
     const possiblePayloads = [
@@ -222,7 +241,7 @@ export class BachGateway implements IPaymentGateway {
             verified = true;
             break;
           }
-        } catch {}
+        } catch { }
       }
       if (verified) break;
     }

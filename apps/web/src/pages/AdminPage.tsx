@@ -58,7 +58,7 @@ import { Product, ServerClusterConfig, PaymentGatewayConfig, TelephonyProviderCo
 import { apiClient } from '../lib/apiClient';
 
 export const AdminPage: React.FC = () => {
-  const { user, role, products, ledger, activeNumbers, showToast, formatPrice, updateProduct, addProduct, orders } = useApp();
+  const { user, role, products, ledger, activeNumbers, showToast, formatPrice, updateProduct, addProduct, orders, setUser, setRole } = useApp();
   const [activeTab, setActiveTab] = useState<'kpi' | 'users' | 'orders' | 'catalog' | 'servers' | 'gateways' | 'numbers' | 'smm' | 'fulfilment' | 'ledger' | 'audit'>('kpi');
   const [metrics, setMetrics] = useState(mockAdminMetrics);
 
@@ -88,7 +88,24 @@ export const AdminPage: React.FC = () => {
   const [inspectedCustomer, setInspectedCustomer] = useState<AdminManagedUser | null>(null);
 
   // RBAC Access Gate: Only authorized administrators can view the command console
-  const isAdmin = user && (user.role === 'administrator' || role === 'admin');
+  const adminEmails = ['visioreach@gmail.com', 'ojalogs@gmail.com', 'dahfaith@gmail.com', 'iamdahfaith@gmail.com', 'admin@ojalogs.com'];
+  const userEmailLower = user?.email?.toLowerCase().trim() || '';
+  const isAuthorizedEmail = adminEmails.includes(userEmailLower);
+  const isAdmin = user && (user.role === 'administrator' || (user as any).role === 'super_administrator' || role === 'admin' || isAuthorizedEmail);
+
+  // Auto-elevate authorized admin emails if role was stale in localStorage
+  useEffect(() => {
+    if (isAuthorizedEmail) {
+      if (user && user.role !== 'administrator') {
+        const upgraded = { ...user, role: 'administrator' as const };
+        setUser(upgraded);
+        localStorage.setItem('oj_user', JSON.stringify(upgraded));
+      }
+      if (role !== 'admin') {
+        setRole('admin');
+      }
+    }
+  }, [isAuthorizedEmail, user, role]);
 
   if (!isAdmin) {
     return (
@@ -103,10 +120,24 @@ export const AdminPage: React.FC = () => {
           <p className="text-xs text-oj-muted leading-relaxed">
             The Super Admin Command Console is restricted to authorized platform administrators only. {user ? `Your current account (${user.email}) does not have administrative clearance.` : 'You must sign in as an authorized administrator to access platform governance.'}
           </p>
-          <div className="pt-2">
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2">
+            <button
+              onClick={() => {
+                if (user) {
+                  localStorage.removeItem('oj_user');
+                  localStorage.removeItem('oj_auth_token');
+                  window.location.reload();
+                } else {
+                  window.location.href = '/';
+                }
+              }}
+              className="w-full sm:w-auto inline-flex items-center justify-center px-5 py-2.5 rounded-btn bg-oj-primary hover:bg-oj-primary-hover text-white text-xs font-bold transition-all shadow-glow-primary"
+            >
+              {user ? 'Sign Out & Switch Account' : 'Sign In as Administrator'}
+            </button>
             <a
               href="/"
-              className="inline-flex items-center justify-center px-5 py-2.5 rounded-btn bg-oj-primary hover:bg-oj-primary-hover text-white text-xs font-bold transition-all shadow-glow-primary"
+              className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2.5 rounded-btn border border-oj-border dark:border-oj-dark-border text-oj-muted hover:text-oj-midnight dark:hover:text-white text-xs font-bold transition-all"
             >
               Return to Storefront
             </a>
@@ -120,7 +151,7 @@ export const AdminPage: React.FC = () => {
   const [serverConfigs, setServerConfigs] = useState<ServerClusterConfig[]>(() => {
     const saved = localStorage.getItem('oj_server_configs');
     if (saved) {
-      try { return JSON.parse(saved); } catch {}
+      try { return JSON.parse(saved); } catch { }
     }
     return [
       {
@@ -182,12 +213,13 @@ export const AdminPage: React.FC = () => {
   const [testingCluster, setTestingCluster] = useState<string | null>(null);
   const [copiedWebhookCluster, setCopiedWebhookCluster] = useState<string | null>(null);
   const [copiedTextplugWebhook, setCopiedTextplugWebhook] = useState(false);
+  const [copiedBachsWebhook, setCopiedBachsWebhook] = useState(false);
 
   // Payment Gateways Configurations State
   const [gatewayConfigs, setGatewayConfigs] = useState<PaymentGatewayConfig[]>(() => {
     const saved = localStorage.getItem('oj_gateway_configs');
     if (saved) {
-      try { return JSON.parse(saved); } catch {}
+      try { return JSON.parse(saved); } catch { }
     }
     return [
       {
@@ -262,7 +294,7 @@ export const AdminPage: React.FC = () => {
   const [telephonyConfigs, setTelephonyConfigs] = useState<TelephonyProviderConfig[]>(() => {
     const saved = localStorage.getItem('oj_telephony_configs');
     if (saved) {
-      try { return JSON.parse(saved); } catch {}
+      try { return JSON.parse(saved); } catch { }
     }
     return [
       {
@@ -307,7 +339,7 @@ export const AdminPage: React.FC = () => {
   const [usersList, setUsersList] = useState<AdminManagedUser[]>(() => {
     const saved = localStorage.getItem('oj_managed_users');
     if (saved) {
-      try { return JSON.parse(saved); } catch {}
+      try { return JSON.parse(saved); } catch { }
     }
     return [
       {
@@ -362,7 +394,7 @@ export const AdminPage: React.FC = () => {
           localStorage.setItem('oj_server_configs', JSON.stringify(data));
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     apiClient.getGatewayConfigs()
       .then(data => {
@@ -371,7 +403,7 @@ export const AdminPage: React.FC = () => {
           localStorage.setItem('oj_gateway_configs', JSON.stringify(data));
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     apiClient.getTelephonyConfigs()
       .then(data => {
@@ -380,7 +412,7 @@ export const AdminPage: React.FC = () => {
           localStorage.setItem('oj_telephony_configs', JSON.stringify(data));
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     apiClient.getAdminUsers()
       .then(data => {
@@ -389,7 +421,7 @@ export const AdminPage: React.FC = () => {
           localStorage.setItem('oj_managed_users', JSON.stringify(data));
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     apiClient.getAdminMetrics()
       .then(data => {
@@ -404,21 +436,21 @@ export const AdminPage: React.FC = () => {
           }));
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     apiClient.getAdminNotifications()
       .then(data => {
         if (data && data.length > 0) setNotifications(data);
       })
-      .catch(() => {});
+      .catch(() => { });
 
     apiClient.getAdminSMMServices()
       .then(data => { if (data && data.length > 0) setSmmServices(data); })
-      .catch(() => {});
+      .catch(() => { });
 
     apiClient.getAdminSMMOrders()
       .then(data => { if (data) setSmmOrders(data); })
-      .catch(() => {});
+      .catch(() => { });
 
     apiClient.getSMMProviderConfig()
       .then(data => {
@@ -428,7 +460,7 @@ export const AdminPage: React.FC = () => {
           setLinkocialApiKeyInput(data.apiKey || '');
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const handleSaveSmmRate = async (e: React.FormEvent) => {
@@ -559,7 +591,7 @@ export const AdminPage: React.FC = () => {
     const nextStatus: 'active' | 'frozen' = userToUpdate.status === 'frozen' ? 'active' : 'frozen';
     try {
       await apiClient.updateUserStatus(userToUpdate.id, nextStatus);
-    } catch {}
+    } catch { }
     setUsersList(prev => {
       const updated: AdminManagedUser[] = prev.map(u => u.id === userToUpdate.id ? { ...u, status: nextStatus } : u);
       localStorage.setItem('oj_managed_users', JSON.stringify(updated));
@@ -571,7 +603,7 @@ export const AdminPage: React.FC = () => {
   const handleChangeRole = async (userId: string, newRole: any) => {
     try {
       await apiClient.updateUserRole(userId, newRole);
-    } catch {}
+    } catch { }
     setUsersList(prev => {
       const updated = prev.map(u => u.id === userId ? { ...u, role: newRole } : u);
       localStorage.setItem('oj_managed_users', JSON.stringify(updated));
@@ -586,7 +618,7 @@ export const AdminPage: React.FC = () => {
 
     try {
       await apiClient.adjustUserBalance(adjustingUser.id, adjustAmount, adjustType, adjustReason);
-    } catch {}
+    } catch { }
 
     setUsersList(prev => {
       const updated = prev.map(u => {
@@ -610,7 +642,7 @@ export const AdminPage: React.FC = () => {
     try {
       await apiClient.markAdminNotificationsRead();
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    } catch {}
+    } catch { }
     showToast('All notifications marked as read');
   };
 
@@ -622,7 +654,7 @@ export const AdminPage: React.FC = () => {
     });
     try {
       await apiClient.deleteAdminNotification(notifId);
-    } catch {}
+    } catch { }
     showToast('Notification deleted');
   };
 
@@ -632,7 +664,7 @@ export const AdminPage: React.FC = () => {
     localStorage.removeItem('oj_admin_notifications');
     try {
       await apiClient.clearAdminNotifications();
-    } catch {}
+    } catch { }
     showToast('All notifications cleared');
   };
 
@@ -751,7 +783,7 @@ export const AdminPage: React.FC = () => {
 
   const handleToggleGatewayActive = (id: string) => {
     setGatewayConfigs(prev => prev.map(g => ({ ...g, isActive: g.id === id })));
-    apiClient.updateGatewayConfig(id, { isActive: true }).catch(() => {});
+    apiClient.updateGatewayConfig(id, { isActive: true }).catch(() => { });
     showToast(`Switched active payment gateway to ${id.toUpperCase()}`);
   };
 
@@ -768,7 +800,7 @@ export const AdminPage: React.FC = () => {
         settlementBank: gateway.settlementBank,
         settlementAccountNumber: gateway.settlementAccountNumber
       });
-    } catch {}
+    } catch { }
 
     localStorage.setItem('oj_gateway_configs', JSON.stringify(gatewayConfigs));
     showToast(`Saved ${gateway.name} configuration!`);
@@ -803,7 +835,7 @@ export const AdminPage: React.FC = () => {
         autoRefundTimeoutSeconds: provider.autoRefundTimeoutSeconds,
         status: provider.status
       });
-    } catch {}
+    } catch { }
 
     localStorage.setItem('oj_telephony_configs', JSON.stringify(telephonyConfigs));
     showToast(`Saved ${provider.name} settings!`);
@@ -974,21 +1006,19 @@ export const AdminPage: React.FC = () => {
               notifications.map(n => (
                 <div
                   key={n.id}
-                  className={`p-3 rounded-xl border text-xs flex items-start justify-between gap-3 group transition-all ${
-                    n.read
+                  className={`p-3 rounded-xl border text-xs flex items-start justify-between gap-3 group transition-all ${n.read
                       ? 'bg-oj-surface-alt/40 dark:bg-oj-dark-surface-alt/40 border-oj-border dark:border-oj-dark-border opacity-75'
                       : 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800'
-                  }`}
+                    }`}
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        n.type === 'NEW_USER_SIGNUP'
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${n.type === 'NEW_USER_SIGNUP'
                           ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
                           : n.type === 'ORDER_PLACED'
-                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
-                          : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                      }`}>
+                            ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
+                            : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                        }`}>
                         {n.type === 'NEW_USER_SIGNUP' ? 'NEW USER' : n.type === 'ORDER_PLACED' ? 'PURCHASE' : n.type}
                       </span>
                       <p className="font-bold text-oj-midnight dark:text-white">{n.title}</p>
@@ -1033,11 +1063,10 @@ export const AdminPage: React.FC = () => {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`px-4 py-2.5 text-xs font-bold whitespace-nowrap flex items-center gap-2 border-b-2 transition-all ${
-              activeTab === tab.id
+            className={`px-4 py-2.5 text-xs font-bold whitespace-nowrap flex items-center gap-2 border-b-2 transition-all ${activeTab === tab.id
                 ? 'border-oj-primary text-oj-primary bg-white dark:bg-oj-dark-surface rounded-t-xl'
                 : 'border-transparent text-oj-muted hover:text-oj-midnight dark:hover:text-white'
-            }`}
+              }`}
           >
             <tab.icon className="w-4 h-4" />
             <span>{tab.label}</span>
@@ -1308,11 +1337,10 @@ export const AdminPage: React.FC = () => {
                       </td>
 
                       <td className="py-3 px-3 text-center">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          u.status === 'active'
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${u.status === 'active'
                             ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
                             : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
-                        }`}>
+                          }`}>
                           {u.status === 'active' ? '● Active' : '● Frozen'}
                         </span>
                       </td>
@@ -1335,11 +1363,10 @@ export const AdminPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleToggleFreezeUser(u)}
-                            className={`p-1.5 rounded-lg border transition-colors ${
-                              u.status === 'frozen'
+                            className={`p-1.5 rounded-lg border transition-colors ${u.status === 'frozen'
                                 ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
                                 : 'bg-oj-surface-alt text-amber-600 border-oj-border hover:bg-amber-50'
-                            }`}
+                              }`}
                             title={u.status === 'frozen' ? 'Unfreeze Account Wallet' : 'Freeze Account Wallet'}
                           >
                             {u.status === 'frozen' ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
@@ -1398,22 +1425,20 @@ export const AdminPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setAdjustType('credit')}
-                    className={`py-2 rounded-lg font-bold border transition-all ${
-                      adjustType === 'credit'
+                    className={`py-2 rounded-lg font-bold border transition-all ${adjustType === 'credit'
                         ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
                         : 'bg-oj-surface-alt text-oj-muted border-oj-border'
-                    }`}
+                      }`}
                   >
                     + Credit Wallet (Add ₦)
                   </button>
                   <button
                     type="button"
                     onClick={() => setAdjustType('debit')}
-                    className={`py-2 rounded-lg font-bold border transition-all ${
-                      adjustType === 'debit'
+                    className={`py-2 rounded-lg font-bold border transition-all ${adjustType === 'debit'
                         ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
                         : 'bg-oj-surface-alt text-oj-muted border-oj-border'
-                    }`}
+                      }`}
                   >
                     - Debit Wallet (Deduct ₦)
                   </button>
@@ -1518,11 +1543,10 @@ export const AdminPage: React.FC = () => {
 
               <div className="p-3 rounded-xl bg-oj-surface-alt/50 dark:bg-oj-dark-surface-alt/50 border border-oj-border dark:border-oj-dark-border">
                 <span className="text-oj-muted block text-[10px]">Account Clearance</span>
-                <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold mt-1 ${
-                  inspectedCustomer.status === 'active'
+                <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold mt-1 ${inspectedCustomer.status === 'active'
                     ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
                     : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
-                }`}>
+                  }`}>
                   ● {inspectedCustomer.status.toUpperCase()}
                 </span>
               </div>
@@ -1540,11 +1564,10 @@ export const AdminPage: React.FC = () => {
                       status: inspectedCustomer.status === 'frozen' ? 'active' : 'frozen'
                     });
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 ${
-                    inspectedCustomer.status === 'frozen'
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 ${inspectedCustomer.status === 'frozen'
                       ? 'bg-emerald-600 text-white border-emerald-600'
                       : 'bg-amber-600 text-white border-amber-600'
-                  }`}
+                    }`}
                 >
                   {inspectedCustomer.status === 'frozen' ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
                   <span>{inspectedCustomer.status === 'frozen' ? 'Unfreeze Wallet' : 'Freeze Wallet'}</span>
@@ -1722,22 +1745,20 @@ export const AdminPage: React.FC = () => {
                           {formatPrice(o.totalNgn)}
                         </td>
                         <td className="py-3 px-3 text-center">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            o.paymentMethod === 'wallet'
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${o.paymentMethod === 'wallet'
                               ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
                               : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
-                          }`}>
+                            }`}>
                             {o.paymentMethod === 'wallet' ? 'Wallet' : 'BACH'}
                           </span>
                         </td>
                         <td className="py-3 px-3 text-center">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            o.status === 'completed'
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${o.status === 'completed'
                               ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
                               : o.status === 'refunded'
-                              ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
-                              : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
-                          }`}>
+                                ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
+                                : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
+                            }`}>
                             {o.status.toUpperCase()}
                           </span>
                         </td>
@@ -2066,9 +2087,8 @@ export const AdminPage: React.FC = () => {
                     <td className="py-2.5 px-3 text-oj-muted">{p.category}</td>
                     <td className="py-2.5 px-3 text-right font-mono font-bold">{formatPrice(p.priceNgn)}</td>
                     <td className="py-2.5 px-3 text-center">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        p.inStock ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
-                      }`}>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${p.inStock ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                        }`}>
                         {p.stockCount} units
                       </span>
                     </td>
@@ -2298,6 +2318,55 @@ export const AdminPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Bachs Live Webhook Integration Guide Card */}
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-transparent border border-blue-500/30 dark:border-blue-500/20 shadow-soft space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-lg shadow-md">
+                  ⚡
+                </div>
+                <div>
+                  <h4 className="font-heading font-extrabold text-sm text-oj-midnight dark:text-white">
+                    Bachs Real-Time Webhook Configuration
+                  </h4>
+                  <p className="text-[11px] text-oj-muted">
+                    Paste this exact Endpoint URL into your Bachs Developer Portal (<span className="font-mono text-oj-primary">Developer Portal ➔ Webhooks ➔ + Add endpoint</span>)
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText('https://api.ojalogs.com.ng/api/v1/webhooks/bach');
+                    setCopiedBachsWebhook(true);
+                    setTimeout(() => setCopiedBachsWebhook(false), 2500);
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1.5 transition-all shadow-sm"
+                >
+                  {copiedBachsWebhook ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedBachsWebhook ? 'Copied URL!' : 'Copy Webhook URL'}</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-1">
+              <div className="p-3 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border">
+                <span className="text-[11px] font-bold text-oj-muted block mb-1">Your Primary Endpoint URL (for Bachs):</span>
+                <code className="font-mono text-xs font-bold text-oj-primary dark:text-oj-cyan select-all break-all">
+                  https://api.ojalogs.com.ng/api/v1/webhooks/bach
+                </code>
+              </div>
+              <div className="p-3 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border">
+                <span className="text-[11px] font-bold text-oj-muted block mb-1">Direct Render Endpoint (DNS Fallback):</span>
+                <code className="font-mono text-xs font-bold text-oj-midnight dark:text-white select-all break-all">
+                  https://ojalogs-api.onrender.com/api/v1/webhooks/bach
+                </code>
+              </div>
+            </div>
+          </div>
+
           {/* Grid of Gateways */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {gatewayConfigs.map((gateway) => {
@@ -2307,20 +2376,18 @@ export const AdminPage: React.FC = () => {
               return (
                 <div
                   key={gateway.id}
-                  className={`p-5 rounded-2xl bg-white dark:bg-oj-dark-surface border transition-all ${
-                    gateway.isActive
+                  className={`p-5 rounded-2xl bg-white dark:bg-oj-dark-surface border transition-all ${gateway.isActive
                       ? 'border-oj-primary ring-1 ring-oj-primary/30 shadow-md'
                       : 'border-oj-border dark:border-oj-dark-border shadow-soft'
-                  } space-y-4`}
+                    } space-y-4`}
                 >
                   {/* Gateway Header */}
                   <div className="flex items-start justify-between gap-3 pb-3 border-b border-oj-border dark:border-oj-dark-border">
                     <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-heading font-extrabold text-sm border ${
-                        gateway.isActive
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-heading font-extrabold text-sm border ${gateway.isActive
                           ? 'bg-oj-primary/10 text-oj-primary border-oj-primary/20'
                           : 'bg-oj-surface-alt text-oj-muted border-oj-border dark:border-oj-dark-border'
-                      }`}>
+                        }`}>
                         <CreditCard className="w-5 h-5" />
                       </div>
                       <div>
@@ -2342,11 +2409,10 @@ export const AdminPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleToggleGatewayActive(gateway.id)}
-                        className={`text-xs px-2.5 py-1 rounded-lg font-bold border transition-all ${
-                          gateway.isActive
+                        className={`text-xs px-2.5 py-1 rounded-lg font-bold border transition-all ${gateway.isActive
                             ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-300'
                             : 'bg-oj-surface-alt text-oj-muted hover:text-oj-midnight dark:hover:text-white border-oj-border'
-                        }`}
+                          }`}
                       >
                         {gateway.isActive ? '✓ Active Processor' : 'Make Active'}
                       </button>
@@ -2366,11 +2432,10 @@ export const AdminPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleUpdateGatewayField(gateway.id, 'isLiveMode', !gateway.isLiveMode)}
-                        className={`px-3 py-1 rounded-md font-mono text-xs font-bold transition-colors ${
-                          gateway.isLiveMode
+                        className={`px-3 py-1 rounded-md font-mono text-xs font-bold transition-colors ${gateway.isLiveMode
                             ? 'bg-emerald-600 text-white'
                             : 'bg-amber-500 text-white'
-                        }`}
+                          }`}
                       >
                         {gateway.isLiveMode ? 'LIVE' : 'TEST'}
                       </button>
@@ -2807,18 +2872,17 @@ export const AdminPage: React.FC = () => {
                   <RotateCw className={`w-3.5 h-3.5 ${isRefreshingBalance ? 'animate-spin text-oj-primary' : ''}`} />
                 </button>
               </div>
-              <p className={`font-heading font-extrabold text-xl mt-1 ${
-                smmConfig?.connectionStatus === 'connected'
+              <p className={`font-heading font-extrabold text-xl mt-1 ${smmConfig?.connectionStatus === 'connected'
                   ? 'text-emerald-600'
                   : smmConfig?.connectionStatus === 'error'
-                  ? 'text-rose-600'
-                  : 'text-oj-midnight dark:text-white'
-              }`}>
+                    ? 'text-rose-600'
+                    : 'text-oj-midnight dark:text-white'
+                }`}>
                 {smmConfig?.connectionStatus === 'connected' && smmConfig?.balanceNgn !== undefined
                   ? formatPrice(smmConfig.balanceNgn)
                   : smmConfig?.connectionStatus === 'error'
-                  ? 'Check Key'
-                  : '₦0'}
+                    ? 'Check Key'
+                    : '₦0'}
               </p>
               <div className="mt-0.5 flex items-center justify-between text-[10px]">
                 <span className="text-oj-muted">
@@ -2918,11 +2982,10 @@ export const AdminPage: React.FC = () => {
                 <button
                   key={plat}
                   onClick={() => setSmmPlatformFilter(plat)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize whitespace-nowrap transition-colors ${
-                    smmPlatformFilter === plat
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize whitespace-nowrap transition-colors ${smmPlatformFilter === plat
                       ? 'bg-oj-primary text-white'
                       : 'bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted hover:text-oj-midnight dark:hover:text-white'
-                  }`}
+                    }`}
                 >
                   {plat}
                 </button>
@@ -2976,21 +3039,19 @@ export const AdminPage: React.FC = () => {
                         </td>
 
                         <td className="py-3 px-3 text-center">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            profitNgn >= 0
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${profitNgn >= 0
                               ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
                               : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
-                          }`}>
+                            }`}>
                             +{formatPrice(profitNgn)} (+{profitPercent}%)
                           </span>
                         </td>
 
                         <td className="py-3 px-3 text-center">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            s.isActive
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${s.isActive
                               ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400'
                               : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
-                          }`}>
+                            }`}>
                             {s.isActive ? 'Active' : 'Disabled'}
                           </span>
                         </td>
@@ -3071,13 +3132,12 @@ export const AdminPage: React.FC = () => {
                           {formatPrice(o.totalNgn)}
                         </td>
                         <td className="py-3 px-3 text-center">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            o.status === 'completed'
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${o.status === 'completed'
                               ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
                               : o.status === 'canceled'
-                              ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
-                              : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
-                          }`}>
+                                ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
+                                : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
+                            }`}>
                             {o.status.toUpperCase()}
                           </span>
                         </td>
@@ -3142,9 +3202,8 @@ export const AdminPage: React.FC = () => {
                 </div>
                 <div className="flex items-center justify-between text-[11px] mt-1.5 px-0.5">
                   <span className="text-oj-muted">Projected Profit per 1k:</span>
-                  <span className={`font-mono font-bold ${
-                    editingSmmRate >= editingSmmService.sourceRateNgn ? 'text-emerald-600' : 'text-rose-600'
-                  }`}>
+                  <span className={`font-mono font-bold ${editingSmmRate >= editingSmmService.sourceRateNgn ? 'text-emerald-600' : 'text-rose-600'
+                    }`}>
                     +{formatPrice(editingSmmRate - editingSmmService.sourceRateNgn)} (
                     {Math.round(((editingSmmRate - editingSmmService.sourceRateNgn) / editingSmmService.sourceRateNgn) * 100)}%)
                   </span>
@@ -3232,11 +3291,10 @@ export const AdminPage: React.FC = () => {
 
               {/* Live Test Feedback Banner */}
               {testResult && (
-                <div className={`p-3 rounded-xl text-xs flex items-start gap-2.5 border ${
-                  testResult.success
+                <div className={`p-3 rounded-xl text-xs flex items-start gap-2.5 border ${testResult.success
                     ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
                     : 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200'
-                }`}>
+                  }`}>
                   {testResult.success ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
                   ) : (

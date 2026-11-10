@@ -40,7 +40,7 @@ class ApiClient {
       if (storedUser) {
         const parsed = JSON.parse(storedUser);
         const emailLower = (parsed.email || '').toLowerCase();
-        if (emailLower === 'visioreach@gmail.com' || emailLower === 'ojalogs@gmail.com' || emailLower === 'dahfaith@gmail.com') {
+        if (emailLower === 'visioreach@gmail.com' || emailLower === 'ojalogs@gmail.com' || emailLower === 'dahfaith@gmail.com' || emailLower === 'admin@ojalogs.com') {
           adminEmail = emailLower;
         }
       }
@@ -140,7 +140,7 @@ class ApiClient {
     const idempotencyKey = `idem_fund_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     return this.request('/wallet/fund', {
       method: 'POST',
-      body: JSON.stringify({ amountNgn, idempotencyKey })
+      body: JSON.stringify({ amountNgn, currency: 'NGN', idempotencyKey })
     });
   }
 

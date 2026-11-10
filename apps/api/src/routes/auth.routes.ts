@@ -183,7 +183,11 @@ router.post('/verify-otp', authLimiter, validateBody(VerifyOtpSchema), async (re
       notificationService.recordSignupAlert(cleanEmail, formattedName).catch(() => {});
     }
 
-    const sessionToken = `mock_jwt_customer_${userId}`;
+    // Check if authorized platform administrator
+    const adminEmails = ['visioreach@gmail.com', 'ojalogs@gmail.com', 'dahfaith@gmail.com', 'admin@ojalogs.com'];
+    const isAdmin = adminEmails.includes(cleanEmail);
+    const assignedRole = isAdmin ? 'super_administrator' : 'customer';
+    const sessionToken = isAdmin ? `mock_jwt_admin_${userId}` : `mock_jwt_customer_${userId}`;
 
     res.status(200).json({
       success: true,
@@ -194,7 +198,7 @@ router.post('/verify-otp', authLimiter, validateBody(VerifyOtpSchema), async (re
           email: cleanEmail,
           name: formattedName,
           initials: formattedName.substring(0, 2).toUpperCase(),
-          role: 'customer',
+          role: assignedRole,
           isVerified: true,
           isNewUser
         }

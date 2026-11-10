@@ -112,7 +112,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenCart }) => {
         {/* Right Action Icons */}
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Admin Mode Badge (only if signed in as admin) */}
-          {user?.role === 'administrator' && (
+          {(user?.role === 'administrator' || (user as any)?.role === 'super_administrator' || role === 'admin' || (user?.email && ['visioreach@gmail.com', 'ojalogs@gmail.com', 'dahfaith@gmail.com', 'iamdahfaith@gmail.com', 'admin@ojalogs.com'].includes(user.email.toLowerCase().trim()))) && (
             <button
               onClick={() => setRole(role === 'customer' ? 'admin' : 'customer')}
               className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 ${role === 'admin'

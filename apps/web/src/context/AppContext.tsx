@@ -111,27 +111,6 @@ const initialGuestWallet: WalletState = {
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // User (defaults to null for guests / new visitors)
-  const [user, setUser] = useState<UserProfile | null>(() => {
-    const saved = localStorage.getItem('oj_user');
-    return saved ? JSON.parse(saved) : null;
-  });
-
-  const isAuthenticated = Boolean(user && user.id);
-
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    return (localStorage.getItem('oj_theme') as 'light' | 'dark') || 'light';
-  });
-
-  const [hideBalance, setHideBalance] = useState<boolean>(() => {
-    return localStorage.getItem('oj_hide_balance') === 'true';
-  });
-
-  const [currency, setCurrencyState] = useState<SupportedCurrency>('NGN');
-  const [role, setRole] = useState<'customer' | 'admin'>('customer');
-
   const checkIsAdmin = (email?: string, metaRole?: string): boolean => {
     if (!email) return false;
     const normalized = email.toLowerCase().trim();
@@ -147,6 +126,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .filter(Boolean);
     return authorized.includes(normalized) || envAdmins.includes(normalized) || metaRole === 'administrator' || metaRole === 'admin';
   };
+
+  // User (defaults to null for guests / new visitors)
+  const [user, setUser] = useState<UserProfile | null>(() => {
+    const saved = localStorage.getItem('oj_user');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed?.email && checkIsAdmin(parsed.email)) {
+          parsed.role = 'administrator';
+        }
+        return parsed;
+      } catch {}
+    }
+    return null;
+  });
+
+  const isAuthenticated = Boolean(user && user.id);
+
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('oj_theme') as 'light' | 'dark') || 'light';
+  });
+
+  const [hideBalance, setHideBalance] = useState<boolean>(() => {
+    return localStorage.getItem('oj_hide_balance') === 'true';
+  });
+
+  const [currency, setCurrencyState] = useState<SupportedCurrency>('NGN');
+  const [role, setRole] = useState<'customer' | 'admin'>(() => {
+    const saved = localStorage.getItem('oj_user');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed?.email && checkIsAdmin(parsed.email)) {
+          return 'admin';
+        }
+      } catch {}
+    }
+    return 'customer';
+  });
 
   // Supabase Magic Link redirect & session listener
   useEffect(() => {

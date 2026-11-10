@@ -220,11 +220,10 @@ export const FundWalletModal: React.FC<FundWalletModalProps> = ({ isOpen, onClos
                         key={val}
                         type="button"
                         onClick={() => handleSelectPreset(val)}
-                        className={`py-2 px-1 text-xs font-bold rounded-lg border transition-all ${
-                          amount === val
+                        className={`py-2 px-1 text-xs font-bold rounded-lg border transition-all ${amount === val
                             ? 'bg-oj-primary text-white border-oj-primary shadow-glow-primary'
                             : 'bg-oj-surface-alt dark:bg-oj-dark-surface-alt border-oj-border dark:border-oj-dark-border text-oj-midnight dark:text-white hover:border-oj-primary/50'
-                        }`}
+                          }`}
                       >
                         {formatPrice(val)}
                       </button>

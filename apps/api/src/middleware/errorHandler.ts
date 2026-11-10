@@ -34,25 +34,27 @@ export function errorHandler(err: any, req: Request, res: Response, next: NextFu
   const timestamp = new Date().toISOString();
 
   // Zod Validation Errors
-  if (err instanceof ZodError) {
+  if (err instanceof ZodError || err?.name === 'ZodError') {
+    const details = typeof err.flatten === 'function' ? err.flatten().fieldErrors : err.errors;
+    const message = err.errors?.[0]?.message || 'Invalid request input parameters';
     return res.status(400).json({
       success: false,
       error: {
         code: 'VALIDATION_ERROR',
-        message: 'Invalid request input parameters',
-        details: err.flatten().fieldErrors
+        message,
+        details
       },
       meta: { request_id: requestId, timestamp }
     });
   }
 
   // Known Application Errors
-  if (err instanceof AppError) {
-    return res.status(err.statusCode).json({
+  if (err instanceof AppError || (err && typeof err.statusCode === 'number')) {
+    return res.status(err.statusCode || 400).json({
       success: false,
       error: {
-        code: err.code,
-        message: err.message,
+        code: err.code || 'BAD_REQUEST',
+        message: err.message || 'Operation failed',
         details: err.details
       },
       meta: { request_id: requestId, timestamp }

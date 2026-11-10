@@ -309,15 +309,16 @@ router.post('/gateways/:id/test', async (req, res) => {
 
   if (rawId === 'bach' && gateway.secretKey) {
     try {
-      const resp = await fetch(`${gateway.baseUrl}/checkout-sessions`, {
+      const normalizedBase = (gateway.baseUrl || 'https://api.bachs.io').replace(/\/+$/, '').replace(/\/v1$/, '');
+      const resp = await fetch(`${normalizedBase}/v1/checkout-sessions`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${gateway.secretKey}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          pricing: { amount: '10.00', currency: 'NGN' },
-          customer_email: 'test@ojalogs.com',
+          pricing: { amount: '100.00', currency: 'NGN' },
+          customer: { email: 'admin@ojalogs.com', name: 'Ojalogs Test' },
           reference: `test_${Date.now()}`
         })
       });
