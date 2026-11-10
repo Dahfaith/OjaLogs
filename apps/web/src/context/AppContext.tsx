@@ -703,6 +703,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => clearInterval(timer);
   }, [wallet.balanceNgn]);
 
+  // Active numbers polling to catch incoming SMS in real-time
+  useEffect(() => {
+    const hasActiveSession = activeNumbers.some(s => s.status === 'active');
+    if (!hasActiveSession) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const remoteSessions = await apiClient.getNumbers();
+        if (remoteSessions && remoteSessions.length > 0) {
+          setActiveNumbers(prev => {
+            return remoteSessions.map(rs => {
+              const localMatch = prev.find(p => p.id === rs.id || p.reference === rs.reference);
+              if (localMatch && localMatch.status === 'active' && rs.status === 'sms_received') {
+                showToast(`New SMS received for ${rs.phoneNumber}!`);
+                confetti({ particleCount: 70, spread: 60 });
+              }
+              return rs;
+            });
+          });
+        }
+      } catch {}
+    }, 3500);
+
+    return () => clearInterval(pollInterval);
+  }, [activeNumbers]);
+
   const requestNumber = async (
     countryCode: string,
     serviceId: string,
@@ -719,27 +745,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let session: VirtualNumberSession;
     try {
       session = await apiClient.requestNumber(country, service, rentalType);
-    } catch {
-      // Fallback session
-      const randPart = Math.floor(1000000 + Math.random() * 9000000);
-      const phoneNumber = `${country.dialCode} ${randPart.toString().substring(0, 3)} ${randPart.toString().substring(3)}`;
-      const sessionRef = `req_num_${Math.floor(100000 + Math.random() * 900000)}`;
-
-      session = {
-        id: `num_ses_${Date.now()}`,
-        reference: sessionRef,
-        country,
-        service,
-        phoneNumber,
-        rentalType,
-        status: 'active',
-        timeRemainingSeconds: 900,
-        expiresAt: new Date(Date.now() + 900 * 1000).toISOString(),
-        priceNgn: price,
-        canCancel: true,
-        canRenew: rentalType === 'long_term_rental',
-        messages: []
-      };
+    } catch (err: any) {
+      console.error('[REQUEST_NUMBER_ERROR]', err);
+      throw new Error(err.message || 'Telephony allocation failed. Please verify provider connectivity.');
     }
 
     const newBalance = wallet.balanceNgn - price;

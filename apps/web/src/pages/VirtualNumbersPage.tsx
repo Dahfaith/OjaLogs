@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { apiClient } from '../lib/apiClient';
+import { CountryOption, ServiceOption } from '@ojalogs/shared';
 import {
   PhoneCall,
   Globe2,
@@ -22,14 +24,23 @@ import { mockCountries, mockServices } from '../lib/mockData';
 export const VirtualNumbersPage: React.FC = () => {
   const { activeNumbers, requestNumber, cancelNumber, simulateIncomingSms, wallet, showToast, setIsSupportOpen, formatPrice, user, setIsAuthModalOpen } = useApp();
 
+  const [countries, setCountries] = useState<CountryOption[]>(mockCountries);
+  const [services, setServices] = useState<ServiceOption[]>(mockServices);
   const [selectedCountryCode, setSelectedCountryCode] = useState<string>('US');
   const [selectedServiceId, setSelectedServiceId] = useState<string>('whatsapp');
   const [rentalType, setRentalType] = useState<'one_time_sms' | 'long_term_rental'>('one_time_sms');
   const [isRequesting, setIsRequesting] = useState(false);
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
 
-  const selectedCountry = mockCountries.find(c => c.code === selectedCountryCode) || mockCountries[0];
-  const selectedService = mockServices.find(s => s.id === selectedServiceId) || mockServices[0];
+  useEffect(() => {
+    apiClient.getNumberOptions().then(res => {
+      if (res?.countries?.length) setCountries(res.countries);
+      if (res?.services?.length) setServices(res.services);
+    }).catch(() => {});
+  }, []);
+
+  const selectedCountry = countries.find(c => c.code === selectedCountryCode) || countries[0] || mockCountries[0];
+  const selectedService = services.find(s => s.id === selectedServiceId) || services[0] || mockServices[0];
   const price = rentalType === 'long_term_rental' ? selectedService.priceNgn * 5 : selectedService.priceNgn;
 
   const handleRequest = async () => {
@@ -119,10 +130,10 @@ export const VirtualNumbersPage: React.FC = () => {
         {/* Step 1: Country Picker */}
         <div>
           <label className="block text-xs font-semibold text-oj-midnight dark:text-white mb-2">
-            1. Select Country ({mockCountries.length} Available)
+            1. Select Country ({countries.length} Available)
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {mockCountries.map((c) => {
+            {countries.map((c) => {
               const isSelected = selectedCountryCode === c.code;
               return (
                 <button
@@ -152,7 +163,7 @@ export const VirtualNumbersPage: React.FC = () => {
             2. Select Service or Platform
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {mockServices.map((s) => {
+            {services.map((s) => {
               const isSelected = selectedServiceId === s.id;
               return (
                 <button

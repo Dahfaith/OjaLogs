@@ -6,6 +6,9 @@ import { serverApiRegistry } from '../adapters/server/server.registry.js';
 import { walletService } from '../services/wallet.service.js';
 import { notificationService } from '../services/notification.service.js';
 import { smmService } from '../services/smm.service.js';
+import { balanceService } from '../services/balance.service.js';
+import { numbersService } from '../services/numbers.service.js';
+import { telephonyRegistry } from '../adapters/telephony/telephony.registry.js';
 import { supabaseAdmin } from '../config/supabase.js';
 import { validateBody } from '../middleware/validate.js';
 import { z } from 'zod';
@@ -104,43 +107,6 @@ let paymentGateways: PaymentGatewayConfig[] = [
   }
 ];
 
-let telephonyProviders: TelephonyProviderConfig[] = [
-  {
-    id: 'provider-textplug',
-    name: 'TextPlug Telephony Hub',
-    badge: 'Primary Virtual SMS Hub (textplug.net)',
-    apiUrl: 'https://merchant.textplug.net',
-    apiKey: '',
-    webhookSecret: '',
-    markupPercent: 25,
-    autoRefundTimeoutSeconds: 900,
-    status: 'connected',
-    latencyMs: 38
-  },
-  {
-    id: 'provider-5sim',
-    name: '5sim.net Virtual SMS Hub',
-    badge: 'Secondary Automated Fallback',
-    apiUrl: 'https://5sim.net/v1/user',
-    apiKey: 'Bearer 5sim_prod_token_3921',
-    markupPercent: 25,
-    autoRefundTimeoutSeconds: 900,
-    status: 'standby',
-    latencyMs: 52
-  },
-  {
-    id: 'provider-smsactivate',
-    name: 'SMS-Activate Global Telephony',
-    badge: 'Third-Tier Fallback Telephony',
-    apiUrl: 'https://api.sms-activate.org/stubs/handler_api.php',
-    apiKey: 'smsactivate_key_88412',
-    markupPercent: 25,
-    autoRefundTimeoutSeconds: 900,
-    status: 'standby',
-    latencyMs: 88
-  }
-];
-
 router.get('/metrics', async (req, res) => {
   let customerCount = 1;
   try {
@@ -151,15 +117,68 @@ router.get('/metrics', async (req, res) => {
     }
   } catch {}
 
+  const stats = walletService.getGlobalStats();
+
   res.json({
     success: true,
     data: {
-      totalRevenueNgn: 0.00,
-      walletLiabilitiesNgn: 0.00,
-      totalOrders: 0,
-      activeRentals: 0,
+      totalRevenueNgn: stats.totalPurchasesNgn,
+      totalDepositsNgn: stats.totalDepositsNgn,
+      walletLiabilitiesNgn: stats.totalWalletLiabilitiesNgn,
+      totalOrders: stats.orderCount,
+      activeRentals: numbersService.getActiveSessionsCount(),
       registeredCustomers: customerCount,
       systemHealth: 'OPERATIONAL'
+    },
+    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+  });
+});
+
+// ==========================================
+// Upstream API Balances & Liquidity Hub
+// ==========================================
+router.get('/balances', async (req, res, next) => {
+  try {
+    const balances = await balanceService.getAllBalances();
+    res.json({
+      success: true,
+      data: balances,
+      meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ==========================================
+// Platform-Wide Global Ledger & Deposits API
+// ==========================================
+router.get('/ledger', (req, res) => {
+  const categoryFilter = req.query.category as string | undefined;
+  const transactions = walletService.getAllTransactions(categoryFilter);
+  const stats = walletService.getGlobalStats();
+
+  res.json({
+    success: true,
+    data: {
+      transactions,
+      count: transactions.length,
+      stats
+    },
+    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+  });
+});
+
+router.get('/deposits', (req, res) => {
+  const deposits = walletService.getAllDeposits();
+  const stats = walletService.getGlobalStats();
+
+  res.json({
+    success: true,
+    data: {
+      deposits,
+      count: deposits.length,
+      totalDepositedNgn: stats.totalDepositsNgn
     },
     meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
   });
@@ -381,7 +400,7 @@ router.post('/gateways/:id/test', async (req, res) => {
 router.get('/numbers/configs', (req, res) => {
   res.json({
     success: true,
-    data: telephonyProviders,
+    data: telephonyRegistry.getAll(),
     meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
   });
 });
@@ -397,85 +416,26 @@ const UpdateTelephonyConfigSchema = z.object({
 
 router.patch('/numbers/configs/:id', validateBody(UpdateTelephonyConfigSchema), (req, res) => {
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const idx = telephonyProviders.findIndex(p => p.id === rawId);
-  if (idx === -1) {
-    return res.status(404).json({ success: false, error: { message: 'Telephony provider not found' } });
+  try {
+    const updated = telephonyRegistry.update(rawId, req.body);
+    res.json({
+      success: true,
+      data: updated,
+      meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+    });
+  } catch (err: any) {
+    return res.status(404).json({ success: false, error: { message: err.message } });
   }
-
-  telephonyProviders[idx] = { ...telephonyProviders[idx], ...req.body };
-  res.json({
-    success: true,
-    data: telephonyProviders[idx],
-    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
-  });
 });
 
 router.post('/numbers/configs/:id/test', async (req, res) => {
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const provider = telephonyProviders.find(p => p.id === rawId);
-  if (!provider) {
-    return res.status(404).json({ success: false, error: { message: 'Provider not found' } });
-  }
-
-  const startTime = Date.now();
-
-  if (rawId === 'provider-textplug' && provider.apiKey) {
-    try {
-      const resp = await fetch(`${provider.apiUrl}/v1/sms/swift/service-list`, {
-        method: 'GET',
-        headers: {
-          'x-api-key': provider.apiKey.trim(),
-          'Accept': 'application/json'
-        }
-      });
-
-      const latencyMs = Date.now() - startTime;
-      let healthy = false;
-      let message = '';
-
-      if (resp.status === 200) {
-        healthy = true;
-        message = `Live connection verified with TextPlug API (HTTP 200). Ready to lease virtual lines!`;
-      } else if (resp.status === 401 || resp.status === 403) {
-        healthy = false;
-        message = `TextPlug rejected API Key (HTTP ${resp.status}). Please verify your 32-character key from textplug.net.`;
-      } else {
-        healthy = false;
-        message = `TextPlug returned HTTP ${resp.status}`;
-      }
-
-      return res.json({
-        success: true,
-        data: {
-          providerId: rawId,
-          healthy,
-          latencyMs,
-          message
-        },
-        meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
-      });
-    } catch (err: any) {
-      return res.json({
-        success: true,
-        data: {
-          providerId: rawId,
-          healthy: false,
-          latencyMs: Date.now() - startTime,
-          message: `Network error connecting to TextPlug: ${err.message}`
-        },
-        meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
-      });
-    }
-  }
-
-  const simulatedLatency = Math.floor(45 + Math.random() * 45);
-  res.json({
+  const result = await telephonyRegistry.testConnection(rawId);
+  return res.json({
     success: true,
     data: {
       providerId: rawId,
-      healthy: true,
-      latencyMs: simulatedLatency,
-      message: `Telephony API ping healthy (${provider.name}). SMS receiving queue operational.`
+      ...result
     },
     meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
   });

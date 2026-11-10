@@ -94,3 +94,6 @@ dist-ssr/
 # Vercel
 .vercel
 
+# Local Runtime Data
+apps/api/data/*.json
+

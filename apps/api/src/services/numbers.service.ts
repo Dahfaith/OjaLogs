@@ -1,5 +1,6 @@
 import { walletService } from './wallet.service.js';
 import { notificationService } from './notification.service.js';
+import { telephonyRegistry } from '../adapters/telephony/telephony.registry.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { VirtualNumberSession, CountryOption, ServiceOption, SmsMessage } from '@ojalogs/shared';
 import { COUNTRIES, SERVICES } from '../data/products.js';
@@ -50,6 +51,14 @@ export class NumbersService {
     return undefined;
   }
 
+  getActiveSessionsCount(): number {
+    let count = 0;
+    for (const item of this.sessions.values()) {
+      if (item.session.status === 'active') count++;
+    }
+    return count;
+  }
+
   async requestNumber(
     userId: string,
     country: CountryOption,
@@ -58,9 +67,9 @@ export class NumbersService {
     idempotencyKey: string
   ): Promise<VirtualNumberSession> {
     const price = rentalType === 'long_term_rental' ? service.priceNgn * 5 : service.priceNgn;
-    const sessionRef = `req_num_${Math.floor(100000 + Math.random() * 900000)}`;
+    let sessionRef = `req_num_${Math.floor(100000 + Math.random() * 900000)}`;
 
-    // Debit Wallet
+    // Debit Wallet first to verify balance
     walletService.debitWallet(
       userId,
       price,
@@ -70,8 +79,60 @@ export class NumbersService {
       idempotencyKey
     );
 
-    const randNum = Math.floor(1000000 + Math.random() * 9000000);
-    const phoneNumber = `${country.dialCode} ${randNum.toString().substring(0, 3)} ${randNum.toString().substring(3)}`;
+    let phoneNumber = `${country.dialCode} ${Math.floor(1000000 + Math.random() * 9000000)}`;
+
+    // Live TextPlug API Integration
+    const textplug = telephonyRegistry.get('provider-textplug');
+    if (textplug && textplug.apiKey && textplug.apiKey.trim().length > 10) {
+      try {
+        console.log(`[TEXTPLUG] Ordering real virtual line for: ${service.name} (${country.code})...`);
+        const tpRes = await fetch(`${textplug.apiUrl || 'https://merchant.textplug.net'}/v1/sms/swift/order`, {
+          method: 'POST',
+          headers: {
+            'x-api-key': textplug.apiKey.trim(),
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            serviceName: service.name
+          })
+        });
+
+        if (tpRes.ok) {
+          const tpData = await tpRes.json() as any;
+          console.log('[TEXTPLUG] ✓ Live number allocated:', tpData);
+          if (tpData.phoneNumber) {
+            phoneNumber = tpData.phoneNumber;
+          }
+          if (tpData.reference || tpData.id) {
+            sessionRef = tpData.reference || tpData.id;
+          }
+        } else {
+          const errText = await tpRes.text();
+          console.warn(`[TEXTPLUG] Order rejected (HTTP ${tpRes.status}): ${errText}`);
+          if (process.env.NODE_ENV === 'production') {
+            let errorMsg = 'TextPlug Telephony: ';
+            try {
+              const parsed = JSON.parse(errText);
+              errorMsg += parsed.message || parsed.error || errText;
+            } catch {
+              errorMsg += errText;
+            }
+            // Auto refund wallet if line could not be acquired
+            walletService.creditWallet(userId, price, 'refund', `rf_auto_${Date.now()}`, `Auto-refund for unavailable line: ${service.name}`);
+            throw new AppError(errorMsg, 400, 'TELEPHONY_ORDER_FAILED');
+          }
+        }
+      } catch (err: any) {
+        if (err instanceof AppError) throw err;
+        console.warn(`[TEXTPLUG] Order network error: ${err.message}`);
+        if (process.env.NODE_ENV === 'production') {
+          walletService.creditWallet(userId, price, 'refund', `rf_auto_${Date.now()}`, `Auto-refund for connection failure: ${service.name}`);
+          throw new AppError(`Telephony provider network error: ${err.message}`, 502, 'TELEPHONY_NETWORK_ERROR');
+        }
+      }
+    }
+
     const durationSeconds = rentalType === 'long_term_rental' ? 86400 * 7 : 900; // 7 days vs 15 mins
 
     // Dispatch real-time telephony lease alert to admin
@@ -129,6 +190,18 @@ export class NumbersService {
       refundRef,
       `Cancelled virtual number allocation (${session.phoneNumber})`
     );
+
+    // If live TextPlug session, notify provider to release number
+    const textplug = telephonyRegistry.get('provider-textplug');
+    if (textplug && textplug.apiKey && session.reference && (session.reference.includes('-') || session.reference.startsWith('tp_'))) {
+      fetch(`${textplug.apiUrl || 'https://merchant.textplug.net'}/v1/sms/swift/cancel/${session.reference}`, {
+        method: 'POST',
+        headers: {
+          'x-api-key': textplug.apiKey.trim(),
+          'Accept': 'application/json'
+        }
+      }).catch(err => console.warn('[TEXTPLUG_CANCEL] Notice:', err.message));
+    }
 
     session.status = 'cancelled';
     session.canCancel = false;

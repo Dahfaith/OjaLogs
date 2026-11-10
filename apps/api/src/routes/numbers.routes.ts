@@ -36,17 +36,17 @@ const RequestNumberSchema = z.object({
     code: z.string().min(2),
     name: z.string().min(1),
     dialCode: z.string().min(1),
-    flag: z.string().min(1),
-    availableNumbers: z.number().int()
-  }),
+    flag: z.string().optional().default('🌐'),
+    availableNumbers: z.number().optional().default(100)
+  }).passthrough(),
   service: z.object({
     id: z.string().min(1),
     name: z.string().min(1),
-    category: z.string().min(1),
-    icon: z.string(),
+    category: z.string().optional().default('General'),
+    icon: z.string().optional().default('MessageSquare'),
     priceNgn: z.number().min(0),
-    successRate: z.number()
-  }),
+    successRate: z.number().optional().default(98)
+  }).passthrough(),
   rentalType: z.enum(['one_time_sms', 'long_term_rental']).default('one_time_sms'),
   idempotencyKey: z.string().min(1)
 });

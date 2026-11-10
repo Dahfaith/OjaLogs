@@ -173,6 +173,42 @@ export class BachGateway implements IPaymentGateway {
   }
 
   /**
+   * Fetch live Bachs account settlement balance
+   */
+  async getBalance(): Promise<{ balance: number; currency: string; availableBalance: number; raw?: any }> {
+    try {
+      const normalizedBase = (this.baseUrl || 'https://api.bachs.io').replace(/\/+$/, '').replace(/\/v1$/, '');
+      const response = await fetch(`${normalizedBase}/v1/balance`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json() as any;
+        const bal = Number(data.balance || data.available_balance || data.amount || 0);
+        const avail = Number(data.available_balance || data.balance || data.amount || 0);
+        return {
+          balance: bal,
+          availableBalance: avail,
+          currency: data.currency || 'NGN',
+          raw: data
+        };
+      }
+    } catch (err: any) {
+      console.warn(`[BACH_BALANCE] Live query notice: ${err.message}`);
+    }
+
+    return {
+      balance: 0,
+      availableBalance: 0,
+      currency: 'NGN'
+    };
+  }
+
+  /**
    * Verify cryptographic webhook signature using Bachs HMAC-SHA256 scheme:
    * Supports headers:
    * - bachs-signature / x-bachs-signature-v2 / webhook-signature / svix-signature

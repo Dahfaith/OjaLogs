@@ -315,7 +315,44 @@ class ApiClient {
     });
   }
 
-  // Admin Metrics
+  // Admin Metrics & Upstream Balances
+  async getAdminBalances(): Promise<Array<{
+    id: string;
+    name: string;
+    category: string;
+    balance: number;
+    currency: string;
+    status: string;
+    latencyMs?: number;
+    note?: string;
+    lastChecked: string;
+  }>> {
+    return this.request<any[]>('/admin/balances');
+  }
+
+  async getAdminLedger(category?: string): Promise<{
+    transactions: Array<LedgerTransaction & { userId: string; userEmail?: string }>;
+    count: number;
+    stats: {
+      totalDepositsNgn: number;
+      totalPurchasesNgn: number;
+      totalWalletLiabilitiesNgn: number;
+      depositCount: number;
+      orderCount: number;
+    };
+  }> {
+    const query = category ? `?category=${encodeURIComponent(category)}` : '';
+    return this.request<any>(`/admin/ledger${query}`);
+  }
+
+  async getAdminDeposits(): Promise<{
+    deposits: Array<LedgerTransaction & { userId: string; userEmail?: string }>;
+    count: number;
+    totalDepositedNgn: number;
+  }> {
+    return this.request<any>('/admin/deposits');
+  }
+
   async getAdminMetrics(): Promise<{
     totalRevenueNgn: number;
     walletLiabilitiesNgn: number;

@@ -54,6 +54,7 @@ router.post('/bach', async (req: Request, res: Response, next: NextFunction) => 
     if (webhookEvent.status === 'successful' && webhookEvent.amountNgn > 0) {
       const payload = webhookEvent.rawPayload;
       const userId = payload.data?.metadata?.user_id || payload.metadata?.user_id || payload.data?.metadata?.userId || 'usr_oj_001';
+      const customerEmail = payload.data?.customer_email || payload.data?.customer?.email || 'customer@ojalogs.com';
 
       // Atomic Ledger Credit
       const tx = walletService.creditWallet(
@@ -61,13 +62,14 @@ router.post('/bach', async (req: Request, res: Response, next: NextFunction) => 
         webhookEvent.amountNgn,
         'deposit',
         webhookEvent.reference,
-        `Bachs Gateway Verified Deposit (${webhookEvent.reference})`
+        `Bachs Gateway Verified Deposit (${webhookEvent.reference})`,
+        webhookEvent.eventId,
+        customerEmail
       );
 
-      console.log(`[BACH_WEBHOOK] Credited ₦${webhookEvent.amountNgn} to wallet for user ${userId}. Tx: ${tx.id}`);
+      console.log(`[BACH_WEBHOOK] Credited ₦${webhookEvent.amountNgn} to wallet for user ${userId} (${customerEmail}). Tx: ${tx.id}`);
 
       // Dispatch real-time deposit email alert to admin
-      const customerEmail = payload.data?.customer_email || payload.data?.customer?.email || 'customer@ojalogs.com';
       notificationService.recordDepositAlert(
         userId,
         customerEmail,
