@@ -21,7 +21,9 @@ const EnvSchema = z.object({
   LINKOCIAL_BASE_URL: z.string().default('https://linkocial.com/api/v1'),
   TEXTPLUG_API_KEY: z.string().optional().default(''),
   TEXTPLUG_BASE_URL: z.string().default('https://merchant.textplug.net'),
-  TEXTPLUG_WEBHOOK_SECRET: z.string().default('whsec_textplug_ojalogs')
+  TEXTPLUG_WEBHOOK_SECRET: z.string().default('whsec_textplug_ojalogs'),
+  LOGSPOLL_API_KEY: z.string().optional().default(''),
+  LOGSPOLL_BASE_URL: z.string().default('https://logspoll.com/api/v1')
 });
 
 export const env = EnvSchema.parse(process.env);

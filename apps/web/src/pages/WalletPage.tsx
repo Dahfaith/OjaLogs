@@ -72,7 +72,7 @@ export const WalletPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-24 md:pb-12">
+    <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-28 md:pb-12">
       {/* Top Header */}
       <div className="flex items-center justify-between">
         <div>

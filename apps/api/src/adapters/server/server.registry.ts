@@ -3,6 +3,7 @@ import { Server1ApiAdapter } from './server1.adapter.js';
 import { Server2ApiAdapter } from './server2.adapter.js';
 import { Server3ApiAdapter } from './server3.adapter.js';
 import { Server4ApiAdapter } from './server4.adapter.js';
+import { logspollAdapter } from '../logspoll/logspoll.adapter.js';
 import { AppError } from '../../middleware/errorHandler.js';
 import { ServerClusterConfig } from '@ojalogs/shared';
 
@@ -38,13 +39,13 @@ export class ServerApiRegistry {
       {
         id: 'server-2',
         cluster: 'Server 2',
-        name: 'Server 2 API (Social Accounts & Cloud Subscriptions)',
-        description: 'Provisions aged social media accounts, high-limit Business Managers, and cloud VPS credits.',
-        apiUrl: 'https://api.ojalogs-server2.net/v1',
-        apiKey: 'sk_live_srv2_prod_9942',
+        name: 'Server 2 API (Social Accounts - LogsPoll.com)',
+        description: 'Provisions aged social media accounts, high-limit Business Managers, and social tools via LogsPoll.',
+        apiUrl: process.env.LOGSPOLL_BASE_URL || 'https://logspoll.com/api/v1',
+        apiKey: process.env.LOGSPOLL_API_KEY || '',
         fulfillmentMode: 'automated_api',
         webhookSecret: 'whsec_srv2_prod_2026',
-        status: 'connected',
+        status: process.env.LOGSPOLL_API_KEY ? 'connected' : 'offline',
         latencyMs: 64,
         lastChecked: new Date().toISOString()
       },
@@ -64,13 +65,13 @@ export class ServerApiRegistry {
       {
         id: 'server-4',
         cluster: 'Server 4',
-        name: 'Server 4 API (AI Subscriptions & Tool Passkeys)',
-        description: 'Distributes ChatGPT Plus, Claude Pro, and AI developer API redemption vouchers.',
-        apiUrl: 'https://api.ojalogs-server4.net/v1',
-        apiKey: 'sk_live_srv4_prod_1109',
+        name: 'Server 4 API (AI Subscriptions & Tool Passkeys - LogsPoll.com)',
+        description: 'Distributes ChatGPT Plus, Claude Pro, and AI developer API redemption vouchers via LogsPoll.',
+        apiUrl: process.env.LOGSPOLL_BASE_URL || 'https://logspoll.com/api/v1',
+        apiKey: process.env.LOGSPOLL_API_KEY || '',
         fulfillmentMode: 'automated_api',
         webhookSecret: 'whsec_srv4_prod_2026',
-        status: 'connected',
+        status: process.env.LOGSPOLL_API_KEY ? 'connected' : 'offline',
         latencyMs: 72,
         lastChecked: new Date().toISOString()
       }
@@ -114,11 +115,30 @@ export class ServerApiRegistry {
       lastChecked: new Date().toISOString()
     };
     this.serverConfigs.set(cluster, updated);
+
+    // Keep LogsPoll adapter credentials in sync if Server 2 or Server 4 is updated
+    if (cluster === 'Server 2' || cluster === 'Server 4' || (updated.apiUrl && updated.apiUrl.includes('logspoll'))) {
+      if (updated.apiKey || updated.apiUrl) {
+        logspollAdapter.setCredentials(updated.apiKey, updated.apiUrl);
+      }
+    }
+
     return updated;
   }
 
   async testConnection(cluster: string): Promise<{ healthy: boolean; latencyMs: number; message: string }> {
     const cfg = this.getConfig(cluster);
+    
+    // If configured with live LogsPoll URL
+    if (cfg.apiUrl && cfg.apiUrl.includes('logspoll')) {
+      const res = await logspollAdapter.checkHealth();
+      cfg.latencyMs = res.latencyMs;
+      cfg.status = res.healthy ? 'connected' : 'offline';
+      cfg.lastChecked = new Date().toISOString();
+      this.serverConfigs.set(cluster, cfg);
+      return res;
+    }
+
     const simulatedLatency = Math.floor(30 + Math.random() * 45);
     
     // Update latency & status

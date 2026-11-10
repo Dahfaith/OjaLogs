@@ -1,11 +1,16 @@
 import { IServerApiAdapter, ProvisionResult } from './server.interface.js';
 import { Product } from '@ojalogs/shared';
+import { logspollAdapter } from '../logspoll/logspoll.adapter.js';
 
 export class Server2ApiAdapter implements IServerApiAdapter {
   readonly serverCluster = 'Server 2';
-  readonly name = 'Server 2 API (Social Media Accounts & Cloud Infrastructure)';
+  readonly name = 'Server 2 API (Social Media Accounts & Cloud Infrastructure - LogsPoll)';
 
   async checkHealth(): Promise<{ healthy: boolean; latencyMs: number }> {
+    if (logspollAdapter.getCredentials().isConfigured) {
+      const hp = await logspollAdapter.checkHealth();
+      return { healthy: hp.healthy, latencyMs: hp.latencyMs };
+    }
     return { healthy: true, latencyMs: 78 };
   }
 
@@ -18,6 +23,25 @@ export class Server2ApiAdapter implements IServerApiAdapter {
   }
 
   async provisionSecret(sku: string, orderRef: string, metadata?: any): Promise<ProvisionResult> {
+    // 1. If LogsPoll API is configured, attempt live upstream dispatch
+    if (logspollAdapter.getCredentials().isConfigured) {
+      try {
+        console.log(`[SERVER_2_LOGSPOLL] Ordering social account for SKU: ${sku} via LogsPoll API...`);
+        const orderResult = await logspollAdapter.orderProduct(sku, 1, orderRef);
+        if (orderResult.success && orderResult.secretKey) {
+          console.log(`[SERVER_2_LOGSPOLL] ✓ Successfully provisioned account from LogsPoll: ${orderResult.orderId}`);
+          return {
+            secretKey: orderResult.secretKey,
+            deliveryFormat: orderResult.deliveryFormat || 'Username:Password:Email:2FA_Secret',
+            instructions: orderResult.instructions || 'Redeem and secure your account credentials with 2FA.',
+            externalTransactionId: `lp_${orderResult.orderId || Date.now()}`
+          };
+        }
+      } catch (err: any) {
+        console.warn(`[SERVER_2_LOGSPOLL] Live dispatch notice: ${err.message}`);
+      }
+    }
+
     const isFacebook = sku.toLowerCase().includes('facebook');
     const isTwitter = sku.toLowerCase().includes('twitter') || sku.toLowerCase().includes('x-');
     const isCloud = sku.toLowerCase().includes('aws') || sku.toLowerCase().includes('digitalocean');

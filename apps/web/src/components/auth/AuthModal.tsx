@@ -327,8 +327,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultEm
                           handleVerifyOtp(otpCode);
                         }
                       }}
-                      placeholder="Enter verification code"
-                      className="w-full text-center tracking-[0.25em] font-mono text-2xl py-3 rounded-xl border border-oj-border dark:border-oj-dark-border bg-white dark:bg-oj-dark-surface font-extrabold focus:outline-none focus:border-oj-primary transition-colors"
+                      placeholder="• • • • • •"
+                      className="w-full text-center tracking-[0.3em] font-mono text-xl sm:text-2xl py-3 rounded-xl border border-oj-border dark:border-oj-dark-border bg-white dark:bg-oj-dark-surface font-extrabold placeholder:text-oj-muted/30 placeholder:tracking-[0.3em] focus:outline-none focus:border-oj-primary transition-colors"
                       autoFocus
                     />
                   </div>

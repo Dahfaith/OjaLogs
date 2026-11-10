@@ -27,8 +27,15 @@ export class WalletService {
     this.userEmails.clear();
   }
 
+  private isTestRuntime(): boolean {
+    return (
+      process.env.NODE_ENV === 'test' ||
+      process.argv.some((a) => a.includes('test') || a.includes('vitest'))
+    );
+  }
+
   private loadPersistedStore() {
-    if (process.env.NODE_ENV === 'test') return;
+    if (this.isTestRuntime()) return;
     try {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -58,7 +65,7 @@ export class WalletService {
   }
 
   private savePersistedStore() {
-    if (process.env.NODE_ENV === 'test') return;
+    if (this.isTestRuntime()) return;
     try {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });

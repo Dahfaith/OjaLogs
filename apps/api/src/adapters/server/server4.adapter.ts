@@ -1,11 +1,16 @@
 import { IServerApiAdapter, ProvisionResult } from './server.interface.js';
 import { Product } from '@ojalogs/shared';
+import { logspollAdapter } from '../logspoll/logspoll.adapter.js';
 
 export class Server4ApiAdapter implements IServerApiAdapter {
   readonly serverCluster = 'Server 4';
-  readonly name = 'Server 4 API (AI Tools & Model Access)';
+  readonly name = 'Server 4 API (AI Tools & Model Access - LogsPoll)';
 
   async checkHealth(): Promise<{ healthy: boolean; latencyMs: number }> {
+    if (logspollAdapter.getCredentials().isConfigured) {
+      const hp = await logspollAdapter.checkHealth();
+      return { healthy: hp.healthy, latencyMs: hp.latencyMs };
+    }
     return { healthy: true, latencyMs: 50 };
   }
 
@@ -18,6 +23,25 @@ export class Server4ApiAdapter implements IServerApiAdapter {
   }
 
   async provisionSecret(sku: string, orderRef: string, metadata?: any): Promise<ProvisionResult> {
+    // 1. If LogsPoll API is configured, attempt live upstream dispatch
+    if (logspollAdapter.getCredentials().isConfigured) {
+      try {
+        console.log(`[SERVER_4_LOGSPOLL] Ordering AI tool voucher for SKU: ${sku} via LogsPoll API...`);
+        const orderResult = await logspollAdapter.orderProduct(sku, 1, orderRef);
+        if (orderResult.success && orderResult.secretKey) {
+          console.log(`[SERVER_4_LOGSPOLL] ✓ Successfully provisioned tool voucher from LogsPoll: ${orderResult.orderId}`);
+          return {
+            secretKey: orderResult.secretKey,
+            deliveryFormat: orderResult.deliveryFormat || 'Prepaid Digital Voucher Token',
+            instructions: orderResult.instructions || 'Redeem code according to platform instructions.',
+            externalTransactionId: `lp_${orderResult.orderId || Date.now()}`
+          };
+        }
+      } catch (err: any) {
+        console.warn(`[SERVER_4_LOGSPOLL] Live dispatch notice: ${err.message}`);
+      }
+    }
+
     const isClaude = sku.toLowerCase().includes('claude');
     const isMidjourney = sku.toLowerCase().includes('midjourney');
 

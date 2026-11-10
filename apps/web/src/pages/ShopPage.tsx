@@ -95,7 +95,7 @@ export const ShopPage: React.FC = () => {
   }, [products, selectedServer, selectedCategory, availabilityFilter, searchQuery, favourites]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 pb-24 md:pb-12">
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 pb-28 md:pb-12">
       {/* Page Title & Counters */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>

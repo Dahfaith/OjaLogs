@@ -235,7 +235,7 @@ export const SocialBoostPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 py-6 sm:py-8 space-y-6 sm:space-y-8 pb-28 md:pb-12">
       {/* Hero Header */}
       <div className="relative rounded-3xl p-6 sm:p-10 bg-gradient-to-r from-oj-midnight via-oj-navy to-oj-midnight border border-oj-border dark:border-oj-dark-border shadow-2xl overflow-hidden text-white">
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -248,11 +248,11 @@ export const SocialBoostPage: React.FC = () => {
           <h1 className="font-heading font-extrabold text-2xl sm:text-4xl tracking-tight">
             Grow Your Social Media Presence & Authority
           </h1>
-          <p className="text-sm text-oj-muted dark:text-slate-300 leading-relaxed max-w-2xl">
+          <p className="text-xs sm:text-sm text-oj-muted dark:text-slate-300 leading-relaxed max-w-2xl">
             Instant organic engagement, high-retention followers, views, and algorithmic boosts across Instagram, TikTok, YouTube, X, and Telegram. Automated high-speed server fulfillment.
           </p>
 
-          <div className="pt-2 flex items-center gap-4 text-xs font-medium text-slate-300">
+          <div className="pt-2 flex flex-wrap items-center gap-3 sm:gap-4 text-xs font-medium text-slate-300">
             <div className="flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
               <span>Safe Delivery Engine</span>
@@ -270,11 +270,11 @@ export const SocialBoostPage: React.FC = () => {
       </div>
 
       {/* Navigation View Switch */}
-      <div className="flex items-center justify-between border-b border-oj-border dark:border-oj-dark-border pb-3">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-oj-border dark:border-oj-dark-border pb-3">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <button
             onClick={() => setActiveTab('order')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+            className={`flex-1 sm:flex-none justify-center px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
               activeTab === 'order'
                 ? 'bg-oj-primary text-white shadow-soft'
                 : 'bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted hover:text-oj-midnight dark:hover:text-white'
@@ -286,20 +286,20 @@ export const SocialBoostPage: React.FC = () => {
 
           <button
             onClick={() => setActiveTab('history')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+            className={`flex-1 sm:flex-none justify-center px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
               activeTab === 'history'
                 ? 'bg-oj-primary text-white shadow-soft'
                 : 'bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted hover:text-oj-midnight dark:hover:text-white'
             }`}
           >
             <Clock className="w-3.5 h-3.5" />
-            <span>My Boost Orders ({orders.length})</span>
+            <span>My Orders ({orders.length})</span>
           </button>
         </div>
 
         {user && (
-          <div className="text-right text-xs">
-            <span className="text-oj-muted block text-[10px]">Your Wallet Balance</span>
+          <div className="flex items-center justify-between sm:justify-end gap-2 text-xs bg-oj-surface-alt/40 dark:bg-oj-dark-surface-alt/40 sm:bg-transparent px-3 py-2 sm:p-0 rounded-xl">
+            <span className="text-oj-muted text-[11px]">Your Wallet Balance:</span>
             <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-sm">
               {formatPrice(wallet.balanceNgn)}
             </span>
@@ -561,8 +561,70 @@ export const SocialBoostPage: React.FC = () => {
             </span>
           </div>
 
-          <div className="border border-oj-border dark:border-oj-dark-border rounded-xl overflow-hidden bg-white dark:bg-oj-dark-surface shadow-soft">
-            <table className="w-full text-left text-xs">
+          {/* Mobile Card List (Phones) */}
+          <div className="sm:hidden space-y-3">
+            {orders.length === 0 ? (
+              <div className="p-8 text-center text-oj-muted bg-white dark:bg-oj-dark-surface rounded-2xl border border-oj-border dark:border-oj-dark-border shadow-soft">
+                <Zap className="w-8 h-8 mx-auto mb-2 opacity-30 text-oj-primary" />
+                <p className="font-bold text-xs text-oj-midnight dark:text-white">No SMM orders yet.</p>
+                <p className="text-[11px] text-oj-muted mt-1">Configure a boost above to accelerate your social media growth.</p>
+              </div>
+            ) : (
+              orders.map(o => (
+                <div key={o.id} className="p-4 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-xs font-bold text-oj-midnight dark:text-white">{o.reference}</span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      o.status === 'completed'
+                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
+                        : o.status === 'canceled'
+                        ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
+                        : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
+                    }`}>
+                      {o.status.toUpperCase()}
+                    </span>
+                  </div>
+
+                  <p className="text-xs font-medium text-oj-midnight dark:text-white">{o.serviceName}</p>
+
+                  <a
+                    href={o.targetLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-oj-primary hover:underline font-mono text-[11px] flex items-center gap-1 truncate"
+                  >
+                    <span className="truncate">{o.targetLink}</span>
+                    <ExternalLink className="w-3 h-3 shrink-0" />
+                  </a>
+
+                  <div className="pt-2 border-t border-oj-border/50 dark:border-oj-dark-border/50 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="text-[10px] text-oj-muted block">Quantity</span>
+                      <span className="font-mono font-bold text-oj-midnight dark:text-white">{o.quantity.toLocaleString()}</span>
+                    </div>
+
+                    <div className="text-center">
+                      <span className="text-[10px] text-oj-muted block">Total Cost</span>
+                      <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{formatPrice(o.totalNgn)}</span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSyncOrder(o.id)}
+                      className="p-1.5 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-border text-oj-midnight dark:text-white transition-colors"
+                      title="Refresh status"
+                    >
+                      <RotateCw className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Desktop & Tablet Table */}
+          <div className="hidden sm:block border border-oj-border dark:border-oj-dark-border rounded-xl overflow-x-auto bg-white dark:bg-oj-dark-surface shadow-soft">
+            <table className="w-full text-left text-xs min-w-[640px]">
               <thead className="bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted border-b border-oj-border dark:border-oj-dark-border">
                 <tr>
                   <th className="py-2.5 px-3 font-semibold">Reference</th>

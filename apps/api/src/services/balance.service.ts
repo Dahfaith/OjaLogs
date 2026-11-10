@@ -2,12 +2,13 @@ import { bachGateway } from '../gateways/bach.gateway.js';
 import { smmService } from './smm.service.js';
 import { linkocialAdapter } from '../adapters/smm/linkocial.adapter.js';
 import { telephonyRegistry } from '../adapters/telephony/telephony.registry.js';
+import { logspollAdapter } from '../adapters/logspoll/logspoll.adapter.js';
 import { numbersService } from './numbers.service.js';
 
 export interface UpstreamServiceBalance {
   id: string;
   name: string;
-  category: 'payment_gateway' | 'smm_provider' | 'telephony_provider' | 'server_cluster';
+  category: 'payment_gateway' | 'smm_provider' | 'telephony_provider' | 'server_provider' | 'server_cluster';
   balance: number;
   currency: string;
   status: 'connected' | 'standby' | 'error' | 'unconfigured';
@@ -116,6 +117,39 @@ export class BalanceService {
         id: 'textplug',
         name: 'TextPlug Telephony Hub',
         category: 'telephony_provider',
+        balance: 0,
+        currency: 'NGN',
+        status: 'error',
+        note: err.message,
+        lastChecked: now
+      });
+    }
+
+    // 4. LogsPoll Social Accounts & Tools Hub (logspoll.com)
+    try {
+      const lpStart = Date.now();
+      const lpCreds = logspollAdapter.getCredentials();
+      const lpBal = await logspollAdapter.getBalance();
+      const isConfigured = lpCreds.isConfigured;
+
+      results.push({
+        id: 'logspoll',
+        name: 'LogsPoll Social Media & Tools Hub',
+        category: 'server_provider',
+        balance: lpBal.balance,
+        currency: 'NGN',
+        status: isConfigured ? 'connected' : 'unconfigured',
+        latencyMs: Date.now() - lpStart,
+        note: isConfigured
+          ? 'Live liquidity for Social Accounts & Digital Tools (logspoll.com)'
+          : 'Ready for API Key (Bearer lp_live_...) in Admin Settings',
+        lastChecked: now
+      });
+    } catch (err: any) {
+      results.push({
+        id: 'logspoll',
+        name: 'LogsPoll Social Media & Tools Hub',
+        category: 'server_provider',
         balance: 0,
         currency: 'NGN',
         status: 'error',
