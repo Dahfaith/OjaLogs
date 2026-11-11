@@ -109,7 +109,9 @@ let paymentGateways: PaymentGatewayConfig[] = [
   }
 ];
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_DIR = fs.existsSync(path.join(process.cwd(), 'apps', 'api', 'data'))
+  ? path.join(process.cwd(), 'apps', 'api', 'data')
+  : path.join(process.cwd(), 'data');
 const GATEWAY_CONFIG_FILE = path.join(DATA_DIR, 'gateway_configs.json');
 
 function loadPersistedGateways() {

@@ -11,7 +11,7 @@ const router = Router();
 router.use(authMiddleware);
 
 router.get('/balance', (req, res) => {
-  const balance = walletService.getBalance(req.user!.id);
+  const balance = walletService.getBalance(req.user!.id, req.user?.email);
   res.json({
     success: true,
     data: { balanceNgn: balance, currency: 'NGN' },
@@ -21,7 +21,7 @@ router.get('/balance', (req, res) => {
 
 router.get('/ledger', (req, res) => {
   const filter = req.query.category as string | undefined;
-  const ledger = walletService.getLedger(req.user!.id, filter);
+  const ledger = walletService.getLedger(req.user!.id, filter, req.user?.email);
   res.json({
     success: true,
     data: { transactions: ledger, count: ledger.length },

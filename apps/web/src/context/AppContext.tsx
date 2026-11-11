@@ -176,34 +176,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     // Check existing active Supabase session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user && !user) {
+      if (session?.user) {
         if (session.access_token) {
           apiClient.setToken(session.access_token);
         }
-        const u = session.user;
-        const name = u.user_metadata?.full_name || u.email?.split('@')[0] || 'Customer';
-        const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
-        const isAdmin = checkIsAdmin(u.email, u.user_metadata?.role);
-        const userObj: UserProfile = {
-          id: u.id,
-          name: formattedName,
-          email: u.email || '',
-          initials: formattedName.substring(0, 2).toUpperCase(),
-          role: isAdmin ? 'administrator' : 'customer',
-          isVerified: true,
-          acceptableUseAcceptedAt: new Date().toISOString(),
-          preferences: {
-            theme: 'light',
-            hideWalletBalance: false,
-            transactionAlerts: true,
-            currency: 'NGN'
+        if (!user) {
+          const u = session.user;
+          const name = u.user_metadata?.full_name || u.email?.split('@')[0] || 'Customer';
+          const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
+          const isAdmin = checkIsAdmin(u.email, u.user_metadata?.role);
+          const userObj: UserProfile = {
+            id: u.id,
+            name: formattedName,
+            email: u.email || '',
+            initials: formattedName.substring(0, 2).toUpperCase(),
+            role: isAdmin ? 'administrator' : 'customer',
+            isVerified: true,
+            acceptableUseAcceptedAt: new Date().toISOString(),
+            preferences: {
+              theme: 'light',
+              hideWalletBalance: false,
+              transactionAlerts: true,
+              currency: 'NGN'
+            }
+          };
+          setUser(userObj);
+          if (isAdmin) setRole('admin');
+          localStorage.setItem('oj_user', JSON.stringify(userObj));
+          if (u.email) {
+            apiClient.notifySignupAlert(u.email, formattedName).catch(() => {});
           }
-        };
-        setUser(userObj);
-        if (isAdmin) setRole('admin');
-        localStorage.setItem('oj_user', JSON.stringify(userObj));
-        if (u.email) {
-          apiClient.notifySignupAlert(u.email, formattedName).catch(() => {});
         }
       }
     }).catch(err => {

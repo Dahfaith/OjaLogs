@@ -21,6 +21,9 @@ app.use((req, res, next) => {
   const reqId = (req.headers['x-request-id'] as string) || `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   req.headers['x-request-id'] = reqId;
   res.setHeader('x-request-id', reqId);
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   next();
 });
 

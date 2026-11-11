@@ -4,6 +4,44 @@ import { encryptPayload, hashFingerprint } from '../utils/crypto.js';
 import { INITIAL_PRODUCTS } from '../data/products.js';
 import { logspollAdapter } from '../adapters/logspoll/logspoll.adapter.js';
 
+function resolveProductImage(title: string, category: string = ''): string {
+  const t = (title + ' ' + category).toLowerCase();
+  if (t.includes('telegram')) {
+    return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80';
+  }
+  if (t.includes('facebook') || t.includes('bm50') || t.includes('business manager') || t.includes('meta')) {
+    return 'https://images.unsplash.com/photo-1611162618071-b39a2ec055fb?auto=format&fit=crop&w=600&q=80';
+  }
+  if (t.includes('instagram') || t.includes('ig ')) {
+    return 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=600&q=80';
+  }
+  if (t.includes('tiktok')) {
+    return 'https://images.unsplash.com/photo-1611605698323-b1e99cfd37ea?auto=format&fit=crop&w=600&q=80';
+  }
+  if (t.includes('twitter') || t.includes(' x ') || t.startsWith('x ') || t.includes('aged x')) {
+    return 'https://images.unsplash.com/photo-1611605698335-8b1569810432?auto=format&fit=crop&w=600&q=80';
+  }
+  if (t.includes('gmail') || t.includes('google') || t.includes('email')) {
+    return 'https://images.unsplash.com/photo-1596526131083-e8c633c948d2?auto=format&fit=crop&w=600&q=80';
+  }
+  if (t.includes('vpn') || t.includes('nord') || t.includes('surfshark') || t.includes('expressvpn')) {
+    return 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=600&q=80';
+  }
+  if (t.includes('proxy') || t.includes('proxies') || t.includes('residential')) {
+    return 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=600&q=80';
+  }
+  if (t.includes('esim') || t.includes('sim') || t.includes('data')) {
+    return 'https://images.unsplash.com/photo-1512499617640-c74ae3a79d37?auto=format&fit=crop&w=600&q=80';
+  }
+  if (t.includes('chatgpt') || t.includes('claude') || t.includes('openai') || t.includes('ai tool') || t.includes('anthropic')) {
+    return 'https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&w=600&q=80';
+  }
+  if (t.includes('card') || t.includes('visa') || t.includes('mastercard') || t.includes('vcc')) {
+    return 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=600&q=80';
+  }
+  return 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=600&q=80';
+}
+
 export class CatalogService {
   private products: Product[] = [...INITIAL_PRODUCTS];
   private isSynced = false;
@@ -42,17 +80,17 @@ export class CatalogService {
               stockCount: u.stockCount,
               rating: 5.0,
               verifiedResale: true,
-              coverImage: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=600&q=80',
-              summary: 'Verified authentic digital account/tool supplied via LogsPoll API.',
-              descriptionHtml: `<p>${u.description || u.title}</p><p>Guaranteed authentic delivery via LogsPoll automated infrastructure.</p>`,
+              coverImage: resolveProductImage(u.title, u.category),
+              summary: 'Verified authentic digital account/tool backed by Ojalogs automated fulfillment.',
+              descriptionHtml: `<p>${(u.description || u.title).replace(/LogsPoll/gi, 'Ojalogs').replace(/logspoll\.com/gi, 'ojalogs.com.ng')}</p><p>Guaranteed authentic delivery via Ojalogs automated infrastructure. 100% replacement guarantee if credentials fail first-time verification.</p>`,
               specifications: {
                 title: u.title,
                 category: u.category || 'Social Media Accounts',
-                serverOrigin: 'Server 2 (Verified LogsPoll Stock)',
+                serverOrigin: 'Server 2 (Ojalogs Enterprise Fleet)',
                 deliveryType: 'instant_automated',
                 validityDuration: 'Permanent Access',
                 fulfillmentSpeed: 'Instant Automated (Under 10s)',
-                verificationStatus: '100% Upstream Verified Stock',
+                verificationStatus: '100% Verified Ojalogs Stock',
                 stockUnits: u.stockCount,
                 region: 'Global / Worldwide'
               },

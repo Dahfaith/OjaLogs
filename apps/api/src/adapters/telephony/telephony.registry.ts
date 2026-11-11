@@ -2,7 +2,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { TelephonyProviderConfig } from '@ojalogs/shared';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_DIR = fs.existsSync(path.join(process.cwd(), 'apps', 'api', 'data'))
+  ? path.join(process.cwd(), 'apps', 'api', 'data')
+  : path.join(process.cwd(), 'data');
 const TELEPHONY_CONFIG_FILE = path.join(DATA_DIR, 'telephony_config.json');
 
 const INITIAL_PROVIDERS: TelephonyProviderConfig[] = [

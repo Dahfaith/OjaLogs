@@ -53,8 +53,8 @@ router.post('/bach', async (req: Request, res: Response, next: NextFunction) => 
     // 3. Process Valid Payment Event
     if (webhookEvent.status === 'successful' && webhookEvent.amountNgn > 0) {
       const payload = webhookEvent.rawPayload;
-      const userId = payload.data?.metadata?.user_id || payload.metadata?.user_id || payload.data?.metadata?.userId || 'usr_oj_001';
-      const customerEmail = payload.data?.customer_email || payload.data?.customer?.email || 'customer@ojalogs.com';
+      const customerEmail = (payload.data?.customer_email || payload.data?.customer?.email || 'customer@ojalogs.com').toLowerCase().trim();
+      const userId = payload.data?.metadata?.user_id || payload.metadata?.user_id || payload.data?.metadata?.userId || customerEmail;
 
       // Atomic Ledger Credit
       const tx = walletService.creditWallet(

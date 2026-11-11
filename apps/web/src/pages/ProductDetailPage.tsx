@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { resolveProductCover } from './ShopPage';
 import {
   ArrowLeft,
   Star,
@@ -73,7 +74,7 @@ export const ProductDetailPage: React.FC = () => {
         <div className="space-y-4">
           <div className="relative rounded-2xl overflow-hidden border border-oj-border dark:border-oj-dark-border aspect-video bg-slate-900 shadow-elevated">
             <img
-              src={product.coverImage}
+              src={resolveProductCover(product)}
               alt={product.title}
               className="w-full h-full object-cover"
             />
@@ -255,7 +256,22 @@ export const ProductDetailPage: React.FC = () => {
         <div className="p-5">
           {activeTab === 'overview' ? (
             <div className="prose dark:prose-invert max-w-none text-xs sm:text-sm text-oj-midnight dark:text-slate-200 leading-relaxed space-y-3">
-              <p>{product.descriptionHtml}</p>
+              {(product.descriptionHtml || product.summary || '')
+                .replace(/<p>/gi, '')
+                .replace(/<\/p>/gi, '\n\n')
+                .replace(/<div>/gi, '')
+                .replace(/<\/div>/gi, '\n')
+                .replace(/<br\s*\/?>/gi, '\n')
+                .replace(/LogsPoll/gi, 'Ojalogs')
+                .replace(/logspoll\.com/gi, 'ojalogs.com.ng')
+                .split('\n\n')
+                .map(p => p.trim())
+                .filter(Boolean)
+                .map((para, idx) => (
+                  <p key={idx} className="leading-relaxed">
+                    {para}
+                  </p>
+                ))}
               <div className="p-3 rounded-xl bg-oj-surface-alt dark:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border text-xs">
                 <span className="font-bold block mb-1">Key Feature Highlights:</span>
                 <ul className="list-disc list-inside space-y-1 text-oj-muted dark:text-oj-dark-muted">

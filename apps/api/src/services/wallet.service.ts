@@ -4,7 +4,9 @@ import { AppError } from '../middleware/errorHandler.js';
 import { LedgerTransaction, LedgerCategory, LedgerEntryType } from '@ojalogs/shared';
 import { bachGateway } from '../gateways/bach.gateway.js';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_DIR = fs.existsSync(path.join(process.cwd(), 'apps', 'api', 'data'))
+  ? path.join(process.cwd(), 'apps', 'api', 'data')
+  : path.join(process.cwd(), 'data');
 const WALLET_STORE_FILE = path.join(DATA_DIR, 'wallet_store.json');
 
 export interface EnrichedLedgerTransaction extends LedgerTransaction {
@@ -127,20 +129,79 @@ export class WalletService {
   }
 
   recordUserEmail(userId: string, email: string) {
-    if (userId && email && !this.userEmails.has(userId)) {
-      this.userEmails.set(userId, email.toLowerCase().trim());
+    if (userId && email) {
+      const cleanEmail = email.toLowerCase().trim();
+      this.userEmails.set(userId, cleanEmail);
+      this.emailToUserMap.set(cleanEmail, userId);
       this.savePersistedStore();
     }
   }
 
-  getBalance(userId: string): number {
-    return this.balances.get(userId) || 0;
+  private emailToUserMap = new Map<string, string>();
+
+  private resolveAccountKey(userId: string, email?: string): string {
+    const cleanEmail = email?.toLowerCase().trim();
+    if (cleanEmail && cleanEmail.includes('@')) {
+      this.userEmails.set(userId, cleanEmail);
+      this.emailToUserMap.set(cleanEmail, userId);
+      if (this.balances.has(userId) && (this.balances.get(userId) || 0) > 0) return userId;
+      if (this.balances.has(cleanEmail) && (this.balances.get(cleanEmail) || 0) > 0) return cleanEmail;
+      for (const [uid, uemail] of this.userEmails.entries()) {
+        if (uemail === cleanEmail && this.balances.has(uid) && (this.balances.get(uid) || 0) > 0) {
+          return uid;
+        }
+      }
+      return cleanEmail;
+    }
+
+    if (userId.includes('@')) {
+      const e = userId.toLowerCase().trim();
+      if (this.balances.has(e)) return e;
+      for (const [uid, uemail] of this.userEmails.entries()) {
+        if (uemail === e && this.balances.has(uid) && (this.balances.get(uid) || 0) > 0) return uid;
+      }
+      return e;
+    }
+
+    const mappedEmail = this.userEmails.get(userId);
+    if (mappedEmail) {
+      if (this.balances.has(userId) && (this.balances.get(userId) || 0) > 0) return userId;
+      if (this.balances.has(mappedEmail) && (this.balances.get(mappedEmail) || 0) > 0) return mappedEmail;
+      for (const [uid, uemail] of this.userEmails.entries()) {
+        if (uemail === mappedEmail && this.balances.has(uid) && (this.balances.get(uid) || 0) > 0) {
+          return uid;
+        }
+      }
+    }
+
+    return userId;
   }
 
-  getLedger(userId: string, categoryFilter?: string): LedgerTransaction[] {
-    const list = this.ledgerRecords.get(userId) || [];
-    if (!categoryFilter || categoryFilter === 'all') return list;
-    return list.filter(t => t.category === categoryFilter);
+  getBalance(userId: string, email?: string): number {
+    const key = this.resolveAccountKey(userId, email);
+    const bal = this.balances.get(key);
+    if (typeof bal === 'number') return bal;
+    const directBal = this.balances.get(userId);
+    if (typeof directBal === 'number') return directBal;
+    if (email) {
+      const emailBal = this.balances.get(email.toLowerCase().trim());
+      if (typeof emailBal === 'number') return emailBal;
+    }
+    return 0;
+  }
+
+  getLedger(userId: string, categoryFilter?: string, email?: string): LedgerTransaction[] {
+    const key = this.resolveAccountKey(userId, email);
+    let list = this.ledgerRecords.get(key);
+    if (!list || list.length === 0) {
+      list = this.ledgerRecords.get(userId);
+    }
+    if (!list || list.length === 0) {
+      if (email) list = this.ledgerRecords.get(email.toLowerCase().trim());
+    }
+    const safeList = list || [];
+    if (!categoryFilter || categoryFilter === 'all') return safeList;
+    return safeList.filter(t => t.category === categoryFilter);
   }
 
   /**
@@ -218,12 +279,14 @@ export class WalletService {
       throw new AppError('Credit amount must be greater than zero', 400, 'INVALID_AMOUNT');
     }
 
-    if (userEmail) {
-      this.userEmails.set(userId, userEmail.toLowerCase().trim());
+    const cleanEmail = userEmail?.toLowerCase().trim() || this.userEmails.get(userId);
+    if (cleanEmail) {
+      this.userEmails.set(userId, cleanEmail);
+      this.emailToUserMap.set(cleanEmail, userId);
     }
 
     // Strict idempotency: prevent concurrent or repeated double-credit for same reference or key
-    const userLedger = this.ledgerRecords.get(userId) || [];
+    const userLedger = this.getLedger(userId, 'all', cleanEmail);
     const existingTx = userLedger.find(
       tx =>
         (reference && tx.reference === reference && tx.type === 'credit') ||
@@ -235,9 +298,12 @@ export class WalletService {
       return existingTx;
     }
 
-    const currentBalance = this.getBalance(userId);
+    const currentBalance = this.getBalance(userId, cleanEmail);
     const newBalance = currentBalance + amount;
     this.balances.set(userId, newBalance);
+    if (cleanEmail) {
+      this.balances.set(cleanEmail, newBalance);
+    }
 
     const tx: LedgerTransaction = {
       id: `ldg_${Date.now()}`,
@@ -252,7 +318,11 @@ export class WalletService {
       idempotencyKey
     };
 
-    this.ledgerRecords.set(userId, [tx, ...userLedger]);
+    const updatedLedger = [tx, ...userLedger];
+    this.ledgerRecords.set(userId, updatedLedger);
+    if (cleanEmail) {
+      this.ledgerRecords.set(cleanEmail, updatedLedger);
+    }
     this.savePersistedStore();
     return tx;
   }
@@ -264,13 +334,15 @@ export class WalletService {
     reference: string,
     description: string,
     idempotencyKey?: string,
-    relatedOrderReference?: string
+    relatedOrderReference?: string,
+    userEmail?: string
   ): LedgerTransaction {
     if (amount <= 0) {
       throw new AppError('Debit amount must be greater than zero', 400, 'INVALID_AMOUNT');
     }
 
-    const currentBalance = this.getBalance(userId);
+    const cleanEmail = userEmail?.toLowerCase().trim() || this.userEmails.get(userId);
+    const currentBalance = this.getBalance(userId, cleanEmail);
     if (currentBalance < amount) {
       throw new AppError(
         `Insufficient wallet balance. Required: ₦${amount.toLocaleString()}, Available: ₦${currentBalance.toLocaleString()}`,
@@ -281,6 +353,9 @@ export class WalletService {
 
     const newBalance = currentBalance - amount;
     this.balances.set(userId, newBalance);
+    if (cleanEmail) {
+      this.balances.set(cleanEmail, newBalance);
+    }
 
     const tx: LedgerTransaction = {
       id: `ldg_${Date.now()}`,
@@ -296,8 +371,12 @@ export class WalletService {
       relatedOrderReference
     };
 
-    const userLedger = this.ledgerRecords.get(userId) || [];
-    this.ledgerRecords.set(userId, [tx, ...userLedger]);
+    const userLedger = this.getLedger(userId, 'all', cleanEmail);
+    const updatedLedger = [tx, ...userLedger];
+    this.ledgerRecords.set(userId, updatedLedger);
+    if (cleanEmail) {
+      this.ledgerRecords.set(cleanEmail, updatedLedger);
+    }
     this.savePersistedStore();
     return tx;
   }

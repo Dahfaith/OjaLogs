@@ -7,14 +7,17 @@ import { notificationService } from './notification.service.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { env } from '../config/env.js';
 
-const CONFIG_FILE = path.join(process.cwd(), 'data', 'smm_config.json');
+const DATA_DIR = fs.existsSync(path.join(process.cwd(), 'apps', 'api', 'data'))
+  ? path.join(process.cwd(), 'apps', 'api', 'data')
+  : path.join(process.cwd(), 'data');
+const CONFIG_FILE = path.join(DATA_DIR, 'smm_config.json');
 
 export class SMMManagerService {
   private config: SMMProviderConfig = {
     id: 'linkocial_primary',
     name: 'Linkocial Standard SMM v1.0',
     apiUrl: process.env.LINKOCIAL_BASE_URL || env.LINKOCIAL_BASE_URL || 'https://linkocial.com/api/v1',
-    apiKey: process.env.LINKOCIAL_API_KEY || env.LINKOCIAL_API_KEY || 'linkocial_live_token_default',
+    apiKey: process.env.LINKOCIAL_API_KEY || env.LINKOCIAL_API_KEY || '',
     isActive: true,
     balanceNgn: 0.00,
     currency: 'NGN',

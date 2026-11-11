@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { apiClient } from '../lib/apiClient';
 import { SMMService, SMMOrder, SMMPlatform } from '@ojalogs/shared';
@@ -18,7 +19,10 @@ import {
   Link as LinkIcon,
   HelpCircle,
   ShoppingBag,
-  Lock
+  Lock,
+  Search,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -34,6 +38,8 @@ export const SocialBoostPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [activeTab, setActiveTab] = useState<'order' | 'history'>('order');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const platforms: { id: string; label: string; icon: string }[] = [
     { id: 'all', label: 'All Services', icon: '🌐' },
@@ -94,6 +100,12 @@ export const SocialBoostPage: React.FC = () => {
   const filteredServices = services.filter(s => {
     if (selectedPlatform === 'all') return true;
     return s.platform === selectedPlatform;
+  });
+
+  const searchedServices = filteredServices.filter(s => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q) || s.platform.toLowerCase().includes(q);
   });
 
   const selectedService = services.find(s => s.id === selectedServiceId) || filteredServices[0] || services[0];
@@ -347,22 +359,134 @@ export const SocialBoostPage: React.FC = () => {
                 </span>
               </div>
 
-              {/* Service Selector */}
-              <div>
+              {/* Custom Searchable Service Selector */}
+              <div className="relative">
                 <label className="block text-xs font-bold text-oj-midnight dark:text-white mb-1.5">
                   Select Service *
                 </label>
-                <select
-                  value={selectedServiceId}
-                  onChange={(e) => setSelectedServiceId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-xs font-medium text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary"
+                <button
+                  type="button"
+                  onClick={() => setIsDropdownOpen(prev => !prev)}
+                  className="w-full text-left p-3.5 rounded-xl border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:border-oj-primary transition-all flex items-center justify-between gap-3 shadow-sm"
                 >
-                  {filteredServices.map(s => (
-                    <option key={s.id} value={s.id}>
-                      [{s.category}] {s.name} — ₦{s.retailRateNgn.toLocaleString()} / 1k
-                    </option>
-                  ))}
-                </select>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-xl shrink-0">
+                      {selectedService?.platform === 'instagram' ? '📸' :
+                       selectedService?.platform === 'tiktok' ? '🎵' :
+                       selectedService?.platform === 'youtube' ? '▶️' :
+                       selectedService?.platform === 'twitter' ? '🐦' :
+                       selectedService?.platform === 'telegram' ? '✈️' :
+                       selectedService?.platform === 'facebook' ? '👥' :
+                       selectedService?.platform === 'spotify' ? '🎧' : '🔥'}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-oj-midnight dark:text-white leading-snug line-clamp-2">
+                        {selectedService?.name || 'Choose an SMM service...'}
+                      </p>
+                      <p className="text-[10px] text-oj-muted mt-0.5">
+                        [{selectedService?.category}] · Min: {selectedService?.minQuantity?.toLocaleString()} | Max: {selectedService?.maxQuantity?.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    <span className="text-xs font-mono font-extrabold text-emerald-600 dark:text-emerald-400">
+                      ₦{selectedService?.retailRateNgn?.toLocaleString()} / 1k
+                    </span>
+                    <ChevronDown className={`w-4 h-4 text-oj-muted transition-transform duration-200 ${isDropdownOpen ? 'rotate-180 text-oj-primary' : ''}`} />
+                  </div>
+                </button>
+
+                {/* Dropdown Menu Overlay */}
+                <AnimatePresence>
+                  {isDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      className="absolute left-0 right-0 top-full mt-2 z-40 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-2xl overflow-hidden max-h-80 flex flex-col"
+                    >
+                      {/* Search Bar Input */}
+                      <div className="p-3 border-b border-oj-border dark:border-oj-dark-border bg-oj-surface-alt/40 dark:bg-oj-dark-surface-alt/40 flex items-center gap-2">
+                        <Search className="w-4 h-4 text-oj-muted shrink-0" />
+                        <input
+                          type="text"
+                          autoFocus
+                          placeholder="Search boost services (Instagram, Followers, Likes, TikTok, Facebook)..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full text-xs bg-transparent text-oj-midnight dark:text-white focus:outline-none placeholder:text-oj-muted"
+                        />
+                        {searchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setSearchQuery('')}
+                            className="text-oj-muted hover:text-oj-midnight dark:hover:text-white text-xs font-bold px-1.5"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Options List */}
+                      <div className="overflow-y-auto divide-y divide-oj-border/40 dark:divide-oj-dark-border/40 max-h-64">
+                        {searchedServices.length === 0 ? (
+                          <div className="p-4 text-center text-xs text-oj-muted">
+                            No services matching "{searchQuery}"
+                          </div>
+                        ) : (
+                          searchedServices.map(s => {
+                            const isSelected = s.id === selectedServiceId;
+                            return (
+                              <button
+                                key={s.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedServiceId(s.id);
+                                  setQuantity(s.minQuantity || 1000);
+                                  setIsDropdownOpen(false);
+                                  setSearchQuery('');
+                                }}
+                                className={`w-full text-left p-3.5 transition-colors flex items-center justify-between gap-3 text-xs ${
+                                  isSelected
+                                    ? 'bg-oj-primary/10 dark:bg-oj-primary/20 text-oj-primary font-bold'
+                                    : 'hover:bg-oj-surface-alt/80 dark:hover:bg-oj-dark-surface-alt/80 text-oj-midnight dark:text-white'
+                                }`}
+                              >
+                                <div className="flex items-start gap-2.5 min-w-0">
+                                  <span className="text-base mt-0.5 shrink-0">
+                                    {s.platform === 'instagram' ? '📸' :
+                                     s.platform === 'tiktok' ? '🎵' :
+                                     s.platform === 'youtube' ? '▶️' :
+                                     s.platform === 'twitter' ? '🐦' :
+                                     s.platform === 'telegram' ? '✈️' :
+                                     s.platform === 'facebook' ? '👥' :
+                                     s.platform === 'spotify' ? '🎧' : '🔥'}
+                                  </span>
+                                  <div className="min-w-0">
+                                    <p className="font-bold text-xs leading-snug line-clamp-2">
+                                      {s.name}
+                                    </p>
+                                    <p className="text-[10px] text-oj-muted mt-0.5">
+                                      [{s.category}] · Min: {s.minQuantity?.toLocaleString()} | Max: {s.maxQuantity?.toLocaleString()}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className="font-mono font-extrabold text-emerald-600 dark:text-emerald-400 text-xs">
+                                    ₦{s.retailRateNgn.toLocaleString()} / 1k
+                                  </span>
+                                  {isSelected && <Check className="w-4 h-4 text-oj-primary shrink-0" />}
+                                </div>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* Target Link */}

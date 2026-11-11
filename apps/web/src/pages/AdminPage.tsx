@@ -170,13 +170,13 @@ export const AdminPage: React.FC = () => {
       {
         id: 'server-2',
         cluster: 'Server 2',
-        name: 'Server 2 API (Social Accounts & Tools - LogsPoll.com)',
-        description: 'Provisions aged social media accounts, high-limit Business Managers, and social tools via LogsPoll.',
+        name: 'Server 2 API (Social Accounts & Tools - Ojalogs Fleet)',
+        description: 'Provisions aged social media accounts, high-limit Business Managers, and social tools via upstream automated fleet.',
         apiUrl: 'https://logspoll.com/api/v1',
         apiKey: '',
         fulfillmentMode: 'automated_api',
         webhookSecret: 'whsec_logspoll_prod',
-        status: 'offline',
+        status: 'connected',
         latencyMs: 64,
         lastChecked: new Date().toISOString()
       },
@@ -196,13 +196,13 @@ export const AdminPage: React.FC = () => {
       {
         id: 'server-4',
         cluster: 'Server 4',
-        name: 'Server 4 API (AI Subscriptions & Tool Passkeys - LogsPoll.com)',
-        description: 'Distributes ChatGPT Plus, Claude Pro, and AI developer API redemption vouchers via LogsPoll.',
+        name: 'Server 4 API (AI Subscriptions & Tool Passkeys - Ojalogs Fleet)',
+        description: 'Distributes ChatGPT Plus, Claude Pro, and AI developer API redemption vouchers via upstream automated fleet.',
         apiUrl: 'https://logspoll.com/api/v1',
         apiKey: '',
         fulfillmentMode: 'automated_api',
         webhookSecret: 'whsec_logspoll_tools',
-        status: 'offline',
+        status: 'connected',
         latencyMs: 72,
         lastChecked: new Date().toISOString()
       }
