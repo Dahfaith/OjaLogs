@@ -32,6 +32,7 @@ interface AppContextType {
   user: UserProfile | null;
   setUser: React.Dispatch<React.SetStateAction<UserProfile | null>>;
   isAuthenticated: boolean;
+  isAuthLoading: boolean;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   hideBalance: boolean;
@@ -143,6 +144,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const isAuthenticated = Boolean(user && user.id);
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(() => {
+    return !localStorage.getItem('oj_user');
+  });
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
@@ -202,9 +206,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           apiClient.notifySignupAlert(u.email, formattedName).catch(() => {});
         }
       }
+    }).catch(err => {
+      console.warn('[AUTH_SESSION] Session check notice:', err);
+    }).finally(() => {
+      setIsAuthLoading(false);
     });
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsAuthLoading(false);
       if (session?.user) {
         if (session.access_token) {
           apiClient.setToken(session.access_token);
@@ -860,6 +869,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         user,
         setUser,
         isAuthenticated,
+        isAuthLoading,
         theme,
         toggleTheme,
         hideBalance,

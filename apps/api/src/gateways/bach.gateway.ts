@@ -142,7 +142,7 @@ export class BachGateway implements IPaymentGateway {
         const isPaid = data.status === 'completed' || data.payment_status === 'paid' || data.status === 'succeeded';
         return {
           status: isPaid ? 'successful' : 'pending',
-          amountNgn: Number(data.amount || data.pricing?.amount || 0),
+          amountNgn: Number(data.pricing?.amount || data.data?.pricing?.amount || data.amount || 0),
           gatewayReference: data.checkout_id || data.id || gatewayReference,
           paidAt: data.completed_at || data.updated_at || new Date().toISOString(),
           rawPayload: data
@@ -298,7 +298,14 @@ export class BachGateway implements IPaymentGateway {
       eventType === 'charge.completed'
     );
 
-    const rawAmount = Number(event.data?.amount || event.amount || event.data?.pricing?.amount || 0);
+    // Prioritize base pricing amount (exact customer deposit) over fee-inclusive total amount
+    const rawAmount = Number(
+      event.data?.pricing?.amount ||
+      event.pricing?.amount ||
+      event.data?.amount ||
+      event.amount ||
+      0
+    );
 
     return {
       eventId: event.id || event.event_id || `evt_${Date.now()}`,

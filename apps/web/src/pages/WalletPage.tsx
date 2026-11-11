@@ -20,7 +20,7 @@ import { FundWalletModal } from '../components/wallet/FundWalletModal';
 import { StatementModal } from '../components/wallet/StatementModal';
 
 export const WalletPage: React.FC = () => {
-  const { user, wallet, ledger, hideBalance, toggleHideBalance, formatPrice, currency, setIsAuthModalOpen } = useApp();
+  const { user, isAuthLoading, wallet, ledger, hideBalance, toggleHideBalance, formatPrice, currency, setIsAuthModalOpen } = useApp();
   const [isFundOpen, setIsFundOpen] = useState(false);
   const [isStatementOpen, setIsStatementOpen] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'deposit' | 'order_payment' | 'refund'>('all');
@@ -38,6 +38,15 @@ export const WalletPage: React.FC = () => {
     if (selectedFilter === 'refund') return tx.category === 'refund';
     return true;
   });
+
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-[50vh] flex flex-col items-center justify-center space-y-3">
+        <div className="w-10 h-10 border-4 border-oj-primary border-t-transparent rounded-full animate-spin" />
+        <p className="text-xs font-semibold text-oj-muted">Restoring your secure session...</p>
+      </div>
+    );
+  }
 
   if (!user) {
     return (

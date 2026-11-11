@@ -1,21 +1,72 @@
 import React, { useState, useEffect } from 'react';
+import confetti from 'canvas-confetti';
 import { useApp } from '../context/AppContext';
 import { Eye, EyeOff, Plus, Wallet, ShoppingBag, ArrowUpRight, ShieldCheck, Sparkles, ArrowRight, PhoneCall, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { FundWalletModal } from '../components/wallet/FundWalletModal';
 
 export const DashboardPage: React.FC = () => {
-  const { user, wallet, hideBalance, toggleHideBalance, orders, activeNumbers, formatPrice, currency, setIsAuthModalOpen } = useApp();
+  const {
+    user,
+    isAuthLoading,
+    wallet,
+    hideBalance,
+    toggleHideBalance,
+    orders,
+    activeNumbers,
+    formatPrice,
+    currency,
+    setIsAuthModalOpen,
+    refreshWallet,
+    showToast
+  } = useApp();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isFundModalOpen, setIsFundModalOpen] = useState(false);
+  const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
+
+  // Handle Return from Payment Gateway (e.g. ?payment=success&checkout_id=...)
+  useEffect(() => {
+    const payment = searchParams.get('payment');
+    const checkoutId = searchParams.get('checkout_id');
+
+    if (payment === 'success' || checkoutId) {
+      try {
+        confetti({
+          particleCount: 90,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+      } catch {}
+
+      refreshWallet();
+      setPaymentNotice('Deposit confirmed! Your payment was verified and credited directly to your personal wallet.');
+      showToast('Deposit successfully credited to your wallet!');
+
+      // Remove query parameters from address bar cleanly without page reload
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete('payment');
+      nextParams.delete('checkout_id');
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [searchParams, refreshWallet, showToast, setSearchParams]);
 
   useEffect(() => {
-    if (!user) {
+    if (!isAuthLoading && !user) {
       setIsAuthModalOpen(true);
       navigate('/', { replace: true });
     }
-  }, [user, navigate, setIsAuthModalOpen]);
+  }, [isAuthLoading, user, navigate, setIsAuthModalOpen]);
+
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-[50vh] flex flex-col items-center justify-center space-y-3">
+        <div className="w-10 h-10 border-4 border-oj-primary border-t-transparent rounded-full animate-spin" />
+        <p className="text-xs font-semibold text-oj-muted">Restoring your secure session...</p>
+      </div>
+    );
+  }
 
   if (!user) {
     return null;
@@ -32,6 +83,26 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-24 md:pb-12">
+      {/* Payment Success Celebration Banner */}
+      {paymentNotice && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 flex items-center justify-between gap-3 text-xs font-bold shadow-sm"
+        >
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+            <span>{paymentNotice}</span>
+          </div>
+          <button
+            onClick={() => setPaymentNotice(null)}
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-white text-xs font-normal underline shrink-0"
+          >
+            Dismiss
+          </button>
+        </motion.div>
+      )}
+
       {/* Date & User Greeting */}
       <div>
         <p className="text-[11px] font-bold tracking-wider text-oj-muted dark:text-oj-dark-muted">

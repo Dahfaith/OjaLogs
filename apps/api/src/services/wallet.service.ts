@@ -55,7 +55,32 @@ export class WalletService {
         }
         if (parsed.ledgerRecords) {
           for (const [k, v] of Object.entries(parsed.ledgerRecords)) {
-            this.ledgerRecords.set(k, v as LedgerTransaction[]);
+            const list = v as LedgerTransaction[];
+            const seenRefs = new Set<string>();
+            const deduped: LedgerTransaction[] = [];
+            for (const tx of list) {
+              if (tx.type === 'credit' && tx.category === 'deposit' && tx.reference) {
+                if (seenRefs.has(tx.reference)) {
+                  console.log(`[WALLET_STORE] Deduplicating legacy duplicate deposit: ${tx.reference}`);
+                  continue;
+                }
+                seenRefs.add(tx.reference);
+              }
+              deduped.push(tx);
+            }
+            this.ledgerRecords.set(k, deduped);
+
+            // Reconcile user balance if duplicate transactions were pruned
+            if (deduped.length !== list.length) {
+              let computedBal = 0;
+              const chronological = [...deduped].reverse();
+              for (const entry of chronological) {
+                if (entry.type === 'credit') computedBal += entry.amountNgn;
+                else if (entry.type === 'debit') computedBal -= entry.amountNgn;
+              }
+              this.balances.set(k, Math.max(0, computedBal));
+              console.log(`[WALLET_STORE] Reconciled balance for ${k} to ₦${computedBal}`);
+            }
           }
         }
       }
@@ -197,6 +222,19 @@ export class WalletService {
       this.userEmails.set(userId, userEmail.toLowerCase().trim());
     }
 
+    // Strict idempotency: prevent concurrent or repeated double-credit for same reference or key
+    const userLedger = this.ledgerRecords.get(userId) || [];
+    const existingTx = userLedger.find(
+      tx =>
+        (reference && tx.reference === reference && tx.type === 'credit') ||
+        (idempotencyKey && tx.idempotencyKey === idempotencyKey && tx.type === 'credit')
+    );
+
+    if (existingTx) {
+      console.log(`[WALLET_IDEMPOTENCY] Transaction already credited for reference "${reference}" / key "${idempotencyKey}". Re-using existing ledger tx ${existingTx.id}.`);
+      return existingTx;
+    }
+
     const currentBalance = this.getBalance(userId);
     const newBalance = currentBalance + amount;
     this.balances.set(userId, newBalance);
@@ -214,7 +252,6 @@ export class WalletService {
       idempotencyKey
     };
 
-    const userLedger = this.ledgerRecords.get(userId) || [];
     this.ledgerRecords.set(userId, [tx, ...userLedger]);
     this.savePersistedStore();
     return tx;
@@ -291,6 +328,19 @@ export class WalletService {
   }
 
   async verifyAndCredit(userId: string, paymentReference: string, gatewayReference: string) {
+    const userLedger = this.ledgerRecords.get(userId) || [];
+    const existingTx = userLedger.find(
+      t => t.reference === paymentReference && t.type === 'credit'
+    );
+    if (existingTx) {
+      return {
+        verified: true,
+        creditedAmount: existingTx.amountNgn,
+        newBalance: this.getBalance(userId),
+        transaction: existingTx
+      };
+    }
+
     const verified = await bachGateway.verifyPayment(gatewayReference);
     if (verified.status !== 'successful') {
       throw new AppError('Payment not yet confirmed by gateway.', 400, 'PAYMENT_PENDING');

@@ -24,14 +24,15 @@ import {
   Clock,
   Database,
   Flame,
-  TrendingUp
+  TrendingUp,
+  Wallet
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { InstagramIcon, FacebookIcon, TwitterXIcon, TikTokIcon, GmailIcon } from '../components/common/BrandIcons';
 
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
-  const { setIsAuthModalOpen } = useApp();
+  const { user, setIsAuthModalOpen } = useApp();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   const directoryCategories = [
@@ -212,13 +213,23 @@ export const LandingPage: React.FC = () => {
               <span className="px-1.5 py-0.5 rounded bg-white/25 text-[10px] font-black tracking-wider uppercase">NEW</span>
             </Link>
 
-            <button
-              onClick={() => setIsAuthModalOpen(true)}
-              className="w-full sm:w-auto px-6 py-3.5 rounded-btn bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border text-oj-midnight dark:text-white text-xs font-bold hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt transition-colors flex items-center justify-center gap-2"
-            >
-              <Mail className="w-4 h-4 text-oj-primary" />
-              <span>Sign In / Open Wallet</span>
-            </button>
+            {user ? (
+              <Link
+                to="/dashboard"
+                className="w-full sm:w-auto px-6 py-3.5 rounded-btn bg-white dark:bg-oj-dark-surface border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-all flex items-center justify-center gap-2 shadow-sm"
+              >
+                <Wallet className="w-4 h-4 text-emerald-500" />
+                <span>Go to Dashboard / Wallet</span>
+              </Link>
+            ) : (
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="w-full sm:w-auto px-6 py-3.5 rounded-btn bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border text-oj-midnight dark:text-white text-xs font-bold hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt transition-colors flex items-center justify-center gap-2"
+              >
+                <Mail className="w-4 h-4 text-oj-primary" />
+                <span>Sign In / Open Wallet</span>
+              </button>
+            )}
           </motion.div>
         </div>
       </section>
@@ -230,7 +241,7 @@ export const LandingPage: React.FC = () => {
             Popular Service Categories
           </h2>
           <p className="text-xs text-oj-muted">
-            Create an account to explore our complete catalog.
+            {user ? `Logged in as ${user.email} · Select a service or manage your wallet` : 'Create an account to explore our complete catalog.'}
           </p>
         </div>
 
