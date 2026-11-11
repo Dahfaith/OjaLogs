@@ -1167,7 +1167,7 @@ export const AdminPage: React.FC = () => {
       )}
 
       {/* Admin Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none border-b border-oj-border dark:border-oj-dark-border">
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none border-b border-oj-border dark:border-oj-dark-border -mx-4 px-4 sm:mx-0 sm:px-0">
         {[
           { id: 'kpi', label: 'Overview & KPIs', icon: TrendingUp },
           { id: 'users', label: 'User Governance & Customers', icon: Users },
@@ -1184,12 +1184,13 @@ export const AdminPage: React.FC = () => {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`px-4 py-2.5 text-xs font-bold whitespace-nowrap flex items-center gap-2 border-b-2 transition-all ${activeTab === tab.id
-                ? 'border-oj-primary text-oj-primary bg-white dark:bg-oj-dark-surface rounded-t-xl'
-                : 'border-transparent text-oj-muted hover:text-oj-midnight dark:hover:text-white'
-              }`}
+            className={`shrink-0 px-3.5 py-2 text-xs font-bold whitespace-nowrap flex items-center gap-2 rounded-xl transition-all ${
+              activeTab === tab.id
+                ? 'bg-oj-primary text-white shadow-soft font-extrabold'
+                : 'bg-oj-surface-alt/60 dark:bg-oj-dark-surface-alt/60 text-oj-muted hover:text-oj-midnight dark:hover:text-white border border-oj-border/50 dark:border-oj-dark-border/50'
+            }`}
           >
-            <tab.icon className="w-4 h-4" />
+            <tab.icon className="w-3.5 h-3.5" />
             <span>{tab.label}</span>
           </button>
         ))}
@@ -1471,8 +1472,8 @@ export const AdminPage: React.FC = () => {
           </div>
 
           {/* Users Table */}
-          <div className="border border-oj-border dark:border-oj-dark-border rounded-xl overflow-hidden bg-white dark:bg-oj-dark-surface shadow-soft">
-            <table className="w-full text-left text-xs">
+          <div className="border border-oj-border dark:border-oj-dark-border rounded-xl overflow-x-auto bg-white dark:bg-oj-dark-surface shadow-soft">
+            <table className="w-full text-left text-xs min-w-[650px]">
               <thead className="bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted border-b border-oj-border dark:border-oj-dark-border">
                 <tr>
                   <th className="py-2.5 px-3 font-semibold">User</th>
@@ -1876,8 +1877,8 @@ export const AdminPage: React.FC = () => {
             </select>
           </div>
 
-          <div className="border border-oj-border dark:border-oj-dark-border rounded-xl overflow-hidden bg-white dark:bg-oj-dark-surface shadow-soft">
-            <table className="w-full text-left text-xs">
+          <div className="border border-oj-border dark:border-oj-dark-border rounded-xl overflow-x-auto bg-white dark:bg-oj-dark-surface shadow-soft">
+            <table className="w-full text-left text-xs min-w-[750px]">
               <thead className="bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted border-b border-oj-border dark:border-oj-dark-border">
                 <tr>
                   <th className="py-2.5 px-3 font-semibold">Order Reference</th>
@@ -2067,7 +2068,7 @@ export const AdminPage: React.FC = () => {
       {/* Tab: Catalog Governance */}
       {activeTab === 'catalog' && (
         <div className="p-5 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h3 className="font-heading font-bold text-sm text-oj-midnight dark:text-white">
                 Catalog Governance & Compliance
@@ -2078,7 +2079,7 @@ export const AdminPage: React.FC = () => {
             </div>
             <button
               onClick={() => setIsAddListingOpen(true)}
-              className="py-1.5 px-3 rounded-lg bg-oj-primary text-white text-xs font-bold flex items-center gap-1 shadow-glow-primary hover:bg-oj-primary-hover transition-colors"
+              className="self-start sm:self-auto py-1.5 px-3 rounded-lg bg-oj-primary text-white text-xs font-bold flex items-center gap-1 shadow-glow-primary hover:bg-oj-primary-hover transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Listing</span>
@@ -2254,8 +2255,57 @@ export const AdminPage: React.FC = () => {
             </div>
           )}
 
-          <div className="border border-oj-border dark:border-oj-dark-border rounded-xl overflow-hidden">
-            <table className="w-full text-left text-xs">
+          {/* Mobile Product Cards (< 640px) */}
+          <div className="space-y-3 sm:hidden">
+            {products.map((p) => (
+              <div
+                key={p.id}
+                className="p-3.5 rounded-xl border border-oj-border dark:border-oj-dark-border bg-oj-surface dark:bg-oj-dark-surface space-y-2.5 shadow-xs"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <h4 className="font-bold text-xs text-oj-midnight dark:text-white line-clamp-2 leading-snug">
+                    {p.title}
+                  </h4>
+                  <span
+                    className={`shrink-0 px-2 py-0.5 rounded text-[10px] font-bold ${
+                      p.inStock
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400'
+                    }`}
+                  >
+                    {p.stockCount} in stock
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-oj-border/50 dark:border-oj-dark-border/50">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-oj-primary/10 text-oj-primary font-bold">
+                      {p.serverCluster}
+                    </span>
+                    <span className="text-oj-muted text-[10px]">
+                      {p.category}
+                    </span>
+                  </div>
+                  <span className="font-mono font-extrabold text-xs text-oj-midnight dark:text-white">
+                    {formatPrice(p.priceNgn)}
+                  </span>
+                </div>
+
+                <div className="pt-1">
+                  <button
+                    onClick={() => setEditingProduct({ ...p })}
+                    className="w-full py-1.5 px-3 rounded-lg bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-primary hover:text-white text-oj-primary dark:text-oj-primary-light text-xs font-bold transition-all text-center border border-oj-border dark:border-oj-dark-border"
+                  >
+                    Edit Server / Price
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Tablet & Desktop Responsive Table (>= 640px) */}
+          <div className="hidden sm:block border border-oj-border dark:border-oj-dark-border rounded-xl overflow-x-auto shadow-soft">
+            <table className="w-full text-left text-xs min-w-[650px]">
               <thead className="bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted border-b border-oj-border dark:border-oj-dark-border">
                 <tr>
                   <th className="py-2.5 px-3 font-semibold">Product Title</th>
@@ -2268,7 +2318,7 @@ export const AdminPage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-oj-border dark:divide-oj-dark-border">
                 {products.map((p) => (
-                  <tr key={p.id} className="hover:bg-oj-surface-alt/40">
+                  <tr key={p.id} className="hover:bg-oj-surface-alt/40 transition-colors">
                     <td className="py-2.5 px-3 font-semibold text-oj-midnight dark:text-white max-w-xs truncate">
                       {p.title}
                     </td>
@@ -3183,8 +3233,8 @@ export const AdminPage: React.FC = () => {
           </div>
 
           {/* Service Catalog & Rate Manager Table */}
-          <div className="border border-oj-border dark:border-oj-dark-border rounded-xl overflow-hidden bg-white dark:bg-oj-dark-surface shadow-soft">
-            <table className="w-full text-left text-xs">
+          <div className="border border-oj-border dark:border-oj-dark-border rounded-xl overflow-x-auto bg-white dark:bg-oj-dark-surface shadow-soft">
+            <table className="w-full text-left text-xs min-w-[750px]">
               <thead className="bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted border-b border-oj-border dark:border-oj-dark-border">
                 <tr>
                   <th className="py-2.5 px-3 font-semibold">Service Name & Category</th>

@@ -271,10 +271,10 @@ export const SocialBoostPage: React.FC = () => {
 
       {/* Navigation View Switch */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-oj-border dark:border-oj-dark-border pb-3">
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
           <button
             onClick={() => setActiveTab('order')}
-            className={`flex-1 sm:flex-none justify-center px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+            className={`justify-center px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
               activeTab === 'order'
                 ? 'bg-oj-primary text-white shadow-soft'
                 : 'bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted hover:text-oj-midnight dark:hover:text-white'
@@ -286,7 +286,7 @@ export const SocialBoostPage: React.FC = () => {
 
           <button
             onClick={() => setActiveTab('history')}
-            className={`flex-1 sm:flex-none justify-center px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+            className={`justify-center px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
               activeTab === 'history'
                 ? 'bg-oj-primary text-white shadow-soft'
                 : 'bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted hover:text-oj-midnight dark:hover:text-white'
@@ -298,9 +298,9 @@ export const SocialBoostPage: React.FC = () => {
         </div>
 
         {user && (
-          <div className="flex items-center justify-between sm:justify-end gap-2 text-xs bg-oj-surface-alt/40 dark:bg-oj-dark-surface-alt/40 sm:bg-transparent px-3 py-2 sm:p-0 rounded-xl">
-            <span className="text-oj-muted text-[11px]">Your Wallet Balance:</span>
-            <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-sm">
+          <div className="flex items-center justify-between sm:justify-end gap-2 text-xs bg-oj-surface-alt/70 dark:bg-oj-dark-surface-alt/70 sm:bg-transparent px-3.5 py-2 sm:p-0 rounded-xl border border-oj-border/50 dark:border-oj-dark-border/50 sm:border-0 w-full sm:w-auto">
+            <span className="text-oj-muted text-xs whitespace-nowrap">Your Wallet Balance:</span>
+            <span className="font-mono font-extrabold text-emerald-600 dark:text-emerald-400 text-sm whitespace-nowrap">
               {formatPrice(wallet.balanceNgn)}
             </span>
           </div>

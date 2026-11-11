@@ -27,15 +27,23 @@ export class NumbersService {
     try {
       const live = await telephonyRegistry.fetchLiveServices('provider-textplug');
       if (live && live.length > 0) {
-        const seen = new Set<string>();
-        const merged: ServiceOption[] = [];
+        const map = new Map<string, ServiceOption>();
+        // First populate with live services
         for (const item of live) {
-          const key = item.name.toLowerCase().trim();
-          if (!seen.has(key)) { seen.add(key); merged.push(item); }
+          const idKey = item.id.toLowerCase().trim();
+          const nameKey = item.name.toLowerCase().trim();
+          map.set(idKey, item);
+          map.set(nameKey, item);
         }
+        // Then add fallback SERVICES only if not present in live
+        const merged: ServiceOption[] = [...live];
         for (const item of SERVICES) {
-          const key = item.name.toLowerCase().trim();
-          if (!seen.has(key)) { seen.add(key); merged.push(item); }
+          const idKey = item.id.toLowerCase().trim();
+          const nameKey = item.name.toLowerCase().trim();
+          if (!map.has(idKey) && !map.has(nameKey)) {
+            map.set(idKey, item);
+            merged.push(item);
+          }
         }
         this.liveServicesCache = merged;
         return merged;

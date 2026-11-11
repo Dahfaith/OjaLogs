@@ -13,23 +13,29 @@ router.get('/categories', (req, res) => {
   });
 });
 
-router.get('/products', (req, res) => {
-  const { category, serverCluster, search } = req.query;
-  const products = catalogService.getProducts({
-    category: typeof category === 'string' ? category : undefined,
-    serverCluster: typeof serverCluster === 'string' ? serverCluster : undefined,
-    search: typeof search === 'string' ? search : undefined
-  });
+router.get('/products', async (req, res, next) => {
+  try {
+    await catalogService.ensureSynced();
+    const { category, serverCluster, search } = req.query;
+    const products = catalogService.getProducts({
+      category: typeof category === 'string' ? category : undefined,
+      serverCluster: typeof serverCluster === 'string' ? serverCluster : undefined,
+      search: typeof search === 'string' ? search : undefined
+    });
 
-  res.json({
-    success: true,
-    data: products,
-    meta: { count: products.length, request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
-  });
+    res.json({
+      success: true,
+      data: products,
+      meta: { count: products.length, request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.get('/products/:idOrSlug', (req, res, next) => {
+router.get('/products/:idOrSlug', async (req, res, next) => {
   try {
+    await catalogService.ensureSynced();
     const idOrSlug = Array.isArray(req.params.idOrSlug) ? req.params.idOrSlug[0] : req.params.idOrSlug;
     const product = catalogService.getProductByIdOrSlug(idOrSlug);
     res.json({

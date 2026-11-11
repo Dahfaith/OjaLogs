@@ -251,6 +251,8 @@ export class TelephonyRegistry {
         const data = await resp.json() as any;
         console.log('[TEXTPLUG_BALANCE_RESP]', data);
         const bal = Number(
+          data.data?.ngnWallet ??
+          data.ngnWallet ??
           data.balance ??
           data.data?.balance ??
           data.user?.balance ??
@@ -259,8 +261,18 @@ export class TelephonyRegistry {
           data.account?.balance ??
           0
         );
-        const purchased = Number(data.purchasedNumbers ?? data.data?.purchasedNumbers ?? data.purchased_numbers ?? 0);
-        const rented = Number(data.rentedNumbers ?? data.data?.rentedNumbers ?? data.rented_numbers ?? 0);
+        const purchased = Number(
+          data.data?.purchasedNumbers ??
+          data.purchasedNumbers ??
+          data.data?.purchased_numbers ??
+          0
+        );
+        const rented = Number(
+          data.data?.rentedNumbers ??
+          data.rentedNumbers ??
+          data.data?.rented_numbers ??
+          0
+        );
 
         return {
           balance: bal,

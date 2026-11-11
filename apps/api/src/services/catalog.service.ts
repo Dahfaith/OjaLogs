@@ -2,9 +2,75 @@ import { Product, APPROVED_CATEGORIES } from '@ojalogs/shared';
 import { AppError } from '../middleware/errorHandler.js';
 import { encryptPayload, hashFingerprint } from '../utils/crypto.js';
 import { INITIAL_PRODUCTS } from '../data/products.js';
+import { logspollAdapter } from '../adapters/logspoll/logspoll.adapter.js';
 
 export class CatalogService {
   private products: Product[] = [...INITIAL_PRODUCTS];
+  private isSynced = false;
+  private lastSyncTime = 0;
+
+  async ensureSynced(): Promise<void> {
+    const now = Date.now();
+    // Cache for 10 minutes before re-checking upstream
+    if (this.isSynced && now - this.lastSyncTime < 10 * 60 * 1000) {
+      return;
+    }
+    await this.syncWithLogsPoll();
+  }
+
+  async syncWithLogsPoll(): Promise<void> {
+    try {
+      if (!logspollAdapter.getCredentials().isConfigured) return;
+
+      const upstream = await logspollAdapter.fetchCatalog({ limit: 50 });
+      if (upstream && upstream.length > 0) {
+        const existingIds = new Set(this.products.map(p => p.id));
+        for (const u of upstream) {
+          const lpId = `lp_${u.id}`;
+          if (!existingIds.has(lpId)) {
+            const retailNgn = Math.ceil(u.priceNgn * 1.15); // 15% standard margin
+            this.products.push({
+              id: lpId,
+              slug: `lp-${u.id.slice(0, 8)}`,
+              title: u.title,
+              category: u.category || 'Social Media Accounts',
+              categoryId: 'social-media',
+              division: 'A',
+              serverCluster: 'Server 2',
+              priceNgn: retailNgn,
+              inStock: u.stockCount > 0,
+              stockCount: u.stockCount,
+              rating: 5.0,
+              verifiedResale: true,
+              coverImage: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=600&q=80',
+              summary: 'Verified authentic digital account/tool supplied via LogsPoll API.',
+              descriptionHtml: `<p>${u.description || u.title}</p><p>Guaranteed authentic delivery via LogsPoll automated infrastructure.</p>`,
+              specifications: {
+                title: u.title,
+                category: u.category || 'Social Media Accounts',
+                serverOrigin: 'Server 2 (Verified LogsPoll Stock)',
+                deliveryType: 'instant_automated',
+                validityDuration: 'Permanent Access',
+                fulfillmentSpeed: 'Instant Automated (Under 10s)',
+                verificationStatus: '100% Upstream Verified Stock',
+                stockUnits: u.stockCount,
+                region: 'Global / Worldwide'
+              },
+              deliveryFormat: u.deliveryFormat || 'Credentials / 2FA Token',
+              validityDuration: 'Permanent',
+              region: 'Global',
+              featured: false
+            });
+            existingIds.add(lpId);
+          }
+        }
+      }
+      this.isSynced = true;
+      this.lastSyncTime = Date.now();
+    } catch (err: any) {
+      console.warn(`[CATALOG_SYNC_NOTICE] ${err.message}`);
+    }
+  }
 
   getCategories() {
     return APPROVED_CATEGORIES;

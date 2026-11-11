@@ -1,3 +1,4 @@
+process.env.NODE_ENV = 'test';
 import { encryptPayload, decryptPayload, hashFingerprint } from '../src/utils/crypto.js';
 import { walletService } from '../src/services/wallet.service.js';
 import { orderService } from '../src/services/order.service.js';

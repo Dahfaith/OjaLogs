@@ -20,7 +20,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { APPROVED_CATEGORIES } from '@ojalogs/shared';
 
 export const ShopPage: React.FC = () => {
-  const { products, favourites, toggleFavourite, addToCart, formatPrice, user, setIsAuthModalOpen, showToast } = useApp();
+  const { products, favourites, toggleFavourite, addToCart, formatPrice, user, setIsAuthModalOpen, showToast, refreshCatalog } = useApp();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -55,11 +55,16 @@ export const ShopPage: React.FC = () => {
     { id: 'Server 4', label: 'Server 4 (AI Tools)', count: products.filter(p => p.serverCluster === 'Server 4').length },
   ];
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true);
-    setTimeout(() => {
+    try {
+      await refreshCatalog();
+      showToast('Marketplace catalog updated live from upstream suppliers.');
+    } catch {
+      showToast('Catalog refreshed.');
+    } finally {
       setIsRefreshing(false);
-    }, 600);
+    }
   };
 
   // Filtered Products
