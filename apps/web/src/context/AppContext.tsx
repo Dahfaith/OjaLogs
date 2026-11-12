@@ -438,16 +438,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       let finalBalance = (balRes && typeof balRes.balanceNgn === 'number') ? balRes.balanceNgn : 0;
 
       // Direct Supabase fallback if API returned 0 or was unreachable
-      if (finalBalance === 0 && user?.id) {
+      if (finalBalance === 0) {
         try {
-          const { data: sbWallet } = await supabase
-            .from('wallets')
-            .select('balance')
-            .eq('user_id', user.id)
-            .maybeSingle();
+          let targetUuid = user.id;
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetUuid || '');
+          if (!isUuid && user.email) {
+            const { data: prof } = await supabase
+              .from('profiles')
+              .select('id')
+              .ilike('email', user.email.toLowerCase().trim())
+              .maybeSingle();
+            if (prof?.id) targetUuid = prof.id;
+          }
 
-          if (sbWallet && typeof sbWallet.balance === 'number' && sbWallet.balance > 0) {
-            finalBalance = Number(sbWallet.balance);
+          if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetUuid || '')) {
+            const { data: sbWallet } = await supabase
+              .from('wallets')
+              .select('balance')
+              .eq('user_id', targetUuid)
+              .maybeSingle();
+
+            if (sbWallet && typeof sbWallet.balance === 'number' && sbWallet.balance > 0) {
+              finalBalance = Number(sbWallet.balance);
+            }
           }
         } catch (sbErr) {
           console.warn('[WALLET_SB_FALLBACK] Direct check notice:', sbErr);
@@ -458,6 +471,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       if (ledgerRes && ledgerRes.transactions && ledgerRes.transactions.length > 0) {
         setLedger(ledgerRes.transactions);
+      } else if (finalBalance > 0) {
+        try {
+          let targetUuid = user.id;
+          if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetUuid || '') && user.email) {
+            const { data: prof } = await supabase
+              .from('profiles')
+              .select('id')
+              .ilike('email', user.email.toLowerCase().trim())
+              .maybeSingle();
+            if (prof?.id) targetUuid = prof.id;
+          }
+
+          if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetUuid || '')) {
+            const { data: sbEntries } = await supabase
+              .from('wallet_ledger')
+              .select('*')
+              .eq('user_id', targetUuid)
+              .order('created_at', { ascending: false });
+
+            if (Array.isArray(sbEntries) && sbEntries.length > 0) {
+              setLedger(sbEntries.map((e: any) => ({
+                id: e.id,
+                reference: e.reference,
+                type: e.type,
+                category: e.category,
+                amountNgn: Number(e.amount || 0),
+                balanceAfterNgn: Number(e.balance_after || 0),
+                description: e.description,
+                status: 'successful',
+                timestamp: e.created_at
+              })));
+            }
+          }
+        } catch {}
       }
     } catch {
       // Retain state if offline

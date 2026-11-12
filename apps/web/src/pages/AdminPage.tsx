@@ -365,7 +365,13 @@ export const AdminPage: React.FC = () => {
   const [adjustReason, setAdjustReason] = useState<string>('Dispute resolution / Promotion');
 
   // Notifications State
-  const [notifications, setNotifications] = useState<AdminNotification[]>([]);
+  const [notifications, setNotifications] = useState<AdminNotification[]>(() => {
+    const saved = localStorage.getItem('oj_admin_notifications');
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return [];
+  });
   const [showNotificationDrawer, setShowNotificationDrawer] = useState(false);
 
   // SMM Governance State
@@ -537,7 +543,10 @@ export const AdminPage: React.FC = () => {
 
     apiClient.getAdminNotifications()
       .then(data => {
-        if (data && data.length > 0) setNotifications(data);
+        if (data && data.length > 0) {
+          setNotifications(data);
+          localStorage.setItem('oj_admin_notifications', JSON.stringify(data));
+        }
       })
       .catch(() => { });
 
@@ -752,7 +761,11 @@ export const AdminPage: React.FC = () => {
   const handleMarkNotificationsRead = async () => {
     try {
       await apiClient.markAdminNotificationsRead();
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setNotifications(prev => {
+        const updated = prev.map(n => ({ ...n, read: true }));
+        localStorage.setItem('oj_admin_notifications', JSON.stringify(updated));
+        return updated;
+      });
     } catch { }
     showToast('All notifications marked as read');
   };

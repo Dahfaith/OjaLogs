@@ -247,6 +247,11 @@ export class WalletService {
     return userId;
   }
 
+  private isValidUuid(val?: string): boolean {
+    if (!val) return false;
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
+  }
+
   getBalance(userId: string, email?: string): number {
     const key = this.resolveAccountKey(userId, email);
     const bal = this.balances.get(key);
@@ -271,22 +276,49 @@ export class WalletService {
     // Direct live query to Supabase if in-memory returned 0
     try {
       const cleanEmail = email?.toLowerCase().trim();
-      let query = supabaseAdmin.from('wallets').select('balance, user_id');
-      if (cleanEmail) {
-        const mappedId = this.emailToUserMap.get(cleanEmail) || userId;
-        query = query.or(`user_id.eq.${mappedId},user_id.eq.${userId}`);
-      } else {
-        query = query.eq('user_id', userId);
+      let targetUuid: string | null = null;
+
+      if (this.isValidUuid(userId)) {
+        targetUuid = userId;
+      } else if (cleanEmail) {
+        // 1. Check in-memory email map
+        const mapped = this.emailToUserMap.get(cleanEmail);
+        if (mapped && this.isValidUuid(mapped)) {
+          targetUuid = mapped;
+        } else {
+          // 2. Query profiles table by email
+          const { data: prof } = await supabaseAdmin
+            .from('profiles')
+            .select('id, email')
+            .ilike('email', cleanEmail)
+            .maybeSingle();
+          if (prof?.id && this.isValidUuid(prof.id)) {
+            targetUuid = prof.id;
+            this.userEmails.set(prof.id, cleanEmail);
+            this.emailToUserMap.set(cleanEmail, prof.id);
+          }
+        }
       }
 
-      const { data, error } = await query.maybeSingle();
-      if (!error && data && typeof data.balance === 'number') {
-        const bal = Number(data.balance);
-        this.balances.set(userId, bal);
-        if (cleanEmail) this.balances.set(cleanEmail, bal);
-        return bal;
+      if (targetUuid && this.isValidUuid(targetUuid)) {
+        const { data, error } = await supabaseAdmin
+          .from('wallets')
+          .select('balance, user_id')
+          .eq('user_id', targetUuid)
+          .maybeSingle();
+
+        if (!error && data && typeof data.balance === 'number') {
+          const bal = Number(data.balance);
+          this.balances.set(targetUuid, bal);
+          this.balances.set(userId, bal);
+          if (cleanEmail) this.balances.set(cleanEmail, bal);
+          this.savePersistedStore();
+          return bal;
+        }
       }
-    } catch {}
+    } catch (err: any) {
+      console.warn(`[WALLET_ASYNC_QUERY] Notice: ${err.message}`);
+    }
 
     return currentBal;
   }
@@ -315,33 +347,60 @@ export class WalletService {
     // Direct live query to Supabase if in-memory empty
     try {
       const cleanEmail = email?.toLowerCase().trim();
-      const mappedId = cleanEmail ? (this.emailToUserMap.get(cleanEmail) || userId) : userId;
-      const { data: entries } = await supabaseAdmin
-        .from('wallet_ledger')
-        .select('*')
-        .or(`user_id.eq.${mappedId},user_id.eq.${userId}`)
-        .order('created_at', { ascending: false });
+      let targetUuid: string | null = null;
 
-      if (Array.isArray(entries) && entries.length > 0) {
-        const mapped: LedgerTransaction[] = entries.map(entry => ({
-          id: entry.id,
-          reference: entry.reference,
-          type: entry.type as 'credit' | 'debit',
-          category: entry.category as LedgerCategory,
-          amountNgn: Number(entry.amount || 0),
-          balanceAfterNgn: Number(entry.balance_after || 0),
-          description: entry.description,
-          status: 'successful',
-          timestamp: entry.created_at || new Date().toISOString(),
-          idempotencyKey: entry.idempotency_key,
-          relatedOrderReference: entry.related_order_reference
-        }));
-        this.ledgerRecords.set(userId, mapped);
-        if (cleanEmail) this.ledgerRecords.set(cleanEmail, mapped);
-        if (!categoryFilter || categoryFilter === 'all') return mapped;
-        return mapped.filter(t => t.category === categoryFilter);
+      if (this.isValidUuid(userId)) {
+        targetUuid = userId;
+      } else if (cleanEmail) {
+        const mapped = this.emailToUserMap.get(cleanEmail);
+        if (mapped && this.isValidUuid(mapped)) {
+          targetUuid = mapped;
+        } else {
+          const { data: prof } = await supabaseAdmin
+            .from('profiles')
+            .select('id, email')
+            .ilike('email', cleanEmail)
+            .maybeSingle();
+          if (prof?.id && this.isValidUuid(prof.id)) {
+            targetUuid = prof.id;
+            this.userEmails.set(prof.id, cleanEmail);
+            this.emailToUserMap.set(cleanEmail, prof.id);
+          }
+        }
       }
-    } catch {}
+
+      if (targetUuid && this.isValidUuid(targetUuid)) {
+        const { data: entries } = await supabaseAdmin
+          .from('wallet_ledger')
+          .select('*')
+          .eq('user_id', targetUuid)
+          .order('created_at', { ascending: false });
+
+        if (Array.isArray(entries) && entries.length > 0) {
+          const mapped: LedgerTransaction[] = entries.map(entry => ({
+            id: entry.id,
+            reference: entry.reference,
+            type: entry.type as 'credit' | 'debit',
+            category: entry.category as LedgerCategory,
+            amountNgn: Number(entry.amount || 0),
+            balanceAfterNgn: Number(entry.balance_after || 0),
+            description: entry.description,
+            status: 'successful',
+            timestamp: entry.created_at || new Date().toISOString(),
+            idempotencyKey: entry.idempotency_key,
+            relatedOrderReference: entry.related_order_reference
+          }));
+          this.ledgerRecords.set(targetUuid, mapped);
+          this.ledgerRecords.set(userId, mapped);
+          if (cleanEmail) this.ledgerRecords.set(cleanEmail, mapped);
+          this.savePersistedStore();
+          if (!categoryFilter || categoryFilter === 'all') return mapped;
+          return mapped.filter(t => t.category === categoryFilter);
+        }
+      }
+    } catch (err: any) {
+      console.warn(`[LEDGER_ASYNC_QUERY] Notice: ${err.message}`);
+    }
 
     return inMem;
   }

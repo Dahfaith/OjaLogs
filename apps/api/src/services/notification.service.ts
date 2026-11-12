@@ -5,7 +5,14 @@ import { env } from '../config/env.js';
 import { walletService } from './wallet.service.js';
 
 const PLATFORM_URL = process.env.PUBLIC_APP_URL || 'https://ojalogs.com.ng';
-const ALERTED_SIGNUPS_FILE = path.join(process.cwd(), 'data', 'alerted_signups.json');
+const DATA_DIR = fs.existsSync(path.join(process.cwd(), 'apps', 'api', 'data'))
+  ? path.join(process.cwd(), 'apps', 'api', 'data')
+  : fs.existsSync(path.join(process.cwd(), 'data'))
+  ? path.join(process.cwd(), 'data')
+  : path.join(process.cwd(), 'data');
+
+const ALERTED_SIGNUPS_FILE = path.join(DATA_DIR, 'alerted_signups.json');
+const NOTIFICATIONS_FILE = path.join(DATA_DIR, 'admin_notifications.json');
 
 class NotificationService {
   private alertedSignups: Set<string> = new Set();
@@ -17,7 +24,7 @@ class NotificationService {
       title: 'Platform Production Launch',
       message: 'Super Administrator Console initialized with zero-leak RLS policies and multi-server clusters.',
       timestamp: new Date().toISOString(),
-      read: false
+      read: true
     }
   ];
 
@@ -37,6 +44,34 @@ class NotificationService {
 
   constructor() {
     this.loadAlertedSignups();
+    this.loadNotifications();
+  }
+
+  private loadNotifications() {
+    try {
+      if (fs.existsSync(NOTIFICATIONS_FILE)) {
+        const raw = fs.readFileSync(NOTIFICATIONS_FILE, 'utf-8');
+        const list = JSON.parse(raw);
+        if (Array.isArray(list)) {
+          this.notifications = list;
+          return;
+        }
+      }
+    } catch (err: any) {
+      console.warn(`[NOTIF_PERSISTENCE] Notice loading notifications: ${err.message}`);
+    }
+    this.saveNotifications();
+  }
+
+  private saveNotifications() {
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+      fs.writeFileSync(NOTIFICATIONS_FILE, JSON.stringify(this.notifications, null, 2), 'utf-8');
+    } catch (err: any) {
+      console.warn(`[NOTIF_PERSISTENCE] Notice saving notifications: ${err.message}`);
+    }
   }
 
   private loadAlertedSignups() {
@@ -55,7 +90,9 @@ class NotificationService {
 
   private saveAlertedSignups() {
     try {
-      fs.mkdirSync(path.dirname(ALERTED_SIGNUPS_FILE), { recursive: true });
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
       fs.writeFileSync(ALERTED_SIGNUPS_FILE, JSON.stringify(Array.from(this.alertedSignups), null, 2), 'utf-8');
     } catch (err: any) {
       console.warn(`[NOTIF_PERSISTENCE] Notice saving alerted signups: ${err.message}`);
@@ -73,17 +110,20 @@ class NotificationService {
 
   markAllAsRead(): AdminNotification[] {
     this.notifications = this.notifications.map(n => ({ ...n, read: true }));
+    this.saveNotifications();
     return this.notifications;
   }
 
   deleteNotification(id: string): boolean {
     const prevLen = this.notifications.length;
     this.notifications = this.notifications.filter(n => n.id !== id);
+    this.saveNotifications();
     return this.notifications.length < prevLen;
   }
 
   clearNotifications(): boolean {
     this.notifications = [];
+    this.saveNotifications();
     return true;
   }
 
@@ -153,7 +193,9 @@ class NotificationService {
       }
 
       // Automatically queue notification if not already present
-      if (!isAdmin && !this.notifications.some(n => n.userEmail?.toLowerCase() === emailLower)) {
+      if (!isAdmin && !this.alertedSignups.has(emailLower) && !this.notifications.some(n => n.userEmail?.toLowerCase() === emailLower)) {
+        this.alertedSignups.add(emailLower);
+        this.saveAlertedSignups();
         this.notifications.unshift({
           id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
           type: 'NEW_USER_SIGNUP',
@@ -163,6 +205,7 @@ class NotificationService {
           timestamp: u.created_at || new Date().toISOString(),
           read: false
         });
+        this.saveNotifications();
       }
     });
   }
@@ -190,8 +233,10 @@ class NotificationService {
     }
 
     // In-App Notification (Admin Command Console only)
-    const alreadyNotified = this.notifications.some(n => n.userEmail?.toLowerCase() === emailLower);
+    const alreadyNotified = this.alertedSignups.has(emailLower) || this.notifications.some(n => n.userEmail?.toLowerCase() === emailLower);
     if (!alreadyNotified && !isAdmin) {
+      this.alertedSignups.add(emailLower);
+      this.saveAlertedSignups();
       this.notifications.unshift({
         id: `notif_${Date.now()}`,
         type: 'NEW_USER_SIGNUP',
@@ -201,6 +246,7 @@ class NotificationService {
         timestamp,
         read: false
       });
+      this.saveNotifications();
     }
 
     // STRICT FIRST-SIGNUP-ONLY EMAIL DEDUPLICATION:
@@ -361,6 +407,7 @@ class NotificationService {
       timestamp,
       read: false
     });
+    this.saveNotifications();
 
     // 2. Increment user order count in managed users
     const user = this.managedUsers.find(u => u.email.toLowerCase() === customerEmail.toLowerCase());
@@ -568,6 +615,7 @@ class NotificationService {
       timestamp,
       read: false
     });
+    this.saveNotifications();
 
     const brevoApiKey = process.env.BREVO_API_KEY || env.BREVO_API_KEY;
     const adminEmail = process.env.ADMIN_ALERT_EMAIL || env.ADMIN_ALERT_EMAIL || 'ojalogs@gmail.com';

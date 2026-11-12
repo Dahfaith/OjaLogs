@@ -165,11 +165,24 @@ router.post('/verify-otp', authLimiter, validateBody(VerifyOtpSchema), async (re
       });
     }
 
+    // Resolve real Supabase UUID if user exists in database
+    try {
+      const { data: prof } = await supabaseAdmin
+        .from('profiles')
+        .select('id, email')
+        .ilike('email', cleanEmail)
+        .maybeSingle();
+
+      if (prof?.id) {
+        userId = prof.id;
+      }
+    } catch {}
+
     // Capitalize name
     const formattedName = userName.charAt(0).toUpperCase() + userName.slice(1);
 
     // Ensure wallet exists in walletService
-    const existingBalance = walletService.getBalance(userId);
+    const existingBalance = walletService.getBalance(userId, cleanEmail);
     if (existingBalance === 0) {
       // Initialize with default or keep at 0
     }
