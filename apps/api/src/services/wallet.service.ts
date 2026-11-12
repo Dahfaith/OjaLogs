@@ -3,9 +3,12 @@ import path from 'node:path';
 import { AppError } from '../middleware/errorHandler.js';
 import { LedgerTransaction, LedgerCategory, LedgerEntryType } from '@ojalogs/shared';
 import { bachGateway } from '../gateways/bach.gateway.js';
+import { supabaseAdmin } from '../config/supabase.js';
 
 const DATA_DIR = fs.existsSync(path.join(process.cwd(), 'apps', 'api', 'data'))
   ? path.join(process.cwd(), 'apps', 'api', 'data')
+  : fs.existsSync(path.join(process.cwd(), 'data'))
+  ? path.join(process.cwd(), 'data')
   : path.join(process.cwd(), 'data');
 const WALLET_STORE_FILE = path.join(DATA_DIR, 'wallet_store.json');
 
@@ -17,16 +20,20 @@ export interface EnrichedLedgerTransaction extends LedgerTransaction {
 export class WalletService {
   private balances = new Map<string, number>();
   private userEmails = new Map<string, string>();
+  private emailToUserMap = new Map<string, string>();
   private ledgerRecords = new Map<string, LedgerTransaction[]>();
+  private isSupabaseLoaded = false;
 
   constructor() {
     this.loadPersistedStore();
+    this.loadFromSupabase().catch(() => {});
   }
 
   resetForTest() {
     this.balances.clear();
     this.ledgerRecords.clear();
     this.userEmails.clear();
+    this.emailToUserMap.clear();
   }
 
   private isTestRuntime(): boolean {
@@ -34,6 +41,94 @@ export class WalletService {
       process.env.NODE_ENV === 'test' ||
       process.argv.some((a) => a.includes('test') || a.includes('vitest'))
     );
+  }
+
+  /**
+   * Load wallet balances and ledger transactions from Supabase PostgreSQL
+   */
+  async loadFromSupabase(): Promise<void> {
+    if (this.isTestRuntime()) return;
+
+    try {
+      console.log('[WALLET_SERVICE] Synchronizing wallets and ledger with Supabase...');
+
+      // 1. Load profiles to map UUIDs and emails
+      const { data: profiles } = await supabaseAdmin
+        .from('profiles')
+        .select('id, email');
+
+      if (Array.isArray(profiles)) {
+        for (const p of profiles) {
+          if (p.id && p.email) {
+            const cleanEmail = p.email.toLowerCase().trim();
+            this.userEmails.set(p.id, cleanEmail);
+            this.emailToUserMap.set(cleanEmail, p.id);
+          }
+        }
+      }
+
+      // 2. Load wallets
+      const { data: wallets } = await supabaseAdmin
+        .from('wallets')
+        .select('*');
+
+      if (Array.isArray(wallets)) {
+        for (const w of wallets) {
+          const bal = Number(w.balance || 0);
+          this.balances.set(w.user_id, bal);
+          const email = this.userEmails.get(w.user_id);
+          if (email) {
+            this.balances.set(email, bal);
+          }
+        }
+      }
+
+      // 3. Load wallet ledger
+      const { data: ledgerEntries } = await supabaseAdmin
+        .from('wallet_ledger')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (Array.isArray(ledgerEntries)) {
+        // Group by user_id and email
+        const userGroups = new Map<string, LedgerTransaction[]>();
+        for (const entry of ledgerEntries) {
+          const tx: LedgerTransaction = {
+            id: entry.id,
+            reference: entry.reference,
+            type: entry.type as 'credit' | 'debit',
+            category: entry.category as LedgerCategory,
+            amountNgn: Number(entry.amount || 0),
+            balanceAfterNgn: Number(entry.balance_after || 0),
+            description: entry.description,
+            status: 'successful',
+            timestamp: entry.created_at || new Date().toISOString(),
+            idempotencyKey: entry.idempotency_key,
+            relatedOrderReference: entry.related_order_reference
+          };
+
+          const uid = entry.user_id;
+          if (!userGroups.has(uid)) userGroups.set(uid, []);
+          userGroups.get(uid)!.push(tx);
+
+          const email = this.userEmails.get(uid);
+          if (email) {
+            if (!userGroups.has(email)) userGroups.set(email, []);
+            userGroups.get(email)!.push(tx);
+          }
+        }
+
+        for (const [key, records] of userGroups.entries()) {
+          this.ledgerRecords.set(key, records);
+        }
+      }
+
+      this.isSupabaseLoaded = true;
+      this.savePersistedStore();
+      console.log(`[WALLET_SERVICE] ✓ Loaded ${this.balances.size} wallets & ${this.ledgerRecords.size} ledgers from Supabase.`);
+    } catch (err: any) {
+      console.warn(`[WALLET_SERVICE] Supabase sync notice: ${err.message}`);
+    }
   }
 
   private loadPersistedStore() {
@@ -53,36 +148,13 @@ export class WalletService {
         if (parsed.userEmails) {
           for (const [k, v] of Object.entries(parsed.userEmails)) {
             this.userEmails.set(k, String(v));
+            this.emailToUserMap.set(String(v), k);
           }
         }
         if (parsed.ledgerRecords) {
           for (const [k, v] of Object.entries(parsed.ledgerRecords)) {
             const list = v as LedgerTransaction[];
-            const seenRefs = new Set<string>();
-            const deduped: LedgerTransaction[] = [];
-            for (const tx of list) {
-              if (tx.type === 'credit' && tx.category === 'deposit' && tx.reference) {
-                if (seenRefs.has(tx.reference)) {
-                  console.log(`[WALLET_STORE] Deduplicating legacy duplicate deposit: ${tx.reference}`);
-                  continue;
-                }
-                seenRefs.add(tx.reference);
-              }
-              deduped.push(tx);
-            }
-            this.ledgerRecords.set(k, deduped);
-
-            // Reconcile user balance if duplicate transactions were pruned
-            if (deduped.length !== list.length) {
-              let computedBal = 0;
-              const chronological = [...deduped].reverse();
-              for (const entry of chronological) {
-                if (entry.type === 'credit') computedBal += entry.amountNgn;
-                else if (entry.type === 'debit') computedBal -= entry.amountNgn;
-              }
-              this.balances.set(k, Math.max(0, computedBal));
-              console.log(`[WALLET_STORE] Reconciled balance for ${k} to ₦${computedBal}`);
-            }
+            this.ledgerRecords.set(k, list);
           }
         }
       }
@@ -136,8 +208,6 @@ export class WalletService {
       this.savePersistedStore();
     }
   }
-
-  private emailToUserMap = new Map<string, string>();
 
   private resolveAccountKey(userId: string, email?: string): string {
     const cleanEmail = email?.toLowerCase().trim();
@@ -209,9 +279,16 @@ export class WalletService {
    */
   getAllTransactions(categoryFilter?: string): EnrichedLedgerTransaction[] {
     const all: EnrichedLedgerTransaction[] = [];
+    const seenRefs = new Set<string>();
+
     for (const [userId, records] of this.ledgerRecords.entries()) {
       const email = this.userEmails.get(userId) || (userId.includes('@') ? userId : 'customer@ojalogs.com');
       for (const record of records) {
+        if (record.reference && seenRefs.has(record.reference)) {
+          continue;
+        }
+        if (record.reference) seenRefs.add(record.reference);
+
         if (!categoryFilter || categoryFilter === 'all' || record.category === categoryFilter) {
           all.push({
             ...record,
@@ -241,19 +318,24 @@ export class WalletService {
     let depositCount = 0;
     let orderCount = 0;
 
-    for (const [_, bal] of this.balances.entries()) {
-      totalWalletLiabilitiesNgn += bal;
+    // Deduplicate unique users for wallet liabilities
+    const seenLiabilities = new Set<string>();
+    for (const [userId, bal] of this.balances.entries()) {
+      const email = this.userEmails.get(userId) || (userId.includes('@') ? userId : userId);
+      if (!seenLiabilities.has(email)) {
+        seenLiabilities.add(email);
+        totalWalletLiabilitiesNgn += bal;
+      }
     }
 
-    for (const [_, records] of this.ledgerRecords.entries()) {
-      for (const r of records) {
-        if (r.category === 'deposit') {
-          totalDepositsNgn += r.amountNgn;
-          depositCount++;
-        } else if (r.type === 'debit') {
-          totalPurchasesNgn += r.amountNgn;
-          orderCount++;
-        }
+    const allTxs = this.getAllTransactions();
+    for (const r of allTxs) {
+      if (r.category === 'deposit') {
+        totalDepositsNgn += r.amountNgn;
+        depositCount++;
+      } else if (r.type === 'debit') {
+        totalPurchasesNgn += r.amountNgn;
+        orderCount++;
       }
     }
 
@@ -264,6 +346,188 @@ export class WalletService {
       depositCount,
       orderCount
     };
+  }
+
+  /**
+   * Helper to persist credit transactions directly into Supabase PostgreSQL
+   */
+  private async persistCreditToSupabase(
+    userId: string,
+    amount: number,
+    category: LedgerCategory,
+    reference: string,
+    description: string,
+    newBalance: number,
+    idempotencyKey?: string,
+    cleanEmail?: string
+  ): Promise<void> {
+    if (this.isTestRuntime()) return;
+
+    try {
+      // 1. Resolve true profile UUID from Supabase
+      let profileId: string | null = null;
+      if (userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+        profileId = userId;
+      }
+
+      if (!profileId && cleanEmail) {
+        const { data: p } = await supabaseAdmin
+          .from('profiles')
+          .select('id')
+          .eq('email', cleanEmail)
+          .maybeSingle();
+        if (p?.id) profileId = p.id;
+      }
+
+      if (!profileId) {
+        // Fallback: check emailToUserMap
+        const mapped = cleanEmail ? this.emailToUserMap.get(cleanEmail) : null;
+        if (mapped && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(mapped)) {
+          profileId = mapped;
+        }
+      }
+
+      if (!profileId) {
+        console.warn(`[WALLET_SUPABASE] Could not resolve profile UUID for userId: ${userId}, email: ${cleanEmail}`);
+        return;
+      }
+
+      // 2. Get or create wallet in Supabase
+      let walletId: string | null = null;
+      const { data: existingWallet } = await supabaseAdmin
+        .from('wallets')
+        .select('id, balance')
+        .eq('user_id', profileId)
+        .maybeSingle();
+
+      if (existingWallet) {
+        walletId = existingWallet.id;
+        await supabaseAdmin
+          .from('wallets')
+          .update({ balance: newBalance, updated_at: new Date().toISOString() })
+          .eq('id', walletId);
+      } else {
+        const { data: createdWallet } = await supabaseAdmin
+          .from('wallets')
+          .insert({
+            user_id: profileId,
+            currency: 'NGN',
+            balance: newBalance,
+            is_locked: false
+          })
+          .select()
+          .single();
+        if (createdWallet) walletId = createdWallet.id;
+      }
+
+      // 3. Insert immutable ledger entry into wallet_ledger
+      if (walletId && reference) {
+        const { data: existingLedger } = await supabaseAdmin
+          .from('wallet_ledger')
+          .select('id')
+          .eq('reference', reference)
+          .maybeSingle();
+
+        if (!existingLedger) {
+          await supabaseAdmin
+            .from('wallet_ledger')
+            .insert({
+              reference,
+              wallet_id: walletId,
+              user_id: profileId,
+              type: 'credit',
+              category,
+              amount,
+              balance_after: newBalance,
+              description,
+              idempotency_key: idempotencyKey || null,
+              created_at: new Date().toISOString()
+            });
+          console.log(`[WALLET_SUPABASE] ✓ Persisted credit ledger record ${reference} (₦${amount}) into Supabase.`);
+        }
+      }
+
+      // 4. Update payments table if this is a deposit
+      if (category === 'deposit' && reference) {
+        await supabaseAdmin
+          .from('payments')
+          .update({
+            status: 'succeeded',
+            completed_at: new Date().toISOString()
+          })
+          .eq('reference', reference);
+      }
+    } catch (err: any) {
+      console.warn(`[WALLET_SUPABASE] Credit persistence notice: ${err.message}`);
+    }
+  }
+
+  /**
+   * Helper to persist debit transactions directly into Supabase PostgreSQL
+   */
+  private async persistDebitToSupabase(
+    userId: string,
+    amount: number,
+    category: LedgerCategory,
+    reference: string,
+    description: string,
+    newBalance: number,
+    idempotencyKey?: string,
+    relatedOrderReference?: string,
+    cleanEmail?: string
+  ): Promise<void> {
+    if (this.isTestRuntime()) return;
+
+    try {
+      let profileId: string | null = null;
+      if (userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+        profileId = userId;
+      }
+
+      if (!profileId && cleanEmail) {
+        const { data: p } = await supabaseAdmin
+          .from('profiles')
+          .select('id')
+          .eq('email', cleanEmail)
+          .maybeSingle();
+        if (p?.id) profileId = p.id;
+      }
+
+      if (!profileId) return;
+
+      const { data: existingWallet } = await supabaseAdmin
+        .from('wallets')
+        .select('id')
+        .eq('user_id', profileId)
+        .maybeSingle();
+
+      if (existingWallet) {
+        await supabaseAdmin
+          .from('wallets')
+          .update({ balance: newBalance, updated_at: new Date().toISOString() })
+          .eq('id', existingWallet.id);
+
+        if (reference) {
+          await supabaseAdmin
+            .from('wallet_ledger')
+            .insert({
+              reference,
+              wallet_id: existingWallet.id,
+              user_id: profileId,
+              type: 'debit',
+              category,
+              amount,
+              balance_after: newBalance,
+              description,
+              idempotency_key: idempotencyKey || null,
+              related_order_reference: relatedOrderReference || null,
+              created_at: new Date().toISOString()
+            });
+        }
+      }
+    } catch (err: any) {
+      console.warn(`[WALLET_SUPABASE] Debit persistence notice: ${err.message}`);
+    }
   }
 
   creditWallet(
@@ -324,6 +588,19 @@ export class WalletService {
       this.ledgerRecords.set(cleanEmail, updatedLedger);
     }
     this.savePersistedStore();
+
+    // Async persist to Supabase PostgreSQL database
+    this.persistCreditToSupabase(
+      userId,
+      amount,
+      category,
+      reference,
+      description,
+      newBalance,
+      idempotencyKey,
+      cleanEmail
+    ).catch(() => {});
+
     return tx;
   }
 
@@ -378,12 +655,27 @@ export class WalletService {
       this.ledgerRecords.set(cleanEmail, updatedLedger);
     }
     this.savePersistedStore();
+
+    // Async persist to Supabase PostgreSQL database
+    this.persistDebitToSupabase(
+      userId,
+      amount,
+      category,
+      reference,
+      description,
+      newBalance,
+      idempotencyKey,
+      relatedOrderReference,
+      cleanEmail
+    ).catch(() => {});
+
     return tx;
   }
 
   async initiateFunding(userId: string, amount: number, customerEmail: string, idempotencyKey: string) {
     if (customerEmail) {
       this.userEmails.set(userId, customerEmail.toLowerCase().trim());
+      this.emailToUserMap.set(customerEmail.toLowerCase().trim(), userId);
       this.savePersistedStore();
     }
     const reference = `ref_oj_${Math.floor(1000000 + Math.random() * 9000000)}`;
@@ -394,6 +686,38 @@ export class WalletService {
       reference,
       metadata: { idempotencyKey }
     });
+
+    // Track initiated payment in Supabase payments table
+    if (!this.isTestRuntime()) {
+      try {
+        let profileId: string | null = null;
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+          profileId = userId;
+        } else if (customerEmail) {
+          const { data: p } = await supabaseAdmin
+            .from('profiles')
+            .select('id')
+            .eq('email', customerEmail.toLowerCase().trim())
+            .maybeSingle();
+          if (p?.id) profileId = p.id;
+        }
+
+        if (profileId) {
+          await supabaseAdmin.from('payments').insert({
+            reference,
+            user_id: profileId,
+            gateway: 'bach',
+            gateway_reference: gatewayRes.gatewayReference,
+            amount,
+            currency: 'NGN',
+            status: 'pending',
+            created_at: new Date().toISOString()
+          });
+        }
+      } catch (err: any) {
+        console.warn(`[WALLET_INITIATE] Payment record notice: ${err.message}`);
+      }
+    }
 
     return {
       reference,
@@ -409,7 +733,7 @@ export class WalletService {
   async verifyAndCredit(userId: string, paymentReference: string, gatewayReference: string) {
     const userLedger = this.ledgerRecords.get(userId) || [];
     const existingTx = userLedger.find(
-      t => t.reference === paymentReference && t.type === 'credit'
+      t => (paymentReference && t.reference === paymentReference && t.type === 'credit')
     );
     if (existingTx) {
       return {
@@ -438,6 +762,77 @@ export class WalletService {
       creditedAmount: verified.amountNgn,
       newBalance: tx.balanceAfterNgn,
       transaction: tx
+    };
+  }
+
+  /**
+   * Autonomous Gateway Reconciliation:
+   * Polls Bachs API for completed / succeeded transactions and reconciles any missing wallet credits.
+   */
+  async reconcileWithBachsGateway(): Promise<{ reconciledCount: number; processedReferences: string[] }> {
+    if (this.isTestRuntime()) {
+      return { reconciledCount: 0, processedReferences: [] };
+    }
+
+    const processedReferences: string[] = [];
+    try {
+      const apiKey = process.env.BACHS_API_KEY;
+      const baseUrl = (process.env.BACHS_BASE_URL || 'https://api.bachs.io/v1').replace(/\/+$/, '');
+
+      if (!apiKey || apiKey.length < 5) {
+        return { reconciledCount: 0, processedReferences: [] };
+      }
+
+      const res = await fetch(`${baseUrl}/payments?limit=50`, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!res.ok) {
+        console.warn(`[BACHS_RECONCILIATION] Gateway returned HTTP ${res.status}`);
+        return { reconciledCount: 0, processedReferences: [] };
+      }
+
+      const data = await res.json() as any;
+      const items = Array.isArray(data?.items) ? data.items : [];
+
+      for (const item of items) {
+        if (item.status === 'succeeded') {
+          const ref = item.reference || item.source?.reference;
+          const email = (item.customer_email || '').toLowerCase().trim();
+          const userId = item.meta?.user_id || this.emailToUserMap.get(email) || email;
+          const amount = Number(item.settlement_amount || item.amount || 0);
+
+          if (!ref || amount <= 0) continue;
+
+          // Check if reference already exists in ledger
+          const allTxs = this.getAllTransactions();
+          const alreadyCredited = allTxs.some(t => t.reference === ref && t.type === 'credit');
+
+          if (!alreadyCredited) {
+            console.log(`[BACHS_RECONCILIATION] 🔄 Auto-crediting confirmed Bachs deposit: ${ref} (₦${amount}) for ${email}`);
+            this.creditWallet(
+              userId,
+              amount,
+              'deposit',
+              ref,
+              `Bachs Gateway Verified Deposit (${ref})`,
+              item.meta?.idempotencyKey,
+              email
+            );
+            processedReferences.push(ref);
+          }
+        }
+      }
+    } catch (err: any) {
+      console.warn(`[BACHS_RECONCILIATION] Exception: ${err.message}`);
+    }
+
+    return {
+      reconciledCount: processedReferences.length,
+      processedReferences
     };
   }
 }

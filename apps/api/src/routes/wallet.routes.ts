@@ -79,5 +79,24 @@ router.post('/verify-fund', moneyLimiter, validateBody(VerifyFundSchema), async 
   }
 });
 
+router.post('/reconcile', async (req, res, next) => {
+  try {
+    await walletService.reconcileWithBachsGateway().catch(() => {});
+    const balance = walletService.getBalance(req.user!.id, req.user?.email);
+    const ledger = walletService.getLedger(req.user!.id, undefined, req.user?.email);
+    res.json({
+      success: true,
+      data: {
+        balanceNgn: balance,
+        currency: 'NGN',
+        transactions: ledger
+      },
+      meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export const walletRouter = router;
 

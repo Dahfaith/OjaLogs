@@ -151,6 +151,12 @@ class ApiClient {
     });
   }
 
+  async reconcileWallet() {
+    return this.request('/wallet/reconcile', {
+      method: 'POST'
+    });
+  }
+
   // Orders
   async checkout(
     items: Array<{

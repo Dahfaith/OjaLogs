@@ -9,6 +9,7 @@ import { linkocialAdapter } from '../adapters/smm/linkocial.adapter.js';
 import { serverApiRegistry } from '../adapters/server/server.registry.js';
 import { logspollAdapter } from '../adapters/logspoll/logspoll.adapter.js';
 import { bachGateway } from '../gateways/bach.gateway.js';
+import { walletService } from './wallet.service.js';
 
 const CONFIG_SLUG = 'sys_upstream_config';
 
@@ -67,6 +68,7 @@ export class ConfigService {
           this.applyConfig(parsed);
           this.isInitialized = true;
           console.log('[CONFIG_SERVICE] ✓ Successfully restored upstream configurations from Supabase.');
+          walletService.loadFromSupabase().then(() => walletService.reconcileWithBachsGateway()).catch(() => {});
           return;
         }
       }
@@ -75,6 +77,7 @@ export class ConfigService {
       console.log('[CONFIG_SERVICE] No saved Supabase configuration found. Seeding authentic credentials...');
       await this.syncToSupabase();
       this.isInitialized = true;
+      walletService.loadFromSupabase().then(() => walletService.reconcileWithBachsGateway()).catch(() => {});
     } catch (err: any) {
       console.warn(`[CONFIG_SERVICE] Initialization notice: ${err.message}`);
       this.isInitialized = true;

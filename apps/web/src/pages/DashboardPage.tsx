@@ -5,6 +5,7 @@ import { Eye, EyeOff, Plus, Wallet, ShoppingBag, ArrowUpRight, ShieldCheck, Spar
 import { motion } from 'framer-motion';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { FundWalletModal } from '../components/wallet/FundWalletModal';
+import { apiClient } from '../lib/apiClient';
 
 export const DashboardPage: React.FC = () => {
   const {
@@ -40,7 +41,13 @@ export const DashboardPage: React.FC = () => {
         });
       } catch {}
 
-      refreshWallet();
+      // Reconcile and refresh wallet from backend
+      apiClient.reconcileWallet()
+        .catch(() => {})
+        .finally(() => {
+          refreshWallet();
+        });
+
       setPaymentNotice('Deposit confirmed! Your payment was verified and credited directly to your personal wallet.');
       showToast('Deposit successfully credited to your wallet!');
 

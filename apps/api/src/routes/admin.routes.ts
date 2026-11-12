@@ -193,7 +193,8 @@ router.get('/balances', async (req, res, next) => {
 // ==========================================
 // Platform-Wide Global Ledger & Deposits API
 // ==========================================
-router.get('/ledger', (req, res) => {
+router.get('/ledger', async (req, res) => {
+  await walletService.reconcileWithBachsGateway().catch(() => {});
   const categoryFilter = req.query.category as string | undefined;
   const transactions = walletService.getAllTransactions(categoryFilter);
   const stats = walletService.getGlobalStats();
@@ -209,7 +210,8 @@ router.get('/ledger', (req, res) => {
   });
 });
 
-router.get('/deposits', (req, res) => {
+router.get('/deposits', async (req, res) => {
+  await walletService.reconcileWithBachsGateway().catch(() => {});
   const deposits = walletService.getAllDeposits();
   const stats = walletService.getGlobalStats();
 
