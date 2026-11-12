@@ -33,15 +33,21 @@ class ApiClient {
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const url = `${API_BASE}${path}`;
     
-    // Check if authenticated as administrator
+    // Check if authenticated user identity is stored
     let adminEmail = '';
+    let userEmail = '';
+    let userId = '';
     try {
       const storedUser = localStorage.getItem('oj_user');
       if (storedUser) {
         const parsed = JSON.parse(storedUser);
-        const emailLower = (parsed.email || '').toLowerCase();
-        if (emailLower === 'visioreach@gmail.com' || emailLower === 'ojalogs@gmail.com' || emailLower === 'dahfaith@gmail.com' || emailLower === 'admin@ojalogs.com') {
-          adminEmail = emailLower;
+        const emailLower = (parsed.email || '').toLowerCase().trim();
+        if (emailLower) {
+          userEmail = emailLower;
+          userId = parsed.id || '';
+          if (emailLower === 'visioreach@gmail.com' || emailLower === 'ojalogs@gmail.com' || emailLower === 'dahfaith@gmail.com' || emailLower === 'admin@ojalogs.com') {
+            adminEmail = emailLower;
+          }
         }
       }
     } catch {}
@@ -55,6 +61,8 @@ class ApiClient {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${tokenToSend}`,
       ...(adminEmail ? { 'x-admin-email': adminEmail } : {}),
+      ...(userEmail ? { 'x-user-email': userEmail } : {}),
+      ...(userId ? { 'x-user-id': userId } : {}),
       ...(options.headers as Record<string, string> || {})
     };
 

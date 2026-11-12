@@ -206,6 +206,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (u.email) {
             apiClient.notifySignupAlert(u.email, formattedName).catch(() => {});
           }
+          // Immediately refresh wallet upon restoring session
+          setTimeout(() => {
+            refreshWallet();
+          }, 50);
+        } else {
+          // Refresh wallet for existing user with active session
+          setTimeout(() => {
+            refreshWallet();
+          }, 50);
         }
       }
     }).catch(err => {
@@ -246,6 +255,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           apiClient.notifySignupAlert(u.email, formattedName).catch(() => {});
         }
         showToast(`Authenticated as ${userObj.email}!`);
+        // Refresh wallet with new credentials
+        setTimeout(() => {
+          refreshWallet();
+        }, 50);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setWallet(initialGuestWallet);
@@ -418,13 +431,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     try {
       const [balRes, ledgerRes] = await Promise.all([
-        apiClient.getWalletBalance(),
-        apiClient.getLedger()
+        apiClient.getWalletBalance().catch(() => null),
+        apiClient.getLedger().catch(() => null)
       ]);
-      if (balRes) {
-        setWallet(prev => ({ ...prev, balanceNgn: balRes.balanceNgn }));
+
+      let finalBalance = (balRes && typeof balRes.balanceNgn === 'number') ? balRes.balanceNgn : 0;
+
+      // Direct Supabase fallback if API returned 0 or was unreachable
+      if (finalBalance === 0 && user?.id) {
+        try {
+          const { data: sbWallet } = await supabase
+            .from('wallets')
+            .select('balance')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          if (sbWallet && typeof sbWallet.balance === 'number' && sbWallet.balance > 0) {
+            finalBalance = Number(sbWallet.balance);
+          }
+        } catch (sbErr) {
+          console.warn('[WALLET_SB_FALLBACK] Direct check notice:', sbErr);
+        }
       }
-      if (ledgerRes && ledgerRes.transactions.length > 0) {
+
+      setWallet(prev => ({ ...prev, balanceNgn: finalBalance }));
+
+      if (ledgerRes && ledgerRes.transactions && ledgerRes.transactions.length > 0) {
         setLedger(ledgerRes.transactions);
       }
     } catch {

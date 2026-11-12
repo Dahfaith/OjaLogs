@@ -260,6 +260,37 @@ export class WalletService {
     return 0;
   }
 
+  async getBalanceAsync(userId: string, email?: string): Promise<number> {
+    if (!this.isSupabaseLoaded) {
+      await this.loadFromSupabase().catch(() => {});
+    }
+
+    const currentBal = this.getBalance(userId, email);
+    if (currentBal > 0) return currentBal;
+
+    // Direct live query to Supabase if in-memory returned 0
+    try {
+      const cleanEmail = email?.toLowerCase().trim();
+      let query = supabaseAdmin.from('wallets').select('balance, user_id');
+      if (cleanEmail) {
+        const mappedId = this.emailToUserMap.get(cleanEmail) || userId;
+        query = query.or(`user_id.eq.${mappedId},user_id.eq.${userId}`);
+      } else {
+        query = query.eq('user_id', userId);
+      }
+
+      const { data, error } = await query.maybeSingle();
+      if (!error && data && typeof data.balance === 'number') {
+        const bal = Number(data.balance);
+        this.balances.set(userId, bal);
+        if (cleanEmail) this.balances.set(cleanEmail, bal);
+        return bal;
+      }
+    } catch {}
+
+    return currentBal;
+  }
+
   getLedger(userId: string, categoryFilter?: string, email?: string): LedgerTransaction[] {
     const key = this.resolveAccountKey(userId, email);
     let list = this.ledgerRecords.get(key);
@@ -272,6 +303,47 @@ export class WalletService {
     const safeList = list || [];
     if (!categoryFilter || categoryFilter === 'all') return safeList;
     return safeList.filter(t => t.category === categoryFilter);
+  }
+
+  async getLedgerAsync(userId: string, categoryFilter?: string, email?: string): Promise<LedgerTransaction[]> {
+    if (!this.isSupabaseLoaded) {
+      await this.loadFromSupabase().catch(() => {});
+    }
+    const inMem = this.getLedger(userId, categoryFilter, email);
+    if (inMem && inMem.length > 0) return inMem;
+
+    // Direct live query to Supabase if in-memory empty
+    try {
+      const cleanEmail = email?.toLowerCase().trim();
+      const mappedId = cleanEmail ? (this.emailToUserMap.get(cleanEmail) || userId) : userId;
+      const { data: entries } = await supabaseAdmin
+        .from('wallet_ledger')
+        .select('*')
+        .or(`user_id.eq.${mappedId},user_id.eq.${userId}`)
+        .order('created_at', { ascending: false });
+
+      if (Array.isArray(entries) && entries.length > 0) {
+        const mapped: LedgerTransaction[] = entries.map(entry => ({
+          id: entry.id,
+          reference: entry.reference,
+          type: entry.type as 'credit' | 'debit',
+          category: entry.category as LedgerCategory,
+          amountNgn: Number(entry.amount || 0),
+          balanceAfterNgn: Number(entry.balance_after || 0),
+          description: entry.description,
+          status: 'successful',
+          timestamp: entry.created_at || new Date().toISOString(),
+          idempotencyKey: entry.idempotency_key,
+          relatedOrderReference: entry.related_order_reference
+        }));
+        this.ledgerRecords.set(userId, mapped);
+        if (cleanEmail) this.ledgerRecords.set(cleanEmail, mapped);
+        if (!categoryFilter || categoryFilter === 'all') return mapped;
+        return mapped.filter(t => t.category === categoryFilter);
+      }
+    } catch {}
+
+    return inMem;
   }
 
   /**

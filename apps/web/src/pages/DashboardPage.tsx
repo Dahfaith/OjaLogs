@@ -27,6 +27,11 @@ export const DashboardPage: React.FC = () => {
   const [isFundModalOpen, setIsFundModalOpen] = useState(false);
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
 
+  // Proactively refresh live wallet on dashboard mount
+  useEffect(() => {
+    refreshWallet();
+  }, [refreshWallet]);
+
   // Handle Return from Payment Gateway (e.g. ?payment=success&checkout_id=...)
   useEffect(() => {
     const payment = searchParams.get('payment');

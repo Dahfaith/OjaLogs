@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   Wallet,
@@ -20,15 +20,23 @@ import { FundWalletModal } from '../components/wallet/FundWalletModal';
 import { StatementModal } from '../components/wallet/StatementModal';
 
 export const WalletPage: React.FC = () => {
-  const { user, isAuthLoading, wallet, ledger, hideBalance, toggleHideBalance, formatPrice, currency, setIsAuthModalOpen } = useApp();
+  const { user, isAuthLoading, wallet, ledger, hideBalance, toggleHideBalance, formatPrice, currency, setIsAuthModalOpen, refreshWallet } = useApp();
   const [isFundOpen, setIsFundOpen] = useState(false);
   const [isStatementOpen, setIsStatementOpen] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'deposit' | 'order_payment' | 'refund'>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const handleRefresh = () => {
+  useEffect(() => {
+    refreshWallet();
+  }, [refreshWallet]);
+
+  const handleRefresh = async () => {
     setIsRefreshing(true);
-    setTimeout(() => setIsRefreshing(false), 500);
+    try {
+      await refreshWallet();
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const filteredLedger = ledger.filter(tx => {

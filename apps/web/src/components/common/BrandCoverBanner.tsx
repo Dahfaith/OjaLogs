@@ -308,3 +308,4 @@ export const BrandCoverBanner: React.FC<BrandCoverBannerProps> = ({
     </div>
   );
 };
+

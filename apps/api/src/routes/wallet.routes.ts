@@ -10,23 +10,31 @@ import { z } from 'zod';
 const router = Router();
 router.use(authMiddleware);
 
-router.get('/balance', (req, res) => {
-  const balance = walletService.getBalance(req.user!.id, req.user?.email);
-  res.json({
-    success: true,
-    data: { balanceNgn: balance, currency: 'NGN' },
-    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
-  });
+router.get('/balance', async (req, res, next) => {
+  try {
+    const balance = await walletService.getBalanceAsync(req.user!.id, req.user?.email);
+    res.json({
+      success: true,
+      data: { balanceNgn: balance, currency: 'NGN' },
+      meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.get('/ledger', (req, res) => {
-  const filter = req.query.category as string | undefined;
-  const ledger = walletService.getLedger(req.user!.id, filter, req.user?.email);
-  res.json({
-    success: true,
-    data: { transactions: ledger, count: ledger.length },
-    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
-  });
+router.get('/ledger', async (req, res, next) => {
+  try {
+    const filter = req.query.category as string | undefined;
+    const ledger = await walletService.getLedgerAsync(req.user!.id, filter, req.user?.email);
+    res.json({
+      success: true,
+      data: { transactions: ledger, count: ledger.length },
+      meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.post(
