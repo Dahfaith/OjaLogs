@@ -298,6 +298,22 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenCart }) => {
                         </>
                       ) : (
                         <>
+                          {(user?.role === 'administrator' ||
+                            (user as any)?.role === 'super_administrator' ||
+                            role === 'admin' ||
+                            (user?.email &&
+                              ['visioreach@gmail.com', 'ojalogs@gmail.com', 'dahfaith@gmail.com', 'iamdahfaith@gmail.com', 'admin@ojalogs.com'].includes(
+                                user.email.toLowerCase().trim()
+                              ))) && (
+                            <Link
+                              to="/admin"
+                              onClick={() => setShowUserDropdown(false)}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50/70 dark:bg-emerald-950/40 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/50 mb-1 border border-emerald-500/20"
+                            >
+                              <Shield className="w-4 h-4 text-emerald-500" />
+                              <span>⚡ Super Admin Console</span>
+                            </Link>
+                          )}
                           <Link
                             to="/profile"
                             onClick={() => setShowUserDropdown(false)}

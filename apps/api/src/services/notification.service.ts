@@ -3,8 +3,10 @@ import path from 'node:path';
 import { AdminNotification, AdminManagedUser, UserRole } from '@ojalogs/shared';
 import { env } from '../config/env.js';
 import { walletService } from './wallet.service.js';
+import { supabaseAdmin } from '../config/supabase.js';
 
 const PLATFORM_URL = process.env.PUBLIC_APP_URL || 'https://ojalogs.com.ng';
+const NOTIF_SLUG = '_system_admin_notifications_master';
 const DATA_DIR = fs.existsSync(path.join(process.cwd(), 'apps', 'api', 'data'))
   ? path.join(process.cwd(), 'apps', 'api', 'data')
   : fs.existsSync(path.join(process.cwd(), 'data'))
@@ -45,6 +47,67 @@ class NotificationService {
   constructor() {
     this.loadAlertedSignups();
     this.loadNotifications();
+    this.loadFromSupabase().catch(() => {});
+  }
+
+  async loadFromSupabase(): Promise<void> {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('site_pages')
+        .select('content')
+        .eq('slug', NOTIF_SLUG)
+        .maybeSingle();
+
+      if (!error && data?.content) {
+        const parsed = JSON.parse(data.content);
+        if (Array.isArray(parsed.notifications) && parsed.notifications.length > 0) {
+          this.notifications = parsed.notifications;
+        }
+        if (Array.isArray(parsed.alertedSignups)) {
+          this.alertedSignups = new Set(parsed.alertedSignups.map((e: any) => String(e).toLowerCase().trim()));
+        }
+      }
+    } catch (err: any) {
+      console.warn(`[NOTIF_SUPABASE] Notice loading from Supabase: ${err.message}`);
+    }
+  }
+
+  async syncToSupabase(): Promise<void> {
+    try {
+      const payload = JSON.stringify({
+        notifications: this.notifications,
+        alertedSignups: Array.from(this.alertedSignups)
+      });
+      const { data: existing } = await supabaseAdmin
+        .from('site_pages')
+        .select('id')
+        .eq('slug', NOTIF_SLUG)
+        .maybeSingle();
+
+      if (existing) {
+        await supabaseAdmin
+          .from('site_pages')
+          .update({
+            content: payload,
+            updated_at: new Date().toISOString()
+          })
+          .eq('slug', NOTIF_SLUG);
+      } else {
+        await supabaseAdmin
+          .from('site_pages')
+          .insert({
+            slug: NOTIF_SLUG,
+            title: 'Admin Notifications Master Store',
+            content: payload,
+            summary: 'Persistent notifications and read statuses for Super Admin console',
+            is_published: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+      }
+    } catch (err: any) {
+      console.warn(`[NOTIF_SUPABASE] Notice syncing to Supabase: ${err.message}`);
+    }
   }
 
   private loadNotifications() {
@@ -111,6 +174,7 @@ class NotificationService {
   markAllAsRead(): AdminNotification[] {
     this.notifications = this.notifications.map(n => ({ ...n, read: true }));
     this.saveNotifications();
+    this.syncToSupabase().catch(() => {});
     return this.notifications;
   }
 
@@ -118,12 +182,14 @@ class NotificationService {
     const prevLen = this.notifications.length;
     this.notifications = this.notifications.filter(n => n.id !== id);
     this.saveNotifications();
+    this.syncToSupabase().catch(() => {});
     return this.notifications.length < prevLen;
   }
 
   clearNotifications(): boolean {
     this.notifications = [];
     this.saveNotifications();
+    this.syncToSupabase().catch(() => {});
     return true;
   }
 

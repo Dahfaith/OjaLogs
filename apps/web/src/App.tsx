@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { TopBar } from './components/shell/TopBar';
 import { BottomTabBar } from './components/shell/BottomTabBar';
@@ -26,6 +26,24 @@ export const App: React.FC = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin');
+
+  // Suppress 3rd party chat widgets on Admin routes
+  useEffect(() => {
+    try {
+      const tawk = (window as any).Tawk_API;
+      if (isAdminRoute) {
+        if (typeof tawk?.hideWidget === 'function') {
+          tawk.hideWidget();
+        }
+        document.body.classList.add('admin-mode-active');
+      } else {
+        if (typeof tawk?.showWidget === 'function') {
+          tawk.showWidget();
+        }
+        document.body.classList.remove('admin-mode-active');
+      }
+    } catch {}
+  }, [isAdminRoute]);
 
   return (
     <div className="min-h-screen bg-oj-bg dark:bg-oj-dark-bg text-oj-midnight dark:text-oj-dark-text flex flex-col font-sans transition-colors duration-200">

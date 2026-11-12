@@ -219,7 +219,7 @@ export class CatalogService {
               verifiedResale: true,
               coverImage: resolveProductImage(u.title, u.category),
               summary: 'Verified authentic digital account/tool backed by Ojalogs automated fulfillment.',
-              descriptionHtml: `<p>${(u.description || u.title).replace(/LogsPoll/gi, 'Ojalogs').replace(/logspoll\.com/gi, 'ojalogs.com.ng')}</p><p>Guaranteed authentic delivery via Ojalogs automated infrastructure. 100% replacement guarantee if credentials fail first-time verification.</p>`,
+              descriptionHtml: `<p>${(u.description || u.title).replace(/<\/?(p|div|br)\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').replace(/LogsPoll/gi, 'Ojalogs').replace(/logspoll\.com/gi, 'ojalogs.com.ng').trim()}</p><p>Guaranteed authentic delivery via Ojalogs automated infrastructure. 100% replacement guarantee if credentials fail first-time verification.</p>`,
               specifications: {
                 title: u.title,
                 category: u.category || 'Social Media Accounts',
@@ -324,7 +324,7 @@ export class CatalogService {
               verifiedResale: true,
               coverImage: resolveProductImage(u.title, u.category),
               summary: 'Verified authentic digital account/tool backed by Ojalogs automated fulfillment.',
-              descriptionHtml: `<p>${(u.description || u.title).replace(/LogsPoll/gi, 'Ojalogs').replace(/logspoll\.com/gi, 'ojalogs.com.ng')}</p><p>Guaranteed authentic delivery via Ojalogs automated infrastructure. 100% replacement guarantee if credentials fail first-time verification.</p>`,
+              descriptionHtml: `<p>${(u.description || u.title).replace(/<\/?(p|div|br)\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').replace(/LogsPoll/gi, 'Ojalogs').replace(/logspoll\.com/gi, 'ojalogs.com.ng').trim()}</p><p>Guaranteed authentic delivery via Ojalogs automated infrastructure. 100% replacement guarantee if credentials fail first-time verification.</p>`,
               specifications: {
                 title: u.title,
                 category: u.category || 'Social Media Accounts',
@@ -462,7 +462,7 @@ export class CatalogService {
           verifiedResale: true,
           coverImage: resolveProductImage(u.title, u.category),
           summary: 'Verified authentic digital account/tool backed by Ojalogs automated fulfillment.',
-          descriptionHtml: `<p>${(u.description || u.title).replace(/LogsPoll/gi, 'Ojalogs').replace(/logspoll\.com/gi, 'ojalogs.com.ng')}</p><p>Guaranteed authentic delivery via Ojalogs automated infrastructure. 100% replacement guarantee if credentials fail first-time verification.</p>`,
+          descriptionHtml: `<p>${(u.description || u.title).replace(/<\/?(p|div|br)\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').replace(/LogsPoll/gi, 'Ojalogs').replace(/logspoll\.com/gi, 'ojalogs.com.ng').trim()}</p><p>Guaranteed authentic delivery via Ojalogs automated infrastructure. 100% replacement guarantee if credentials fail first-time verification.</p>`,
           specifications: {
             title: u.title,
             category: u.category || 'Social Media Accounts',

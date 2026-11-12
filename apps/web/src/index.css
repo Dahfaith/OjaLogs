@@ -66,3 +66,15 @@
   border-radius: 50%;
 }
 
+/* Suppress 3rd party chat widgets on Admin route */
+body.admin-mode-active #tawk-bubble-container,
+body.admin-mode-active div[class*="widget-visible"],
+body.admin-mode-active iframe[title*="chat" i],
+body.admin-mode-active div[id*="tawk" i],
+body.admin-mode-active div[class*="tawk" i] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+

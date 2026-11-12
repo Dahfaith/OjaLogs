@@ -40,6 +40,21 @@ export const SocialBoostPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'order' | 'history'>('order');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDropdownOpen]);
 
   const platforms: { id: string; label: string; icon: string }[] = [
     { id: 'all', label: 'All Services', icon: '🌐' },
@@ -360,7 +375,7 @@ export const SocialBoostPage: React.FC = () => {
               </div>
 
               {/* Custom Searchable Service Selector */}
-              <div className="relative">
+              <div className="relative z-30" ref={dropdownRef}>
                 <label className="block text-xs font-bold text-oj-midnight dark:text-white mb-1.5">
                   Select Service *
                 </label>
@@ -404,7 +419,7 @@ export const SocialBoostPage: React.FC = () => {
                       initial={{ opacity: 0, y: -6 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -6 }}
-                      className="absolute left-0 right-0 top-full mt-2 z-40 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-2xl overflow-hidden max-h-80 flex flex-col"
+                      className="absolute left-0 right-0 top-full mt-2 z-50 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-2xl overflow-hidden max-h-80 flex flex-col w-full"
                     >
                       {/* Search Bar Input */}
                       <div className="p-3 border-b border-oj-border dark:border-oj-dark-border bg-oj-surface-alt/40 dark:bg-oj-dark-surface-alt/40 flex items-center gap-2">

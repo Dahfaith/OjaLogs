@@ -275,22 +275,42 @@ export const ProductDetailPage: React.FC = () => {
         <div className="p-5">
           {activeTab === 'overview' ? (
             <div className="prose dark:prose-invert max-w-none text-xs sm:text-sm text-oj-midnight dark:text-slate-200 leading-relaxed space-y-3">
-              {(product.descriptionHtml || product.summary || '')
-                .replace(/<p>/gi, '')
-                .replace(/<\/p>/gi, '\n\n')
-                .replace(/<div>/gi, '')
-                .replace(/<\/div>/gi, '\n')
-                .replace(/<br\s*\/?>/gi, '\n')
-                .replace(/LogsPoll/gi, 'Ojalogs')
-                .replace(/logspoll\.com/gi, 'ojalogs.com.ng')
-                .split('\n\n')
-                .map(p => p.trim())
-                .filter(Boolean)
-                .map((para, idx) => (
-                  <p key={idx} className="leading-relaxed">
+              {(() => {
+                const raw = product.descriptionHtml || product.summary || '';
+                const cleaned = raw
+                  .replace(/<\/(p|div|li|h[1-6])>/gi, '\n\n')
+                  .replace(/<br\s*\/?>/gi, '\n')
+                  .replace(/<[^>]+>/g, '')
+                  .replace(/&amp;/g, '&')
+                  .replace(/&lt;/g, '<')
+                  .replace(/&gt;/g, '>')
+                  .replace(/&quot;/g, '"')
+                  .replace(/&#39;/g, "'")
+                  .replace(/&nbsp;/g, ' ')
+                  .replace(/LogsPoll/gi, 'Ojalogs')
+                  .replace(/logspoll\.com/gi, 'ojalogs.com.ng')
+                  .replace(/TextPlug/gi, 'Ojalogs Telecom')
+                  .replace(/Linkocial/gi, 'Ojalogs SMM Engine');
+
+                const paragraphs = cleaned
+                  .split(/\n\s*\n/)
+                  .map(p => p.trim())
+                  .filter(Boolean);
+
+                if (paragraphs.length === 0) {
+                  return (
+                    <p className="leading-relaxed">
+                      Verified authentic digital product delivered via Ojalogs instant automated infrastructure.
+                    </p>
+                  );
+                }
+
+                return paragraphs.map((para, idx) => (
+                  <p key={idx} className="leading-relaxed whitespace-pre-line">
                     {para}
                   </p>
-                ))}
+                ));
+              })()}
               <div className="p-3 rounded-xl bg-oj-surface-alt dark:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border text-xs">
                 <span className="font-bold block mb-1">Key Feature Highlights:</span>
                 <ul className="list-disc list-inside space-y-1 text-oj-muted dark:text-oj-dark-muted">

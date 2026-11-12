@@ -213,13 +213,13 @@ export const LandingPage: React.FC = () => {
               <span className="px-1.5 py-0.5 rounded bg-white/25 text-[10px] font-black tracking-wider uppercase">NEW</span>
             </Link>
 
-            {user ? (
+            {user || localStorage.getItem('oj_user') ? (
               <Link
                 to="/dashboard"
-                className="w-full sm:w-auto px-6 py-3.5 rounded-btn bg-white dark:bg-oj-dark-surface border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-all flex items-center justify-center gap-2 shadow-sm"
+                className="w-full sm:w-auto px-6 py-3.5 rounded-btn bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-teal-600 hover:to-emerald-600 text-white text-xs font-bold shadow-md flex items-center justify-center gap-2 transition-all hover:scale-105"
               >
-                <Wallet className="w-4 h-4 text-emerald-500" />
-                <span>Go to Dashboard / Wallet</span>
+                <Wallet className="w-4 h-4 text-white" />
+                <span>Go to Dashboard & Wallet</span>
               </Link>
             ) : (
               <button
@@ -227,7 +227,7 @@ export const LandingPage: React.FC = () => {
                 className="w-full sm:w-auto px-6 py-3.5 rounded-btn bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border text-oj-midnight dark:text-white text-xs font-bold hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt transition-colors flex items-center justify-center gap-2"
               >
                 <Mail className="w-4 h-4 text-oj-primary" />
-                <span>Sign In / Open Wallet</span>
+                <span>Sign In / Register</span>
               </button>
             )}
           </motion.div>

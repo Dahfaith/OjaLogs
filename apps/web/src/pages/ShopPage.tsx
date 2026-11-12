@@ -82,9 +82,9 @@ export const ShopPage: React.FC = () => {
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
-    total: 4748,
-    totalPages: 238,
-    inStock: 4748,
+    total: 4797,
+    totalPages: 240,
+    inStock: 4797,
     outOfStock: 0
   });
   const [isLoading, setIsLoading] = useState(false);
