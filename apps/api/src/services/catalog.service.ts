@@ -6,38 +6,62 @@ import { logspollAdapter } from '../adapters/logspoll/logspoll.adapter.js';
 
 function resolveProductImage(title: string, category: string = ''): string {
   const t = (title + ' ' + category).toLowerCase();
-  if (t.includes('telegram')) {
+  if (t.includes('telegram') || t.includes('tg ') || t.startsWith('tg') || t.includes(' tg')) {
     return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80';
   }
-  if (t.includes('facebook') || t.includes('bm50') || t.includes('business manager') || t.includes('meta')) {
+  if (t.includes('facebook') || t.includes('bm50') || t.includes('business manager') || t.includes('meta') || t.includes('fb ')) {
     return 'https://images.unsplash.com/photo-1611162618071-b39a2ec055fb?auto=format&fit=crop&w=600&q=80';
   }
-  if (t.includes('instagram') || t.includes('ig ')) {
+  if (t.includes('instagram') || t.includes('ig ') || t.includes('aged creator')) {
     return 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=600&q=80';
   }
   if (t.includes('tiktok')) {
     return 'https://images.unsplash.com/photo-1611605698323-b1e99cfd37ea?auto=format&fit=crop&w=600&q=80';
   }
-  if (t.includes('twitter') || t.includes(' x ') || t.startsWith('x ') || t.includes('aged x')) {
+  if (t.includes('twitter') || t.includes(' x ') || t.startsWith('x ') || t.includes('aged x') || t.includes('x.com')) {
     return 'https://images.unsplash.com/photo-1611605698335-8b1569810432?auto=format&fit=crop&w=600&q=80';
   }
-  if (t.includes('gmail') || t.includes('google') || t.includes('email')) {
+  if (t.includes('youtube')) {
+    return 'https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?auto=format&fit=crop&w=600&q=80';
+  }
+  if (t.includes('spotify')) {
+    return 'https://images.unsplash.com/photo-1614680376593-902f749f7ffc?auto=format&fit=crop&w=600&q=80';
+  }
+  if (t.includes('netflix')) {
+    return 'https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?auto=format&fit=crop&w=600&q=80';
+  }
+  if (t.includes('linkedin')) {
+    return 'https://images.unsplash.com/photo-1611944212129-29977ae1398c?auto=format&fit=crop&w=600&q=80';
+  }
+  if (t.includes('snapchat')) {
+    return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80';
+  }
+  if (t.includes('gmail') || t.includes('google') || t.includes('email') || t.includes('workspace')) {
     return 'https://images.unsplash.com/photo-1596526131083-e8c633c948d2?auto=format&fit=crop&w=600&q=80';
   }
   if (t.includes('vpn') || t.includes('nord') || t.includes('surfshark') || t.includes('expressvpn')) {
     return 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=600&q=80';
   }
-  if (t.includes('proxy') || t.includes('proxies') || t.includes('residential')) {
+  if (t.includes('proxy') || t.includes('proxies') || t.includes('residential') || t.includes('rotating')) {
     return 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=600&q=80';
   }
-  if (t.includes('esim') || t.includes('sim') || t.includes('data')) {
+  if (t.includes('esim') || t.includes('sim') || t.includes('data') || t.includes('roaming')) {
     return 'https://images.unsplash.com/photo-1512499617640-c74ae3a79d37?auto=format&fit=crop&w=600&q=80';
   }
-  if (t.includes('chatgpt') || t.includes('claude') || t.includes('openai') || t.includes('ai tool') || t.includes('anthropic')) {
+  if (t.includes('chatgpt') || t.includes('claude') || t.includes('openai') || t.includes('ai tool') || t.includes('anthropic') || t.includes('midjourney')) {
     return 'https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&w=600&q=80';
+  }
+  if (t.includes('windows') || t.includes('office') || t.includes('microsoft') || t.includes('license key') || t.includes('os key')) {
+    return 'https://images.unsplash.com/photo-1629654297299-c8506221ca97?auto=format&fit=crop&w=600&q=80';
   }
   if (t.includes('card') || t.includes('visa') || t.includes('mastercard') || t.includes('vcc')) {
     return 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=600&q=80';
+  }
+  if (t.includes('binance') || t.includes('crypto') || t.includes('bybit') || t.includes('coinbase')) {
+    return 'https://images.unsplash.com/photo-1621416894569-0f39ed31d247?auto=format&fit=crop&w=600&q=80';
+  }
+  if (t.includes('canva') || t.includes('adobe') || t.includes('photoshop')) {
+    return 'https://images.unsplash.com/photo-1626785774573-4b799315345d?auto=format&fit=crop&w=600&q=80';
   }
   return 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=600&q=80';
 }

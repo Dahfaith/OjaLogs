@@ -28,4 +28,18 @@ services:
         sync: false
       - key: BACHS_BASE_URL
         value: https://api.bachs.io/v1
+      - key: TEXTPLUG_API_KEY
+        sync: false
+      - key: TEXTPLUG_BASE_URL
+        value: https://merchant.textplug.net
+      - key: TEXTPLUG_WEBHOOK_SECRET
+        sync: false
+      - key: LOGSPOLL_API_KEY
+        sync: false
+      - key: LOGSPOLL_BASE_URL
+        value: https://logspoll.com/api/v1
+      - key: LINKOCIAL_API_KEY
+        sync: false
+      - key: LINKOCIAL_BASE_URL
+        value: https://linkocial.com/api/v1
 

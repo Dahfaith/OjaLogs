@@ -16,6 +16,7 @@ import { validateBody } from '../middleware/validate.js';
 import { z } from 'zod';
 import { env } from '../config/env.js';
 import { bachGateway } from '../gateways/bach.gateway.js';
+import { configService } from '../services/config.service.js';
 import { PaymentGatewayConfig, TelephonyProviderConfig, AdminManagedUser, AdminNotification } from '@ojalogs/shared';
 
 const router = Router();
@@ -278,6 +279,7 @@ router.patch('/servers/:clusterName', validateBody(UpdateServerConfigSchema), (r
     const rawCluster = Array.isArray(req.params.clusterName) ? req.params.clusterName[0] : req.params.clusterName;
     const clusterName = decodeURIComponent(rawCluster);
     const updated = serverApiRegistry.updateConfig(clusterName, req.body);
+    configService.syncToSupabase().catch(() => {});
     res.json({
       success: true,
       data: updated,
@@ -340,6 +342,7 @@ router.patch('/gateways/:id', validateBody(UpdateGatewayConfigSchema), (req, res
 
   paymentGateways[idx] = { ...paymentGateways[idx], ...req.body };
   savePersistedGateways();
+  configService.syncToSupabase().catch(() => {});
 
   // If updating Bachs, sync live gateway runtime immediately
   if (rawId === 'bach') {
@@ -458,6 +461,7 @@ router.patch('/numbers/configs/:id', validateBody(UpdateTelephonyConfigSchema), 
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   try {
     const updated = telephonyRegistry.update(rawId, req.body);
+    configService.syncToSupabase().catch(() => {});
     res.json({
       success: true,
       data: updated,
@@ -646,6 +650,7 @@ const MarkupSchema = z.object({
 router.post('/smm/markup', validateBody(MarkupSchema), (req, res) => {
   const { markupPercent } = req.body;
   const result = smmService.setGlobalMarkup(markupPercent);
+  configService.syncToSupabase().catch(() => {});
   res.json({
     success: true,
     data: result,
@@ -697,6 +702,7 @@ const UpdateSmmConfigSchema = z.object({
 router.patch('/smm/config', validateBody(UpdateSmmConfigSchema), async (req, res, next) => {
   try {
     const updated = await smmService.updateProviderConfig(req.body);
+    configService.syncToSupabase().catch(() => {});
     res.json({
       success: true,
       data: updated,
