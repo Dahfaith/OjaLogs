@@ -14,6 +14,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { BrandCoverBanner } from '../components/common/BrandCoverBanner';
 
 export const OrdersPage: React.FC = () => {
   const { orders, revealSecret, showToast, formatPrice, currency, user, setIsAuthModalOpen } = useApp();
@@ -201,10 +202,12 @@ export const OrdersPage: React.FC = () => {
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <img
-                          src={item.product.coverImage}
-                          alt={item.product.title}
-                          className="w-12 h-12 rounded-lg object-cover border border-oj-border dark:border-oj-dark-border"
+                        <BrandCoverBanner
+                          product={item.product}
+                          title={item.product.title}
+                          category={item.product.category}
+                          className="w-12 h-12 rounded-lg shrink-0"
+                          showSubtitle={false}
                         />
                         <div>
                           <p className="text-xs font-bold text-oj-midnight dark:text-white">{item.product.title}</p>

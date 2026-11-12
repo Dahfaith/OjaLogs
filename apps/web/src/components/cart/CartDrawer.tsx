@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { X, Trash2, ShieldCheck, ArrowRight, Wallet, CreditCard, Sparkles, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { BrandCoverBanner } from '../common/BrandCoverBanner';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -124,10 +125,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                     key={item.product.id}
                     className="p-3 rounded-xl border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt/50 dark:bg-oj-dark-surface-alt/50 flex gap-3 items-center"
                   >
-                    <img
-                      src={item.product.coverImage}
-                      alt={item.product.title}
-                      className="w-16 h-16 rounded-lg object-cover border border-oj-border dark:border-oj-dark-border"
+                    <BrandCoverBanner
+                      product={item.product}
+                      title={item.product.title}
+                      category={item.product.category}
+                      className="w-14 h-14 rounded-lg shrink-0"
+                      showSubtitle={false}
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-oj-midnight dark:text-white truncate">

@@ -13,7 +13,8 @@ import {
   Minus,
   Check,
   Shield,
-  Layers
+  Layers,
+  CreditCard
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -44,6 +45,7 @@ const PLATFORM_PILLS = [
   { id: 'tiktok', label: 'TikTok', icon: () => <TikTokIcon className="w-3.5 h-3.5 shrink-0 text-black dark:text-white" /> },
   { id: 'gmail', label: 'Gmail', icon: () => <GmailIcon className="w-3.5 h-3.5 shrink-0" /> },
   { id: 'vpn', label: 'VPN & Security', icon: () => <Shield className="w-3.5 h-3.5 shrink-0 text-emerald-500" /> },
+  { id: 'cards', label: 'Mastercard & Cards', icon: () => <CreditCard className="w-3.5 h-3.5 shrink-0 text-amber-500" /> },
   { id: 'ai', label: 'AI Subscriptions', icon: () => <Zap className="w-3.5 h-3.5 shrink-0 text-amber-500" /> }
 ];
 
@@ -93,7 +95,7 @@ export const ShopPage: React.FC = () => {
     const cat = searchParams.get('category');
     if (cat) {
       const lower = cat.toLowerCase();
-      if (['instagram', 'facebook', 'twitter', 'tiktok', 'gmail', 'vpn'].includes(lower)) {
+      if (['instagram', 'facebook', 'twitter', 'tiktok', 'gmail', 'vpn', 'ai', 'cards'].includes(lower)) {
         setSelectedPlatform(lower);
       }
     }

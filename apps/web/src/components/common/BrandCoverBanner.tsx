@@ -16,6 +16,25 @@ export interface BrandConfig {
 }
 
 // Crisp inline SVGs for all major digital services
+const MastercardLogo = () => (
+  <svg viewBox="0 0 36 24" className="w-10 h-7" fill="none">
+    <circle cx="12" cy="12" r="10" fill="#EB001B" />
+    <circle cx="24" cy="12" r="10" fill="#F79E1B" fillOpacity="0.95" />
+    <path
+      d="M18 5.673a9.96 9.96 0 0 1 3.6 6.327 9.96 9.96 0 0 1-3.6 6.327 9.96 9.96 0 0 1-3.6-6.327c0-2.43 0.88-4.66 2.34-6.327h1.26z"
+      fill="#FF5F00"
+    />
+  </svg>
+);
+
+const VisaLogo = () => (
+  <svg viewBox="0 0 36 14" className="w-10 h-5" fill="none">
+    <text x="1" y="12" fill="#1A1F71" fontFamily="Impact, Arial Black, sans-serif" fontSize="13" fontStyle="italic" fontWeight="bold" letterSpacing="1.5">
+      VISA
+    </text>
+  </svg>
+);
+
 const GitHubLogo = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8 text-slate-900">
     <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
@@ -35,15 +54,23 @@ const ShieldVpnLogo = () => (
   </svg>
 );
 
+const ProxiesGlobeLogo = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 text-indigo-600">
+    <circle cx="12" cy="12" r="10" fill="currentColor" fillOpacity="0.1" />
+    <line x1="2" y1="12" x2="22" y2="12" />
+    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+  </svg>
+);
+
 const AiToolsLogo = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 text-teal-600">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 text-purple-600">
     <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
     <circle cx="12" cy="12" r="4" fill="currentColor" fillOpacity="0.15" />
   </svg>
 );
 
 const SimCardLogo = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 text-indigo-600">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 text-blue-600">
     <rect width="18" height="18" x="3" y="3" rx="2" fill="currentColor" fillOpacity="0.1" />
     <path d="M7 7h.01M7 11h.01M7 15h.01M11 7h2M11 11h2M11 15h2M17 7h.01M17 11h.01M17 15h.01" />
   </svg>
@@ -53,6 +80,7 @@ const CreditCardLogo = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 text-amber-600">
     <rect width="20" height="14" x="2" y="5" rx="2" fill="currentColor" fillOpacity="0.1" />
     <line x1="2" x2="22" y1="10" y2="10" />
+    <circle cx="7" cy="15" r="1.5" fill="currentColor" />
   </svg>
 );
 
@@ -74,6 +102,29 @@ const SpotifyLogo = () => (
   </svg>
 );
 
+const CryptoLogo = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 text-amber-500">
+    <circle cx="12" cy="12" r="9" fill="currentColor" fillOpacity="0.1" />
+    <path d="M9.5 8h4a2 2 0 0 1 0 4h-4" />
+    <path d="M9.5 12h4.5a2 2 0 0 1 0 4h-4.5" />
+    <line x1="12" y1="6" x2="12" y2="8" />
+    <line x1="12" y1="16" x2="12" y2="18" />
+  </svg>
+);
+
+const CanvaLogo = () => (
+  <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8">
+    <circle cx="12" cy="12" r="11" fill="url(#canva-grad)" />
+    <text x="7" y="16" fill="white" fontFamily="sans-serif" fontSize="13" fontWeight="bold" fontStyle="italic">C</text>
+    <defs>
+      <linearGradient id="canva-grad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#00c4cc" />
+        <stop offset="1" stopColor="#7d2ae8" />
+      </linearGradient>
+    </defs>
+  </svg>
+);
+
 const DefaultOjaLogo = () => (
   <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-slate-900 to-slate-700 flex items-center justify-center text-white font-black text-sm">
     <span className="text-amber-400">O</span>
@@ -83,8 +134,32 @@ const DefaultOjaLogo = () => (
 export function getBrandConfig(title: string = '', category: string = ''): BrandConfig {
   const t = (title + ' ' + category).toLowerCase();
 
-  // GitHub
-  if (t.includes('github') || t.includes('git ')) {
+  // 1. HIGH-PRIORITY: Mastercard, Visa, Prepaid Virtual Cards, Gift Cards
+  // Must be checked first so that words like "Instant Delivery" do NOT falsely trigger Instagram
+  if (
+    t.includes('mastercard') ||
+    t.includes('visa') ||
+    t.includes('prepaid') ||
+    t.includes('gift card') ||
+    t.includes('vcc') ||
+    t.includes('credit card') ||
+    t.includes('debit card') ||
+    t.includes('virtual card') ||
+    /\b(card|cards|amex|vanilla)\b/i.test(t)
+  ) {
+    const isMastercard = t.includes('mastercard');
+    const isVisa = t.includes('visa');
+    return {
+      key: 'cards',
+      platformName: isMastercard ? 'Mastercard' : isVisa ? 'Visa Card' : 'Prepaid Gift Card',
+      gradientClass: 'from-[#1a120b] via-[#2c1810] to-[#120a05]',
+      accentColor: '#f59e0b',
+      renderLogo: () => (isMastercard ? <MastercardLogo /> : isVisa ? <VisaLogo /> : <CreditCardLogo />)
+    };
+  }
+
+  // 2. GitHub
+  if (t.includes('github') || /\b(git)\b/i.test(t)) {
     return {
       key: 'github',
       platformName: 'GitHub',
@@ -94,118 +169,180 @@ export function getBrandConfig(title: string = '', category: string = ''): Brand
     };
   }
 
-  // X / Twitter
-  if (t.includes('twitter') || t.includes(' x ') || t.startsWith('x ') || t.includes('aged x') || t.includes('x.com') || t.includes('x (twitter)')) {
+  // 3. X / Twitter
+  if (
+    t.includes('twitter') ||
+    t.includes('aged x') ||
+    t.includes('x.com') ||
+    t.includes('x (twitter)') ||
+    t.includes('twitter account') ||
+    /\b(twitter|x account|twitter x)\b/i.test(t) ||
+    /^\s*x\s+/i.test(t)
+  ) {
     return {
       key: 'twitter',
       platformName: 'X / Twitter',
-      gradientClass: 'from-[#0b132b] via-[#1c2541] to-[#090d16]',
+      gradientClass: 'from-[#0b0f19] via-[#111827] to-[#030712]',
       accentColor: '#38bdf8',
       renderLogo: () => <TwitterXIcon className="w-8 h-8 text-slate-950" />
     };
   }
 
-  // Instagram
-  if (t.includes('instagram') || t.includes('ig ') || t.includes('insta')) {
+  // 4. Instagram (STRICT: Never match bare 'insta' to prevent 'instant' collisions)
+  if (
+    t.includes('instagram') ||
+    /\b(ig)\b/i.test(t) ||
+    t.includes('aged creator') ||
+    t.includes('russian instagram') ||
+    t.includes('brazil instagram') ||
+    t.includes('instagram account') ||
+    t.includes('instagram followers') ||
+    t.includes('instagram likes')
+  ) {
     return {
       key: 'instagram',
       platformName: 'Instagram',
-      gradientClass: 'from-[#701a75] via-[#a21caf] to-[#be123c]',
+      gradientClass: 'from-[#4c1d95] via-[#a21caf] to-[#e11d48]',
       accentColor: '#f43f5e',
       renderLogo: () => <InstagramIcon className="w-8 h-8" />
     };
   }
 
-  // Facebook / Meta
-  if (t.includes('facebook') || t.includes('meta') || t.includes('bm50') || t.includes('business manager') || t.includes('fb ')) {
+  // 5. Facebook / Meta
+  if (
+    t.includes('facebook') ||
+    t.includes('bm50') ||
+    t.includes('business manager') ||
+    t.includes('facebook account') ||
+    t.includes('facebook page') ||
+    /\b(fb|meta)\b/i.test(t)
+  ) {
     return {
       key: 'facebook',
       platformName: 'Facebook',
-      gradientClass: 'from-[#0f2756] via-[#1d4ed8] to-[#1e3a8a]',
+      gradientClass: 'from-[#0c2340] via-[#1d4ed8] to-[#172554]',
       accentColor: '#3b82f6',
       renderLogo: () => <FacebookIcon className="w-8 h-8 text-[#1877f2]" />
     };
   }
 
-  // Telegram
-  if (t.includes('telegram') || t.includes('tg ') || t.startsWith('tg') || t.includes(' tg') || t.includes('t.me')) {
+  // 6. Telegram
+  if (t.includes('telegram') || t.includes('t.me') || /\b(tg)\b/i.test(t)) {
     return {
       key: 'telegram',
       platformName: 'Telegram',
-      gradientClass: 'from-[#03365c] via-[#0284c7] to-[#0369a1]',
+      gradientClass: 'from-[#03365c] via-[#0284c7] to-[#075985]',
       accentColor: '#38bdf8',
       renderLogo: () => <TelegramLogo />
     };
   }
 
-  // TikTok
+  // 7. TikTok
   if (t.includes('tiktok') || t.includes('tik tok')) {
     return {
       key: 'tiktok',
       platformName: 'TikTok',
-      gradientClass: 'from-[#0a0a0c] via-[#18181b] to-[#0f172a]',
+      gradientClass: 'from-[#09090b] via-[#18181b] to-[#020617]',
       accentColor: '#22d3ee',
       renderLogo: () => <TikTokIcon className="w-8 h-8 text-black" />
     };
   }
 
-  // Gmail / Google Workspace
-  if (t.includes('gmail') || t.includes('google') || t.includes('workspace') || t.includes('gdrive')) {
+  // 8. Gmail / Google Workspace / YouTube
+  if (
+    t.includes('gmail') ||
+    t.includes('google') ||
+    t.includes('workspace') ||
+    t.includes('gsuite') ||
+    t.includes('gdrive') ||
+    t.includes('youtube')
+  ) {
     return {
       key: 'gmail',
-      platformName: 'Google / Gmail',
-      gradientClass: 'from-[#1e293b] via-[#334155] to-[#1e1b4b]',
+      platformName: t.includes('youtube') ? 'YouTube' : 'Google / Gmail',
+      gradientClass: 'from-[#1e293b] via-[#334155] to-[#0f172a]',
       accentColor: '#ea4335',
       renderLogo: () => <GmailIcon className="w-8 h-8" />
     };
   }
 
-  // VPN / Proxies
-  if (t.includes('vpn') || t.includes('nord') || t.includes('surfshark') || t.includes('expressvpn') || t.includes('proxy') || t.includes('residential')) {
+  // 9. VPN & Security
+  if (
+    t.includes('vpn') ||
+    t.includes('nord') ||
+    t.includes('surfshark') ||
+    t.includes('expressvpn') ||
+    t.includes('cyberghost') ||
+    t.includes('ipvanish')
+  ) {
     return {
       key: 'vpn',
-      platformName: 'VPN & Proxies',
-      gradientClass: 'from-[#022c22] via-[#065f46] to-[#047857]',
+      platformName: 'VPN & Security',
+      gradientClass: 'from-[#022c22] via-[#065f46] to-[#064e3b]',
       accentColor: '#10b981',
       renderLogo: () => <ShieldVpnLogo />
     };
   }
 
-  // AI Tools
-  if (t.includes('chatgpt') || t.includes('claude') || t.includes('openai') || t.includes('ai tool') || t.includes('anthropic') || t.includes('midjourney')) {
+  // 10. Proxies & Residential IPs
+  if (
+    t.includes('proxy') ||
+    t.includes('proxies') ||
+    t.includes('residential') ||
+    t.includes('rotating ip') ||
+    t.includes('rotating proxies') ||
+    t.includes('socks5')
+  ) {
     return {
-      key: 'ai',
-      platformName: 'AI Subscriptions',
-      gradientClass: 'from-[#1e1b4b] via-[#4338ca] to-[#312e81]',
-      accentColor: '#a855f7',
-      renderLogo: () => <AiToolsLogo />
+      key: 'proxies',
+      platformName: 'Residential Proxies',
+      gradientClass: 'from-[#1e1b4b] via-[#312e81] to-[#0f172a]',
+      accentColor: '#818cf8',
+      renderLogo: () => <ProxiesGlobeLogo />
     };
   }
 
-  // eSIM
-  if (t.includes('esim') || t.includes('sim ') || t.includes('roaming') || t.includes('data')) {
+  // 11. eSIM & Roaming Data
+  if (t.includes('esim') || t.includes('roaming') || /\b(sim)\b/i.test(t)) {
     return {
       key: 'esim',
       platformName: 'eSIM & Data',
-      gradientClass: 'from-[#172554] via-[#1d4ed8] to-[#3b82f6]',
+      gradientClass: 'from-[#172554] via-[#1e40af] to-[#1e3a8a]',
       accentColor: '#60a5fa',
       renderLogo: () => <SimCardLogo />
     };
   }
 
-  // Cards / VCC
-  if (t.includes('card') || t.includes('visa') || t.includes('mastercard') || t.includes('vcc')) {
+  // 12. AI Tools & Subscriptions
+  if (
+    t.includes('chatgpt') ||
+    t.includes('claude') ||
+    t.includes('openai') ||
+    t.includes('midjourney') ||
+    t.includes('gemini') ||
+    t.includes('anthropic') ||
+    t.includes('perplexity') ||
+    t.includes('copilot') ||
+    t.includes('ai tool')
+  ) {
     return {
-      key: 'cards',
-      platformName: 'Virtual Cards',
-      gradientClass: 'from-[#451a03] via-[#78350f] to-[#312e81]',
-      accentColor: '#f59e0b',
-      renderLogo: () => <CreditCardLogo />
+      key: 'ai',
+      platformName: 'AI Subscriptions',
+      gradientClass: 'from-[#1f1d36] via-[#3f3b6c] to-[#141226]',
+      accentColor: '#a855f7',
+      renderLogo: () => <AiToolsLogo />
     };
   }
 
-  // Windows / Office
-  if (t.includes('windows') || t.includes('office') || t.includes('microsoft') || t.includes('license')) {
+  // 13. Windows / Microsoft / Office
+  if (
+    t.includes('windows') ||
+    t.includes('office 365') ||
+    t.includes('office') ||
+    t.includes('microsoft') ||
+    t.includes('license key') ||
+    t.includes('os key')
+  ) {
     return {
       key: 'windows',
       platformName: 'Software & OS',
@@ -215,7 +352,37 @@ export function getBrandConfig(title: string = '', category: string = ''): Brand
     };
   }
 
-  // Netflix
+  // 14. Crypto & Fintech (Binance, Bybit, Coinbase, CashApp, PayPal)
+  if (
+    t.includes('binance') ||
+    t.includes('crypto') ||
+    t.includes('bybit') ||
+    t.includes('coinbase') ||
+    t.includes('usdt') ||
+    t.includes('cashapp') ||
+    t.includes('paypal')
+  ) {
+    return {
+      key: 'crypto',
+      platformName: 'Crypto & Fintech',
+      gradientClass: 'from-[#1c1917] via-[#292524] to-[#0c0a09]',
+      accentColor: '#f59e0b',
+      renderLogo: () => <CryptoLogo />
+    };
+  }
+
+  // 15. Canva & Design
+  if (t.includes('canva') || t.includes('adobe') || t.includes('photoshop')) {
+    return {
+      key: 'canva',
+      platformName: 'Canva & Creative',
+      gradientClass: 'from-[#042f2e] via-[#0f766e] to-[#115e59]',
+      accentColor: '#00c4cc',
+      renderLogo: () => <CanvaLogo />
+    };
+  }
+
+  // 16. Netflix
   if (t.includes('netflix')) {
     return {
       key: 'netflix',
@@ -226,7 +393,7 @@ export function getBrandConfig(title: string = '', category: string = ''): Brand
     };
   }
 
-  // Spotify
+  // 17. Spotify
   if (t.includes('spotify')) {
     return {
       key: 'spotify',
@@ -237,7 +404,7 @@ export function getBrandConfig(title: string = '', category: string = ''): Brand
     };
   }
 
-  // Default
+  // Default fallback
   return {
     key: 'general',
     platformName: category || 'Verified Digital Asset',
@@ -270,6 +437,20 @@ export const BrandCoverBanner: React.FC<BrandCoverBannerProps> = ({
   const displayTitle = (title || product?.title || (product as any)?.name || 'Digital Account / Tool').trim();
   const displayCategory = category || product?.category || '';
   const brand = getBrandConfig(displayTitle, displayCategory);
+
+  const isMini = className.includes('w-') && (className.includes('h-10') || className.includes('h-12') || className.includes('h-14') || className.includes('h-16') || className.includes('h-20'));
+
+  if (isMini) {
+    return (
+      <div
+        className={`relative overflow-hidden bg-gradient-to-br ${brand.gradientClass} flex items-center justify-center select-none shrink-0 ${className}`}
+      >
+        <div className="w-8 h-8 rounded-xl bg-white shadow-md flex items-center justify-center p-1.5 border border-white/40">
+          {brand.renderLogo()}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
