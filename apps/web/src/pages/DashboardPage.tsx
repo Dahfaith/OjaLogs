@@ -1,7 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import confetti from 'canvas-confetti';
 import { useApp } from '../context/AppContext';
-import { Eye, EyeOff, Plus, Wallet, ShoppingBag, ArrowUpRight, ShieldCheck, Sparkles, ArrowRight, PhoneCall, ChevronRight, CheckCircle2 } from 'lucide-react';
+import {
+  Eye,
+  EyeOff,
+  Plus,
+  Wallet,
+  ShoppingBag,
+  ArrowUpRight,
+  ArrowDownLeft,
+  ShieldCheck,
+  Sparkles,
+  ArrowRight,
+  PhoneCall,
+  ChevronRight,
+  CheckCircle2,
+  Clock,
+  FileSpreadsheet
+} from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { FundWalletModal } from '../components/wallet/FundWalletModal';
@@ -12,6 +28,7 @@ export const DashboardPage: React.FC = () => {
     user,
     isAuthLoading,
     wallet,
+    ledger,
     hideBalance,
     toggleHideBalance,
     orders,
@@ -26,6 +43,7 @@ export const DashboardPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [isFundModalOpen, setIsFundModalOpen] = useState(false);
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
+  const [activityFilter, setActivityFilter] = useState<'all' | 'deposits' | 'orders'>('all');
 
   // Proactively refresh live wallet on dashboard mount
   useEffect(() => {
@@ -92,6 +110,70 @@ export const DashboardPage: React.FC = () => {
   }).toUpperCase();
 
   const activeSessions = activeNumbers.filter(s => s.status === 'active' || s.status === 'sms_received');
+
+  // Construct Unified Recent Activity Feed (Ledger Deposits + Store Orders)
+  const activityItems = useMemo(() => {
+    const items: Array<{
+      id: string;
+      category: 'deposit' | 'order' | 'refund';
+      title: string;
+      subtitle: string;
+      reference: string;
+      amountNgn: number;
+      isCredit: boolean;
+      timestamp: string;
+      status: string;
+      link: string;
+      actionText?: string;
+    }> = [];
+
+    // 1. Add all ledger transactions (Deposits, Refunds, Payments)
+    for (const tx of ledger) {
+      const isDeposit = tx.category === 'deposit';
+      const isRefund = tx.category === 'refund';
+      items.push({
+        id: `tx_${tx.id}`,
+        category: isDeposit ? 'deposit' : isRefund ? 'refund' : 'order',
+        title: tx.description,
+        subtitle: `${isDeposit ? 'Wallet Deposit' : isRefund ? 'Wallet Refund' : 'Order Payment'} · ${new Date(tx.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}`,
+        reference: tx.reference,
+        amountNgn: tx.amountNgn,
+        isCredit: tx.type === 'credit',
+        timestamp: tx.timestamp,
+        status: tx.status || 'successful',
+        link: '/wallet'
+      });
+    }
+
+    // 2. Add store orders not already mirrored in ledger
+    for (const ord of orders) {
+      const alreadyInLedger = ledger.some(l => l.reference === ord.reference || (l as any).relatedOrderReference === ord.reference);
+      if (!alreadyInLedger) {
+        items.push({
+          id: `ord_${ord.id}`,
+          category: 'order',
+          title: ord.items[0]?.product.title || 'Digital Product Order',
+          subtitle: `Store Order (${ord.items.length} ${ord.items.length === 1 ? 'item' : 'items'}) · ${new Date(ord.createdAt).toLocaleDateString()}`,
+          reference: ord.reference,
+          amountNgn: ord.totalNgn,
+          isCredit: false,
+          timestamp: ord.createdAt,
+          status: ord.status,
+          link: '/orders',
+          actionText: 'Reveal Key'
+        });
+      }
+    }
+
+    // Sort newest first
+    return items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }, [ledger, orders]);
+
+  const filteredActivities = useMemo(() => {
+    if (activityFilter === 'deposits') return activityItems.filter(i => i.category === 'deposit' || i.category === 'refund');
+    if (activityFilter === 'orders') return activityItems.filter(i => i.category === 'order');
+    return activityItems;
+  }, [activityItems, activityFilter]);
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-24 md:pb-12">
@@ -311,52 +393,159 @@ export const DashboardPage: React.FC = () => {
         </div>
       </Link>
 
-      {/* Recent Orders Section */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="font-heading font-extrabold text-base text-oj-midnight dark:text-white">
-            Recent Orders & Deliveries
-          </h2>
-          <Link
-            to="/orders"
-            className="text-xs font-semibold text-oj-primary dark:text-oj-cyan hover:underline"
-          >
-            View all
-          </Link>
+      {/* Recent Activity & Transactions Section */}
+      <div className="space-y-3.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <h2 className="font-heading font-extrabold text-base text-oj-midnight dark:text-white">
+              Recent Activity & Transactions
+            </h2>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted dark:text-oj-dark-muted border border-oj-border dark:border-oj-dark-border">
+              {filteredActivities.length} {filteredActivities.length === 1 ? 'event' : 'events'}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 p-0.5 rounded-lg bg-oj-surface-alt/70 dark:bg-oj-dark-surface-alt/70 border border-oj-border dark:border-oj-dark-border">
+              <button
+                onClick={() => setActivityFilter('all')}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${
+                  activityFilter === 'all'
+                    ? 'bg-white dark:bg-oj-dark-surface text-oj-midnight dark:text-white shadow-xs'
+                    : 'text-oj-muted hover:text-oj-midnight dark:hover:text-white'
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setActivityFilter('deposits')}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${
+                  activityFilter === 'deposits'
+                    ? 'bg-white dark:bg-oj-dark-surface text-oj-midnight dark:text-white shadow-xs'
+                    : 'text-oj-muted hover:text-oj-midnight dark:hover:text-white'
+                }`}
+              >
+                Deposits
+              </button>
+              <button
+                onClick={() => setActivityFilter('orders')}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${
+                  activityFilter === 'orders'
+                    ? 'bg-white dark:bg-oj-dark-surface text-oj-midnight dark:text-white shadow-xs'
+                    : 'text-oj-muted hover:text-oj-midnight dark:hover:text-white'
+                }`}
+              >
+                Orders
+              </button>
+            </div>
+
+            <Link
+              to="/wallet"
+              className="text-xs font-semibold text-oj-primary dark:text-oj-cyan hover:underline inline-flex items-center gap-0.5"
+            >
+              <span>Ledger</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
         </div>
 
-        {orders.slice(0, 3).map((order) => (
-          <div
-            key={order.id}
-            className="p-3.5 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft flex items-center justify-between"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-oj-surface-alt dark:bg-oj-dark-surface-alt flex items-center justify-center text-oj-primary">
-                <ShoppingBag className="w-4 h-4" />
+        {/* Activity List */}
+        <div className="space-y-2.5">
+          {filteredActivities.length === 0 ? (
+            <div className="p-8 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border text-center space-y-3 shadow-soft">
+              <div className="w-12 h-12 rounded-2xl bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted mx-auto flex items-center justify-center">
+                <Clock className="w-6 h-6 text-oj-primary/60" />
               </div>
-              <div>
-                <p className="text-xs font-bold text-oj-midnight dark:text-white">
-                  {order.items[0]?.product.title || 'Digital Order'}
+              <div className="space-y-1">
+                <p className="font-heading font-bold text-sm text-oj-midnight dark:text-white">
+                  No {activityFilter === 'all' ? 'recent' : activityFilter} activity yet
                 </p>
-                <p className="text-[11px] text-oj-muted">
-                  Ref: <span className="font-mono">{order.reference}</span> · {new Date(order.createdAt).toLocaleDateString()}
+                <p className="text-xs text-oj-muted dark:text-oj-dark-muted max-w-sm mx-auto leading-relaxed">
+                  Your verified deposits, store purchases, and virtual number activities will appear here in real-time.
                 </p>
+              </div>
+              <div className="flex items-center justify-center gap-2 pt-1">
+                <button
+                  onClick={() => setIsFundModalOpen(true)}
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs font-bold shadow-md hover:scale-[1.02] transition-all inline-flex items-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ Fund Wallet</span>
+                </button>
+                <Link
+                  to="/shop"
+                  className="px-4 py-2 rounded-lg bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-border text-xs font-bold text-oj-midnight dark:text-white transition-colors inline-flex items-center gap-1"
+                >
+                  <span>Explore Shop</span>
+                  <ArrowRight className="w-3 h-3" />
+                </Link>
               </div>
             </div>
-
-            <div className="text-right">
-              <p className="font-mono font-bold text-xs text-oj-midnight dark:text-white">
-                {formatPrice(order.totalNgn)}
-              </p>
-              <Link
-                to="/orders"
-                className="text-[11px] font-semibold text-oj-primary hover:underline"
+          ) : (
+            filteredActivities.slice(0, 6).map((item) => (
+              <div
+                key={item.id}
+                className="p-3.5 sm:p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft flex items-center justify-between gap-3 hover:border-oj-primary/40 transition-colors"
               >
-                Reveal Code
-              </Link>
-            </div>
-          </div>
-        ))}
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                      item.isCredit
+                        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400'
+                        : 'bg-blue-50 text-oj-primary dark:bg-blue-950/40 dark:text-oj-cyan'
+                    }`}
+                  >
+                    {item.isCredit ? <ArrowDownLeft className="w-5 h-5" /> : <ShoppingBag className="w-4 h-4" />}
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-xs font-bold text-oj-midnight dark:text-white truncate">
+                        {item.title}
+                      </p>
+                      <span
+                        className={`text-[10px] font-bold px-1.5 py-0.2 rounded shrink-0 ${
+                          item.isCredit
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400'
+                            : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                        }`}
+                      >
+                        {item.category === 'deposit' ? 'Deposit' : item.category === 'refund' ? 'Refund' : 'Order'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-oj-muted truncate mt-0.5">
+                      {item.subtitle} · Ref: <span className="font-mono">{item.reference}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0">
+                  <p
+                    className={`font-mono font-extrabold text-xs sm:text-sm ${
+                      item.isCredit ? 'text-emerald-600 dark:text-emerald-400' : 'text-oj-midnight dark:text-white'
+                    }`}
+                  >
+                    {item.isCredit ? '+' : '-'}{formatPrice(item.amountNgn)}
+                  </p>
+                  {item.actionText ? (
+                    <Link
+                      to={item.link}
+                      className="text-[11px] font-bold text-oj-primary dark:text-oj-cyan hover:underline inline-flex items-center gap-0.5"
+                    >
+                      <span>{item.actionText}</span>
+                      <ChevronRight className="w-3 h-3" />
+                    </Link>
+                  ) : (
+                    <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>Successful</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       {/* Fund Modal */}
