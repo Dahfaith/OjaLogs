@@ -88,8 +88,8 @@ export function getBrandConfig(title: string = '', category: string = ''): Brand
     return {
       key: 'github',
       platformName: 'GitHub',
-      gradientClass: 'from-[#14171d] via-[#1f242c] to-[#0c0e12]',
-      accentColor: '#f97316',
+      gradientClass: 'from-[#0f172a] via-[#1e293b] to-[#090d16]',
+      accentColor: '#38bdf8',
       renderLogo: () => <GitHubLogo />
     };
   }
@@ -99,8 +99,8 @@ export function getBrandConfig(title: string = '', category: string = ''): Brand
     return {
       key: 'twitter',
       platformName: 'X / Twitter',
-      gradientClass: 'from-[#0b0f19] via-[#1a2332] to-[#070a12]',
-      accentColor: '#f97316',
+      gradientClass: 'from-[#0b132b] via-[#1c2541] to-[#090d16]',
+      accentColor: '#38bdf8',
       renderLogo: () => <TwitterXIcon className="w-8 h-8 text-slate-950" />
     };
   }
@@ -110,8 +110,8 @@ export function getBrandConfig(title: string = '', category: string = ''): Brand
     return {
       key: 'instagram',
       platformName: 'Instagram',
-      gradientClass: 'from-[#833ab4] via-[#c13584] to-[#e1306c]',
-      accentColor: '#fb923c',
+      gradientClass: 'from-[#701a75] via-[#a21caf] to-[#be123c]',
+      accentColor: '#f43f5e',
       renderLogo: () => <InstagramIcon className="w-8 h-8" />
     };
   }
@@ -121,8 +121,8 @@ export function getBrandConfig(title: string = '', category: string = ''): Brand
     return {
       key: 'facebook',
       platformName: 'Facebook',
-      gradientClass: 'from-[#112a59] via-[#18458b] to-[#0a1936]',
-      accentColor: '#f97316',
+      gradientClass: 'from-[#0f2756] via-[#1d4ed8] to-[#1e3a8a]',
+      accentColor: '#3b82f6',
       renderLogo: () => <FacebookIcon className="w-8 h-8 text-[#1877f2]" />
     };
   }
@@ -132,7 +132,7 @@ export function getBrandConfig(title: string = '', category: string = ''): Brand
     return {
       key: 'telegram',
       platformName: 'Telegram',
-      gradientClass: 'from-[#03395e] via-[#02649b] to-[#02243d]',
+      gradientClass: 'from-[#03365c] via-[#0284c7] to-[#0369a1]',
       accentColor: '#38bdf8',
       renderLogo: () => <TelegramLogo />
     };
@@ -143,8 +143,8 @@ export function getBrandConfig(title: string = '', category: string = ''): Brand
     return {
       key: 'tiktok',
       platformName: 'TikTok',
-      gradientClass: 'from-[#000000] via-[#18181b] to-[#050505]',
-      accentColor: '#00f2fe',
+      gradientClass: 'from-[#0a0a0c] via-[#18181b] to-[#0f172a]',
+      accentColor: '#22d3ee',
       renderLogo: () => <TikTokIcon className="w-8 h-8 text-black" />
     };
   }
@@ -154,7 +154,7 @@ export function getBrandConfig(title: string = '', category: string = ''): Brand
     return {
       key: 'gmail',
       platformName: 'Google / Gmail',
-      gradientClass: 'from-[#1e293b] via-[#334155] to-[#0f172a]',
+      gradientClass: 'from-[#1e293b] via-[#334155] to-[#1e1b4b]',
       accentColor: '#ea4335',
       renderLogo: () => <GmailIcon className="w-8 h-8" />
     };
@@ -165,7 +165,7 @@ export function getBrandConfig(title: string = '', category: string = ''): Brand
     return {
       key: 'vpn',
       platformName: 'VPN & Proxies',
-      gradientClass: 'from-[#064e3b] via-[#047857] to-[#022c22]',
+      gradientClass: 'from-[#022c22] via-[#065f46] to-[#047857]',
       accentColor: '#10b981',
       renderLogo: () => <ShieldVpnLogo />
     };
@@ -176,8 +176,8 @@ export function getBrandConfig(title: string = '', category: string = ''): Brand
     return {
       key: 'ai',
       platformName: 'AI Subscriptions',
-      gradientClass: 'from-[#042f2e] via-[#0f766e] to-[#021f1e]',
-      accentColor: '#14b8a6',
+      gradientClass: 'from-[#1e1b4b] via-[#4338ca] to-[#312e81]',
+      accentColor: '#a855f7',
       renderLogo: () => <AiToolsLogo />
     };
   }
@@ -187,8 +187,8 @@ export function getBrandConfig(title: string = '', category: string = ''): Brand
     return {
       key: 'esim',
       platformName: 'eSIM & Data',
-      gradientClass: 'from-[#1e1b4b] via-[#3730a3] to-[#0f0e26]',
-      accentColor: '#818cf8',
+      gradientClass: 'from-[#172554] via-[#1d4ed8] to-[#3b82f6]',
+      accentColor: '#60a5fa',
       renderLogo: () => <SimCardLogo />
     };
   }
@@ -198,7 +198,7 @@ export function getBrandConfig(title: string = '', category: string = ''): Brand
     return {
       key: 'cards',
       platformName: 'Virtual Cards',
-      gradientClass: 'from-[#451a03] via-[#78350f] to-[#270f02]',
+      gradientClass: 'from-[#451a03] via-[#78350f] to-[#312e81]',
       accentColor: '#f59e0b',
       renderLogo: () => <CreditCardLogo />
     };
@@ -209,7 +209,7 @@ export function getBrandConfig(title: string = '', category: string = ''): Brand
     return {
       key: 'windows',
       platformName: 'Software & OS',
-      gradientClass: 'from-[#082f49] via-[#0369a1] to-[#041c2c]',
+      gradientClass: 'from-[#082f49] via-[#0284c7] to-[#0f172a]',
       accentColor: '#38bdf8',
       renderLogo: () => <WindowsLogo />
     };
@@ -220,7 +220,7 @@ export function getBrandConfig(title: string = '', category: string = ''): Brand
     return {
       key: 'netflix',
       platformName: 'Netflix',
-      gradientClass: 'from-[#450a0a] via-[#7f1d1d] to-[#1c0404]',
+      gradientClass: 'from-[#3f0713] via-[#881337] to-[#0f172a]',
       accentColor: '#ef4444',
       renderLogo: () => <NetflixLogo />
     };
@@ -231,7 +231,7 @@ export function getBrandConfig(title: string = '', category: string = ''): Brand
     return {
       key: 'spotify',
       platformName: 'Spotify',
-      gradientClass: 'from-[#052e16] via-[#14532d] to-[#02160a]',
+      gradientClass: 'from-[#022c22] via-[#14532d] to-[#064e3b]',
       accentColor: '#22c55e',
       renderLogo: () => <SpotifyLogo />
     };
@@ -241,8 +241,8 @@ export function getBrandConfig(title: string = '', category: string = ''): Brand
   return {
     key: 'general',
     platformName: category || 'Verified Digital Asset',
-    gradientClass: 'from-[#0f172a] via-[#1e293b] to-[#020617]',
-    accentColor: '#f97316',
+    gradientClass: 'from-oj-midnight via-oj-navy to-[#1e3a8a]',
+    accentColor: '#0284c7',
     renderLogo: () => <DefaultOjaLogo />
   };
 }
@@ -275,36 +275,36 @@ export const BrandCoverBanner: React.FC<BrandCoverBannerProps> = ({
     <div
       className={`relative w-full overflow-hidden bg-gradient-to-br ${brand.gradientClass} flex flex-col items-center justify-between p-3 select-none ${className}`}
     >
-      {/* Top Dash Accent Bar */}
-      <div className="w-10 h-1 bg-amber-500/90 rounded-full mx-auto shrink-0 shadow-sm" />
+      {/* Top Brand Tag Pill */}
+      <div className="w-full flex items-center justify-between px-1 z-10 shrink-0">
+        <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/20 dark:bg-black/40 backdrop-blur-md border border-white/15 text-white/90 text-[10px] font-semibold tracking-wide shadow-xs">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span>Ojalogs Verified</span>
+        </div>
+      </div>
 
-      {/* Center Rounded-2xl White Icon Badge */}
-      <div className="flex flex-col items-center justify-center my-auto">
-        <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-white shadow-xl flex items-center justify-center p-2.5 transform transition-transform duration-300 group-hover:scale-110">
+      {/* Center Floating White Icon Squircle & Clean Brand Info */}
+      <div className="flex flex-col items-center justify-center my-auto z-10">
+        <div className="w-14 h-14 rounded-2xl bg-white shadow-lg flex items-center justify-center p-2.5 border border-white/50 transform transition-transform duration-300 group-hover:scale-105 group-hover:-translate-y-0.5">
           {brand.renderLogo()}
         </div>
 
-        {/* Brand Name Text */}
-        <span className="text-[11px] sm:text-xs font-bold tracking-wider uppercase text-white/95 mt-2 drop-shadow-sm">
+        {/* Platform Name */}
+        <span className="text-xs font-heading font-extrabold tracking-wider uppercase text-white mt-2 drop-shadow-sm">
           {brand.platformName}
         </span>
 
-        {/* Clean Truncated Subtitle */}
+        {/* Clean Title */}
         {showSubtitle && (
-          <p className="text-[10px] sm:text-[11px] text-white/80 line-clamp-1 px-4 text-center mt-0.5 max-w-[240px] font-medium leading-tight">
+          <p className="text-[11px] text-white/90 line-clamp-1 px-3 text-center mt-0.5 max-w-[240px] font-medium leading-tight drop-shadow-xs">
             {displayTitle.replace(/^["']+|["']+$/g, '')}
           </p>
         )}
-
-        {/* Bottom Colored Accent Line */}
-        <div
-          className="w-10 h-0.5 rounded-full mx-auto mt-1.5 shadow-sm"
-          style={{ backgroundColor: brand.accentColor }}
-        />
       </div>
 
-      {/* Subtle Background Radial Glow */}
-      <div className="absolute inset-0 bg-radial-gradient pointer-events-none opacity-30" />
+      {/* Sweet Bottom Ambient Glass Glow */}
+      <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-44 h-12 bg-white/10 rounded-full blur-xl pointer-events-none" />
+      <div className="absolute inset-0 bg-radial-gradient pointer-events-none opacity-20" />
     </div>
   );
 };

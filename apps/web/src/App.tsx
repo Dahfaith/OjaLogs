@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { TopBar } from './components/shell/TopBar';
 import { BottomTabBar } from './components/shell/BottomTabBar';
 import { CartDrawer } from './components/cart/CartDrawer';
@@ -24,6 +24,8 @@ import { ApiDocsPage } from './pages/ApiDocsPage';
 
 export const App: React.FC = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith('/admin');
 
   return (
     <div className="min-h-screen bg-oj-bg dark:bg-oj-dark-bg text-oj-midnight dark:text-oj-dark-text flex flex-col font-sans transition-colors duration-200">
@@ -58,11 +60,11 @@ export const App: React.FC = () => {
       {/* Support & Abuse Reporting Drawer */}
       <SupportDrawer />
 
-      {/* Floating Support Button */}
-      <FloatingSupport />
+      {/* Floating Support Button (Hidden in Admin Console) */}
+      {!isAdminRoute && <FloatingSupport />}
 
-      {/* Mobile Bottom Tab Bar */}
-      <BottomTabBar />
+      {/* Mobile Bottom Tab Bar (Hidden in Admin Console) */}
+      {!isAdminRoute && <BottomTabBar />}
 
       {/* Global Toast */}
       <Toast />

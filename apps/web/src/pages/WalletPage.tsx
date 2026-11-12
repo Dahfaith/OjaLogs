@@ -242,41 +242,37 @@ export const WalletPage: React.FC = () => {
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
             <button
               onClick={() => setSelectedFilter('all')}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                selectedFilter === 'all'
+              className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${selectedFilter === 'all'
                   ? 'bg-oj-primary text-white shadow-sm'
                   : 'bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted hover:text-oj-midnight dark:hover:text-white'
-              }`}
+                }`}
             >
               All
             </button>
             <button
               onClick={() => setSelectedFilter('deposit')}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                selectedFilter === 'deposit'
+              className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${selectedFilter === 'deposit'
                   ? 'bg-oj-primary text-white shadow-sm'
                   : 'bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted hover:text-oj-midnight dark:hover:text-white'
-              }`}
+                }`}
             >
               Deposits
             </button>
             <button
               onClick={() => setSelectedFilter('order_payment')}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                selectedFilter === 'order_payment'
+              className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${selectedFilter === 'order_payment'
                   ? 'bg-oj-primary text-white shadow-sm'
                   : 'bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted hover:text-oj-midnight dark:hover:text-white'
-              }`}
+                }`}
             >
               Purchases
             </button>
             <button
               onClick={() => setSelectedFilter('refund')}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                selectedFilter === 'refund'
+              className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${selectedFilter === 'refund'
                   ? 'bg-oj-primary text-white shadow-sm'
                   : 'bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted hover:text-oj-midnight dark:hover:text-white'
-              }`}
+                }`}
             >
               Refunds
             </button>
@@ -291,11 +287,10 @@ export const WalletPage: React.FC = () => {
               className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft flex items-center justify-between gap-3"
             >
               <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                  tx.type === 'credit'
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${tx.type === 'credit'
                     ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40'
                     : 'bg-rose-50 text-rose-600 dark:bg-rose-950/40'
-                }`}>
+                  }`}>
                   {tx.type === 'credit' ? <ArrowDownLeft className="w-5 h-5" /> : <ArrowUpRight className="w-5 h-5" />}
                 </div>
 
@@ -310,9 +305,8 @@ export const WalletPage: React.FC = () => {
               </div>
 
               <div className="text-right shrink-0">
-                <p className={`font-mono font-extrabold text-xs sm:text-sm ${
-                  tx.type === 'credit' ? 'text-emerald-600 dark:text-emerald-400' : 'text-oj-midnight dark:text-white'
-                }`}>
+                <p className={`font-mono font-extrabold text-xs sm:text-sm ${tx.type === 'credit' ? 'text-emerald-600 dark:text-emerald-400' : 'text-oj-midnight dark:text-white'
+                  }`}>
                   {tx.type === 'credit' ? '+' : '-'}{formatPrice(tx.amountNgn)}
                 </p>
                 <p className="text-[10px] font-mono text-oj-muted">

@@ -43,7 +43,8 @@ const PLATFORM_PILLS = [
   { id: 'twitter', label: 'Twitter (X)', icon: () => <TwitterXIcon className="w-3.5 h-3.5 shrink-0 text-slate-900 dark:text-white" /> },
   { id: 'tiktok', label: 'TikTok', icon: () => <TikTokIcon className="w-3.5 h-3.5 shrink-0 text-black dark:text-white" /> },
   { id: 'gmail', label: 'Gmail', icon: () => <GmailIcon className="w-3.5 h-3.5 shrink-0" /> },
-  { id: 'vpn', label: 'VPN', icon: () => <Shield className="w-3.5 h-3.5 shrink-0 text-emerald-500" /> }
+  { id: 'vpn', label: 'VPN & Security', icon: () => <Shield className="w-3.5 h-3.5 shrink-0 text-emerald-500" /> },
+  { id: 'ai', label: 'AI Subscriptions', icon: () => <Zap className="w-3.5 h-3.5 shrink-0 text-amber-500" /> }
 ];
 
 export const ShopPage: React.FC = () => {
@@ -215,40 +216,38 @@ export const ShopPage: React.FC = () => {
       {/* Page Title & Real-time Upstream Counters */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="font-heading font-extrabold text-2xl sm:text-3xl text-oj-midnight dark:text-white flex items-center gap-2">
-            <span>Products Store</span>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-oj-primary/10 text-oj-primary dark:bg-oj-primary/20 border border-oj-primary/20 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-oj-primary animate-pulse" />
+              Instant Vault Delivery
+            </span>
+          </div>
+          <h1 className="font-heading font-extrabold text-2xl sm:text-3xl text-oj-midnight dark:text-white">
+            Digital Products & Accounts
           </h1>
           <p className="text-xs sm:text-sm text-oj-muted dark:text-oj-dark-muted mt-0.5">
-            Browse our multi-server catalog of verified digital accounts and tools across Server 1, Server 2, Server 3, and Server 4 (AI Tools).
+            Verified social media profiles, software licenses, secure VPNs, and AI developer tools.
           </p>
         </div>
 
-        {/* Live LogsPoll Metrics Counter Badges */}
+        {/* Live Ojalogs Counter & Sync Actions */}
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95 disabled:opacity-70"
+            className="px-3.5 py-2 rounded-xl bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-primary hover:text-white border border-oj-border dark:border-oj-dark-border text-oj-midnight dark:text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-all active:scale-95 disabled:opacity-60"
+            title="Sync catalog with live provider pools"
           >
-            <RotateCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span>Refresh Products</span>
+            <RotateCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-oj-primary' : 'text-oj-muted'}`} />
+            <span>Sync Catalog</span>
           </button>
 
-          <span className="px-3 py-1.5 rounded-lg text-xs font-mono font-bold bg-oj-surface-alt dark:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border text-oj-midnight dark:text-white shadow-xs">
-            TOTAL {pagination.total.toLocaleString()}
-          </span>
-
-          <span className="px-3 py-1.5 rounded-lg text-xs font-mono font-bold bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 shadow-xs">
+          <span className="px-3 py-2 rounded-xl text-xs font-mono font-bold bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 shadow-xs">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>IN STOCK {pagination.inStock.toLocaleString()}</span>
+            <span>{pagination.inStock.toLocaleString()} IN STOCK</span>
           </span>
 
-          <span className="px-3 py-1.5 rounded-lg text-xs font-mono font-bold bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 flex items-center gap-1.5 shadow-xs">
-            <span className="w-2 h-2 rounded-full bg-rose-500" />
-            <span>OUT OF STOCK {pagination.outOfStock}</span>
-          </span>
-
-          <span className="px-3 py-1.5 rounded-lg text-xs font-mono font-bold bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 shadow-xs">
+          <span className="px-3 py-2 rounded-xl text-xs font-mono font-bold bg-oj-surface-alt dark:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border text-oj-midnight dark:text-white shadow-xs">
             PAGE {currentPage} OF {pagination.totalPages}
           </span>
         </div>
@@ -324,7 +323,7 @@ export const ShopPage: React.FC = () => {
         })}
       </div>
 
-      {/* Platform Category Pills Row (Matches LogsPoll Pill Navigation) */}
+      {/* Platform Category Pills Row */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-none">
         {PLATFORM_PILLS.map((pill) => {
           const isActive = selectedPlatform === pill.id;
@@ -334,7 +333,7 @@ export const ShopPage: React.FC = () => {
               onClick={() => setSelectedPlatform(pill.id)}
               className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 border shadow-xs ${
                 isActive
-                  ? 'bg-blue-600 text-white border-blue-600 shadow-glow-primary dark:bg-blue-600'
+                  ? 'bg-oj-primary text-white border-oj-primary shadow-glow-primary dark:bg-oj-primary'
                   : 'bg-white dark:bg-oj-dark-surface border-oj-border dark:border-oj-dark-border text-oj-midnight dark:text-white hover:border-oj-primary/50'
               }`}
             >
@@ -406,9 +405,9 @@ export const ShopPage: React.FC = () => {
                 key={product.id}
                 whileHover={{ y: -3 }}
                 transition={{ duration: 0.2 }}
-                className="rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft hover:shadow-xl flex flex-col overflow-hidden group transition-all"
+                className="rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border/80 hover:border-oj-primary/50 shadow-soft hover:shadow-elevated flex flex-col overflow-hidden group transition-all"
               >
-                {/* Top Section: LogsPoll Branded Banner with Badge */}
+                {/* Top Section: Sweet Ojalogs Branded Banner */}
                 <div className="relative">
                   <BrandCoverBanner
                     product={product}
@@ -423,7 +422,7 @@ export const ShopPage: React.FC = () => {
                       e.stopPropagation();
                       toggleFavourite(product.id);
                     }}
-                    className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-md flex items-center justify-center text-white transition-all shadow-sm active:scale-90"
+                    className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-black/20 hover:bg-black/40 backdrop-blur-md flex items-center justify-center text-white transition-all shadow-sm active:scale-90"
                     aria-label="Add to favourites"
                   >
                     <Heart className={`w-4 h-4 ${isFav ? 'text-rose-500 fill-rose-500' : 'text-white'}`} />
@@ -442,98 +441,102 @@ export const ShopPage: React.FC = () => {
                       {cleanTitle}
                     </Link>
 
-                    {/* Tags Row: SERVER cluster, BUDGET/VERIFIED, Left stock */}
+                    {/* Tags Row: SERVER cluster, Stock Status, Instant Delivery */}
                     <div className="flex items-center gap-1.5 flex-wrap mt-2.5">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800 uppercase tracking-wide">
-                        {product.serverCluster || 'SERVER 2'}
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-oj-primary/10 text-oj-primary dark:bg-oj-primary/20 border border-oj-primary/20 uppercase tracking-wide">
+                        {product.serverCluster || 'Server 1'}
                       </span>
 
-                      <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                        🏷️ BUDGET
+                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        <span>{product.stockCount ? `${product.stockCount} in stock` : 'Available'}</span>
                       </span>
 
-                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                        <span>{product.stockCount || 10} left</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-medium text-oj-muted bg-oj-surface-alt dark:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border">
+                        ⚡ Instant Key
                       </span>
                     </div>
                   </div>
 
                   {/* Price & Unit Label */}
                   <div className="pt-2 border-t border-oj-border/60 dark:border-oj-dark-border/60 flex items-baseline justify-between">
-                    <div className="flex items-baseline gap-1">
+                    <div className="flex items-baseline gap-1.5">
                       <span className="font-heading font-black text-lg text-oj-midnight dark:text-white">
                         {formatPrice(product.priceNgn)}
                       </span>
                       <span className="text-[11px] text-oj-muted font-normal">
-                        per unit
+                        / unit
                       </span>
                     </div>
                   </div>
 
-                  {/* Quantity Stepper & Add Button */}
-                  <div className="grid grid-cols-12 gap-2 pt-1">
-                    {/* Stepper: [-] 1 [+] */}
-                    <div className="col-span-5 flex items-center justify-between border border-oj-border dark:border-oj-dark-border rounded-xl bg-oj-surface-alt/60 dark:bg-oj-dark-surface-alt/60 px-2 py-1">
+                  {/* Simple & Classic Action Flow */}
+                  <div className="space-y-2 pt-1">
+                    <div className="grid grid-cols-12 gap-2">
+                      {/* Compact Stepper */}
+                      <div className="col-span-5 flex items-center justify-between border border-oj-border dark:border-oj-dark-border rounded-xl bg-oj-surface-alt/70 dark:bg-oj-dark-surface-alt/70 px-2 py-1">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            updateQty(product.id, -1, product.stockCount);
+                          }}
+                          className="w-6 h-6 rounded flex items-center justify-center text-oj-muted hover:text-oj-midnight dark:hover:text-white text-xs font-bold transition-colors"
+                          aria-label="Decrease quantity"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+
+                        <span className="text-xs font-mono font-bold text-oj-midnight dark:text-white">
+                          {qty}
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            updateQty(product.id, 1, product.stockCount);
+                          }}
+                          className="w-6 h-6 rounded flex items-center justify-center text-oj-muted hover:text-oj-midnight dark:hover:text-white text-xs font-bold transition-colors"
+                          aria-label="Increase quantity"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+
+                      {/* Add to Cart Button (Sweet Ojalogs Brand Gradient) */}
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          updateQty(product.id, -1, product.stockCount);
-                        }}
-                        className="w-6 h-6 rounded flex items-center justify-center text-oj-muted hover:text-oj-midnight dark:hover:text-white text-xs font-bold transition-colors"
+                        onClick={(e) => handleAddToCart(e, product)}
+                        className={`col-span-7 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95 ${
+                          isAdded
+                            ? 'bg-emerald-600 text-white shadow-emerald-500/20'
+                            : 'bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white shadow-glow-primary'
+                        }`}
                       >
-                        <Minus className="w-3 h-3" />
-                      </button>
-
-                      <span className="text-xs font-mono font-bold text-oj-midnight dark:text-white">
-                        {qty}
-                      </span>
-
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          updateQty(product.id, 1, product.stockCount);
-                        }}
-                        className="w-6 h-6 rounded flex items-center justify-center text-oj-muted hover:text-oj-midnight dark:hover:text-white text-xs font-bold transition-colors"
-                      >
-                        <Plus className="w-3 h-3" />
+                        {isAdded ? (
+                          <>
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Added!</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShoppingCart className="w-3.5 h-3.5" />
+                            <span>Add to Cart</span>
+                          </>
+                        )}
                       </button>
                     </div>
 
-                    {/* Add to Cart Button */}
-                    <button
-                      type="button"
-                      onClick={(e) => handleAddToCart(e, product)}
-                      className={`col-span-7 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95 ${
-                        isAdded
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-orange-500 hover:bg-orange-600 text-white'
-                      }`}
+                    {/* View Details Link */}
+                    <Link
+                      to={`/product/${product.slug}`}
+                      className="w-full py-2 rounded-xl bg-oj-surface-alt/60 dark:bg-oj-dark-surface-alt/50 hover:bg-oj-primary/10 hover:text-oj-primary border border-oj-border/80 dark:border-oj-dark-border/80 text-oj-muted hover:text-oj-primary dark:text-oj-dark-muted dark:hover:text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-all"
                     >
-                      {isAdded ? (
-                        <>
-                          <Check className="w-3.5 h-3.5" />
-                          <span>Added!</span>
-                        </>
-                      ) : (
-                        <>
-                          <ShoppingCart className="w-3.5 h-3.5" />
-                          <span>Add</span>
-                        </>
-                      )}
-                    </button>
+                      <span>Product Specs & Guide</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
                   </div>
-
-                  {/* View Details Full-Width Button */}
-                  <Link
-                    to={`/product/${product.slug}`}
-                    className="w-full py-2.5 rounded-xl bg-[#0d1627] hover:bg-[#162238] dark:bg-[#111c30] dark:hover:bg-[#192742] text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm"
-                  >
-                    <span>View Details</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
                 </div>
               </motion.div>
             );
