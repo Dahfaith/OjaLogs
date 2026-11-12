@@ -66,10 +66,32 @@ function resolveProductImage(title: string, category: string = ''): string {
   return 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=600&q=80';
 }
 
+function normalizeServerCluster(val?: string | number): 'Server 1' | 'Server 2' | 'Server 3' | 'Server 4' {
+  const str = String(val || '2');
+  if (str.includes('1')) return 'Server 1';
+  if (str.includes('3')) return 'Server 3';
+  if (str.includes('4')) return 'Server 4';
+  return 'Server 2';
+}
+
+export interface CatalogPaginationResult {
+  products: Product[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    inStock: number;
+    outOfStock: number;
+  };
+}
+
 export class CatalogService {
   private products: Product[] = [...INITIAL_PRODUCTS];
   private isSynced = false;
   private lastSyncTime = 0;
+  private cache = new Map<string, { data: CatalogPaginationResult; expiresAt: number }>();
+  private productDetailsCache = new Map<string, Product>();
 
   async ensureSynced(): Promise<void> {
     const now = Date.now();
@@ -82,6 +104,7 @@ export class CatalogService {
 
   async syncWithLogsPoll(): Promise<void> {
     try {
+      this.cache.clear();
       if (!logspollAdapter.getCredentials().isConfigured) return;
 
       const upstream = await logspollAdapter.fetchCatalog({ limit: 50 });
@@ -91,14 +114,14 @@ export class CatalogService {
           const lpId = `lp_${u.id}`;
           if (!existingIds.has(lpId)) {
             const retailNgn = Math.ceil(u.priceNgn * 1.15); // 15% standard margin
-            this.products.push({
+            const prodObj: Product = {
               id: lpId,
               slug: `lp-${u.id.slice(0, 8)}`,
               title: u.title,
               category: u.category || 'Social Media Accounts',
               categoryId: 'social-media',
               division: 'A',
-              serverCluster: 'Server 2',
+              serverCluster: normalizeServerCluster(u.serverCluster),
               priceNgn: retailNgn,
               inStock: u.stockCount > 0,
               stockCount: u.stockCount,
@@ -110,7 +133,7 @@ export class CatalogService {
               specifications: {
                 title: u.title,
                 category: u.category || 'Social Media Accounts',
-                serverOrigin: 'Server 2 (Ojalogs Enterprise Fleet)',
+                serverOrigin: `${u.serverCluster || 'Server 2'} (Ojalogs Enterprise Fleet)`,
                 deliveryType: 'instant_automated',
                 validityDuration: 'Permanent Access',
                 fulfillmentSpeed: 'Instant Automated (Under 10s)',
@@ -122,7 +145,9 @@ export class CatalogService {
               validityDuration: 'Permanent',
               region: 'Global',
               featured: false
-            });
+            };
+            this.products.push(prodObj);
+            this.productDetailsCache.set(lpId, prodObj);
             existingIds.add(lpId);
           }
         }
@@ -136,6 +161,153 @@ export class CatalogService {
 
   getCategories() {
     return APPROVED_CATEGORIES;
+  }
+
+  async getCatalogPaginated(options: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    category?: string;
+    serverCluster?: string;
+    availability?: string;
+  }): Promise<CatalogPaginationResult> {
+    const page = Math.max(1, options.page || 1);
+    const limit = Math.max(1, Math.min(100, options.limit || 20));
+    const search = (options.search || '').trim();
+    const category = (options.category || '').trim();
+    const serverCluster = (options.serverCluster || '').trim();
+    const availability = (options.availability || '').trim();
+
+    const cacheKey = `p_${page}_l_${limit}_s_${search}_c_${category}_sc_${serverCluster}_a_${availability}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.data;
+    }
+
+    // Check if upstream LogsPoll API is configured
+    if (logspollAdapter.getCredentials().isConfigured) {
+      try {
+        let serverNum: number | undefined;
+        if (serverCluster && serverCluster !== 'All' && serverCluster !== 'Favourites') {
+          const match = serverCluster.match(/\d+/);
+          if (match) serverNum = Number(match[0]);
+        }
+
+        // Determine effective query term
+        let effectiveQuery = search;
+        const lowerCat = category.toLowerCase();
+        const knownPlatforms = ['instagram', 'facebook', 'twitter', 'tiktok', 'gmail', 'vpn', 'telegram', 'github'];
+        if (!effectiveQuery && knownPlatforms.includes(lowerCat)) {
+          effectiveQuery = lowerCat === 'twitter' ? 'twitter' : lowerCat;
+        } else if (effectiveQuery && knownPlatforms.includes(lowerCat)) {
+          effectiveQuery = `${effectiveQuery} ${lowerCat}`;
+        }
+
+        const lpResult = await logspollAdapter.fetchCatalogPaginated({
+          page,
+          limit,
+          q: effectiveQuery || undefined,
+          server: serverNum,
+          availability: availability === 'in_stock' ? 'in-stock' : availability === 'out_of_stock' ? 'out-of-stock' : undefined
+        });
+
+        if (lpResult.records && lpResult.records.length > 0) {
+          const products: Product[] = lpResult.records.map(u => {
+            const lpId = `lp_${u.id}`;
+            const retailNgn = Math.ceil(u.priceNgn * 1.15); // 15% standard margin
+            const prodObj: Product = {
+              id: lpId,
+              slug: u.slug || `lp-${u.id.slice(0, 8)}`,
+              title: u.title,
+              category: u.category || 'Social Media Accounts',
+              categoryId: 'social-media',
+              division: 'A',
+              serverCluster: normalizeServerCluster(u.serverCluster || (serverNum ? `Server ${serverNum}` : 'Server 2')),
+              priceNgn: retailNgn,
+              inStock: u.stockCount > 0,
+              stockCount: u.stockCount,
+              rating: 5.0,
+              verifiedResale: true,
+              coverImage: resolveProductImage(u.title, u.category),
+              summary: 'Verified authentic digital account/tool backed by Ojalogs automated fulfillment.',
+              descriptionHtml: `<p>${(u.description || u.title).replace(/LogsPoll/gi, 'Ojalogs').replace(/logspoll\.com/gi, 'ojalogs.com.ng')}</p><p>Guaranteed authentic delivery via Ojalogs automated infrastructure. 100% replacement guarantee if credentials fail first-time verification.</p>`,
+              specifications: {
+                title: u.title,
+                category: u.category || 'Social Media Accounts',
+                serverOrigin: `${u.serverCluster || 'Server 2'} (Ojalogs Enterprise Fleet)`,
+                deliveryType: 'instant_automated',
+                validityDuration: 'Permanent Access',
+                fulfillmentSpeed: 'Instant Automated (Under 10s)',
+                verificationStatus: '100% Verified Ojalogs Stock',
+                stockUnits: u.stockCount,
+                region: 'Global / Worldwide'
+              },
+              deliveryFormat: u.deliveryFormat || 'Credentials / 2FA Token',
+              validityDuration: 'Permanent',
+              region: 'Global',
+              featured: false
+            };
+
+            // Register into details cache
+            this.productDetailsCache.set(lpId, prodObj);
+            this.productDetailsCache.set(prodObj.slug, prodObj);
+            return prodObj;
+          });
+
+          const result: CatalogPaginationResult = {
+            products,
+            pagination: {
+              page: lpResult.page,
+              limit: lpResult.limit,
+              total: lpResult.total,
+              totalPages: lpResult.pages,
+              inStock: lpResult.inStock,
+              outOfStock: lpResult.outOfStock
+            }
+          };
+
+          // Cache for 3 minutes
+          this.cache.set(cacheKey, { data: result, expiresAt: Date.now() + 3 * 60 * 1000 });
+          return result;
+        }
+      } catch (err: any) {
+        console.warn(`[CATALOG_PAGINATED_PROXY] Upstream notice: ${err.message}`);
+      }
+    }
+
+    // Fallback: in-memory pagination over local products
+    let pool = this.getProducts({
+      category: category && category !== 'All' ? category : undefined,
+      serverCluster: serverCluster && serverCluster !== 'All' && serverCluster !== 'Favourites' ? serverCluster : undefined,
+      search: search || undefined
+    });
+
+    if (availability === 'in_stock') {
+      pool = pool.filter(p => p.inStock);
+    } else if (availability === 'out_of_stock') {
+      pool = pool.filter(p => !p.inStock);
+    }
+
+    const total = pool.length;
+    const inStock = pool.filter(p => p.inStock).length;
+    const outOfStock = total - inStock;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const offset = (page - 1) * limit;
+    const paged = pool.slice(offset, offset + limit);
+
+    const result: CatalogPaginationResult = {
+      products: paged,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        inStock,
+        outOfStock
+      }
+    };
+
+    return result;
   }
 
   getProducts(filters?: { category?: string; serverCluster?: string; search?: string }): Product[] {
@@ -165,8 +337,66 @@ export class CatalogService {
     return result;
   }
 
+  async getProductByIdOrSlugAsync(idOrSlug: string): Promise<Product> {
+    // 1. Check local catalog
+    const local = this.products.find(p => p.id === idOrSlug || p.slug === idOrSlug);
+    if (local) return local;
+
+    // 2. Check details cache
+    const cached = this.productDetailsCache.get(idOrSlug);
+    if (cached) return cached;
+
+    // 3. If upstream is configured, fetch live
+    if (logspollAdapter.getCredentials().isConfigured) {
+      const cleanId = idOrSlug.replace(/^lp_/, '').replace(/^lp-/, '');
+      const u = await logspollAdapter.fetchProduct(cleanId);
+      if (u) {
+        const lpId = `lp_${u.id}`;
+        const retailNgn = Math.ceil(u.priceNgn * 1.15);
+        const prodObj: Product = {
+          id: lpId,
+          slug: u.slug || `lp-${u.id.slice(0, 8)}`,
+          title: u.title,
+          category: u.category || 'Social Media Accounts',
+          categoryId: 'social-media',
+          division: 'A',
+          serverCluster: normalizeServerCluster(u.serverCluster),
+          priceNgn: retailNgn,
+          inStock: u.stockCount > 0,
+          stockCount: u.stockCount,
+          rating: 5.0,
+          verifiedResale: true,
+          coverImage: resolveProductImage(u.title, u.category),
+          summary: 'Verified authentic digital account/tool backed by Ojalogs automated fulfillment.',
+          descriptionHtml: `<p>${(u.description || u.title).replace(/LogsPoll/gi, 'Ojalogs').replace(/logspoll\.com/gi, 'ojalogs.com.ng')}</p><p>Guaranteed authentic delivery via Ojalogs automated infrastructure. 100% replacement guarantee if credentials fail first-time verification.</p>`,
+          specifications: {
+            title: u.title,
+            category: u.category || 'Social Media Accounts',
+            serverOrigin: `${u.serverCluster || 'Server 2'} (Ojalogs Enterprise Fleet)`,
+            deliveryType: 'instant_automated',
+            validityDuration: 'Permanent Access',
+            fulfillmentSpeed: 'Instant Automated (Under 10s)',
+            verificationStatus: '100% Verified Ojalogs Stock',
+            stockUnits: u.stockCount,
+            region: 'Global / Worldwide'
+          },
+          deliveryFormat: u.deliveryFormat || 'Credentials / 2FA Token',
+          validityDuration: 'Permanent',
+          region: 'Global',
+          featured: false
+        };
+        this.products.push(prodObj);
+        this.productDetailsCache.set(lpId, prodObj);
+        this.productDetailsCache.set(prodObj.slug, prodObj);
+        return prodObj;
+      }
+    }
+
+    throw new AppError(`Product "${idOrSlug}" not found`, 404, 'PRODUCT_NOT_FOUND');
+  }
+
   getProductByIdOrSlug(idOrSlug: string): Product {
-    const product = this.products.find(p => p.id === idOrSlug || p.slug === idOrSlug);
+    const product = this.products.find(p => p.id === idOrSlug || p.slug === idOrSlug) || this.productDetailsCache.get(idOrSlug);
     if (!product) {
       throw new AppError(`Product "${idOrSlug}" not found`, 404, 'PRODUCT_NOT_FOUND');
     }

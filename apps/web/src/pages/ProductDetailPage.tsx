@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { resolveProductCover } from './ShopPage';
+import { BrandCoverBanner } from '../components/common/BrandCoverBanner';
+import { apiClient } from '../lib/apiClient';
+import { Product } from '@ojalogs/shared';
 import {
   ArrowLeft,
   Star,
@@ -22,7 +25,23 @@ export const ProductDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { products, favourites, toggleFavourite, addToCart, checkoutWithWallet, wallet, formatPrice, user, setIsAuthModalOpen, showToast } = useApp();
 
-  const product = products.find(p => p.slug === slug) || products[0];
+  const [liveProduct, setLiveProduct] = useState<Product | null>(null);
+
+  useEffect(() => {
+    if (!slug) return;
+    const found = products.find(p => p.slug === slug || p.id === slug);
+    if (found) {
+      setLiveProduct(found);
+    } else {
+      apiClient.getProduct(slug).then(p => {
+        if (p) setLiveProduct(p);
+      }).catch(err => {
+        console.warn('Could not fetch product details:', err);
+      });
+    }
+  }, [slug, products]);
+
+  const product = liveProduct || products.find(p => p.slug === slug) || products[0];
   const isFav = favourites.includes(product.id);
 
   const [quantity, setQuantity] = useState(1);
@@ -72,13 +91,13 @@ export const ProductDetailPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Left: Product Hero Banner */}
         <div className="space-y-4">
-          <div className="relative rounded-2xl overflow-hidden border border-oj-border dark:border-oj-dark-border aspect-video bg-slate-900 shadow-elevated">
-            <img
-              src={resolveProductCover(product)}
-              alt={product.title}
-              className="w-full h-full object-cover"
+          <div className="relative rounded-2xl overflow-hidden border border-oj-border dark:border-oj-dark-border shadow-elevated">
+            <BrandCoverBanner
+              product={product}
+              title={product.title}
+              category={product.category}
+              className="h-64 sm:h-72"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30" />
 
             <span className="absolute top-3 left-3 px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-oj-midnight/90 text-oj-cyan border border-oj-cyan/30 backdrop-blur-md">
               {product.serverCluster}
@@ -345,10 +364,12 @@ export const ProductDetailPage: React.FC = () => {
                 className="p-3 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft hover:border-oj-primary cursor-pointer transition-all flex flex-col justify-between"
               >
                 <div>
-                  <img
-                    src={rel.coverImage}
-                    alt={rel.title}
-                    className="w-full h-24 rounded-lg object-cover mb-2"
+                  <BrandCoverBanner
+                    product={rel}
+                    title={rel.title}
+                    category={rel.category}
+                    className="h-28 rounded-lg mb-2"
+                    showSubtitle={false}
                   />
                   <p className="text-xs font-bold text-oj-midnight dark:text-white line-clamp-1">{rel.title}</p>
                   <p className="text-[11px] text-oj-muted line-clamp-1">{rel.summary}</p>

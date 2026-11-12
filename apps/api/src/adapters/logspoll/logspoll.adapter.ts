@@ -6,8 +6,21 @@ export interface LogsPollProduct {
   category: string;
   priceNgn: number;
   stockCount: number;
+  serverNumber?: number;
+  serverCluster?: string;
   deliveryFormat?: string;
   description?: string;
+  slug?: string;
+}
+
+export interface LogsPollPaginatedResult {
+  records: LogsPollProduct[];
+  total: number;
+  pages: number;
+  page: number;
+  limit: number;
+  inStock: number;
+  outOfStock: number;
 }
 
 export interface LogsPollOrderResult {
@@ -159,6 +172,131 @@ export class LogsPollAdapter {
       console.warn(`[LOGSPOLL_CATALOG] Notice: ${err.message}`);
     }
     return [];
+  }
+
+  async fetchCatalogPaginated(options?: {
+    page?: number;
+    limit?: number;
+    q?: string;
+    server?: number | string;
+    availability?: string;
+  }): Promise<LogsPollPaginatedResult> {
+    const page = Math.max(1, options?.page || 1);
+    const limit = Math.max(1, Math.min(100, options?.limit || 20));
+
+    try {
+      const params = new URLSearchParams();
+      params.set('page', String(page));
+      params.set('limit', String(limit));
+      if (options?.availability && options.availability !== 'All') {
+        params.set('availability', options.availability);
+      } else {
+        params.set('availability', 'in-stock');
+      }
+      if (options?.q) params.set('q', options.q);
+      if (options?.server) params.set('server', String(options.server));
+
+      const resp = await fetch(`${this.baseUrl}/products?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          ...(this.apiKey ? { 'Authorization': `Bearer ${this.apiKey}` } : {})
+        }
+      });
+
+      if (resp.ok) {
+        const data = await resp.json() as any;
+        const list = Array.isArray(data) ? data : (data.records || data.data || data.products || []);
+        const total = Number(data.total ?? list.length);
+        const pages = Number(data.pages ?? Math.ceil(total / limit));
+        const inStock = Number(data.in_stock ?? total);
+        const outOfStock = Number(data.out_of_stock ?? 0);
+
+        const records = list.map((p: any) => {
+          const wholesaleNgn = Number(
+            typeof p.price_minor === 'number'
+              ? p.price_minor / 100
+              : (p.priceNgn || p.price || 0)
+          );
+          const serverNum = Number(p.server_number || (typeof options?.server === 'number' ? options.server : 2));
+          return {
+            id: String(p.id || p.productId),
+            slug: p.slug || `lp-${String(p.id).slice(0, 8)}`,
+            title: String(p.name || p.title || 'Digital Product').replace(/^"+|"+$/g, '').trim(),
+            category: String(p.category_name || p.category || 'Social & Tools'),
+            priceNgn: wholesaleNgn,
+            stockCount: Number(p.available_quantity ?? p.stockCount ?? p.stock ?? 10),
+            serverNumber: serverNum,
+            serverCluster: `Server ${serverNum}`,
+            deliveryFormat: p.delivery_type || p.deliveryFormat || 'Credentials / 2FA Token',
+            description: p.description || ''
+          };
+        });
+
+        return {
+          records,
+          total,
+          pages,
+          page,
+          limit,
+          inStock,
+          outOfStock
+        };
+      }
+    } catch (err: any) {
+      console.warn(`[LOGSPOLL_CATALOG_PAGINATED] Notice: ${err.message}`);
+    }
+
+    return {
+      records: [],
+      total: 0,
+      pages: 1,
+      page,
+      limit,
+      inStock: 0,
+      outOfStock: 0
+    };
+  }
+
+  async fetchProduct(productId: string): Promise<LogsPollProduct | null> {
+    const cleanId = productId.replace(/^lp_/, '');
+    try {
+      const resp = await fetch(`${this.baseUrl}/products/${cleanId}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          ...(this.apiKey ? { 'Authorization': `Bearer ${this.apiKey}` } : {})
+        }
+      });
+
+      if (resp.ok) {
+        const data = await resp.json() as any;
+        const p = data.record || data.product || data;
+        if (p && (p.id || p.name)) {
+          const wholesaleNgn = Number(
+            typeof p.price_minor === 'number'
+              ? p.price_minor / 100
+              : (p.priceNgn || p.price || 0)
+          );
+          const serverNum = Number(p.server_number || 2);
+          return {
+            id: String(p.id || cleanId),
+            slug: p.slug || `lp-${String(cleanId).slice(0, 8)}`,
+            title: String(p.name || p.title || 'Digital Product').replace(/^"+|"+$/g, '').trim(),
+            category: String(p.category_name || p.category || 'Social & Tools'),
+            priceNgn: wholesaleNgn,
+            stockCount: Number(p.available_quantity ?? p.stockCount ?? p.stock ?? 10),
+            serverNumber: serverNum,
+            serverCluster: `Server ${serverNum}`,
+            deliveryFormat: p.delivery_type || p.deliveryFormat || 'Credentials / 2FA Token',
+            description: p.description || ''
+          };
+        }
+      }
+    } catch (err: any) {
+      console.warn(`[LOGSPOLL_FETCH_PRODUCT] Notice: ${err.message}`);
+    }
+    return null;
   }
 
   async orderProduct(productId: string, quantity: number = 1, idempotencyKey?: string): Promise<LogsPollOrderResult> {

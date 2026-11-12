@@ -108,6 +108,60 @@ class ApiClient {
     return this.request<Product[]>(`/catalog/products${qs ? `?${qs}` : ''}`);
   }
 
+  async getCatalogPaginated(params?: {
+    category?: string;
+    serverCluster?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+    availability?: string;
+  }): Promise<{
+    products: Product[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      inStock: number;
+      outOfStock: number;
+    };
+  }> {
+    const query = new URLSearchParams();
+    if (params?.category) query.set('category', params.category);
+    if (params?.serverCluster) query.set('serverCluster', params.serverCluster);
+    if (params?.search) query.set('search', params.search);
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.availability) query.set('availability', params.availability);
+
+    const qs = query.toString();
+    const url = `${API_BASE}/catalog/products${qs ? `?${qs}` : ''}`;
+    const activeToken = this.getToken();
+    const res = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(activeToken ? { 'Authorization': `Bearer ${activeToken}` } : {})
+      }
+    });
+
+    const json = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new Error(json?.error?.message || 'Failed to fetch catalog');
+    }
+
+    return {
+      products: json.data || [],
+      pagination: json.pagination || {
+        page: params?.page || 1,
+        limit: params?.limit || 20,
+        total: (json.data || []).length,
+        totalPages: 1,
+        inStock: (json.data || []).length,
+        outOfStock: 0
+      }
+    };
+  }
+
   async getProduct(idOrSlug: string): Promise<Product> {
     return this.request<Product>(`/catalog/products/${idOrSlug}`);
   }
