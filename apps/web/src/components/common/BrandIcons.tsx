@@ -1,15 +1,22 @@
 import React from 'react';
 
 export const InstagramIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <rect width="20" height="20" x="2" y="2" rx="5" ry="5" className="stroke-pink-500" />
-    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" className="stroke-pink-500" />
-    <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" className="stroke-pink-500" strokeWidth="3" />
+  <svg viewBox="0 0 24 24" className={`${className} shrink-0`} fill="none">
+    <rect width="20" height="20" x="2" y="2" rx="5" ry="5" stroke="url(#ig-grad-icon)" strokeWidth="2" />
+    <circle cx="12" cy="12" r="4.2" stroke="url(#ig-grad-icon)" strokeWidth="2" />
+    <circle cx="17.5" cy="6.5" r="1.3" fill="url(#ig-grad-icon)" />
+    <defs>
+      <linearGradient id="ig-grad-icon" x1="2" y1="22" x2="22" y2="2" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#f58529" />
+        <stop offset="0.5" stopColor="#dd2a7b" />
+        <stop offset="1" stopColor="#8134af" />
+      </linearGradient>
+    </defs>
   </svg>
 );
 
 export const FacebookIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={`${className} text-blue-600`}>
+  <svg viewBox="0 0 24 24" fill="currentColor" className={`${className} text-[#1877F2]`}>
     <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
   </svg>
 );
@@ -27,9 +34,13 @@ export const TikTokIcon: React.FC<{ className?: string }> = ({ className = 'w-6 
 );
 
 export const GmailIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <rect width="20" height="16" x="2" y="4" rx="2" className="stroke-orange-500" />
-    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" className="stroke-orange-500" />
+  <svg viewBox="0 0 24 24" className={`${className} shrink-0`} fill="none">
+    <path fill="#4285F4" d="M1.636 20.999h3.819V11.73L0 7.64v11.724c0 .904.732 1.636 1.636 1.636z" />
+    <path fill="#34A853" d="M18.545 20.999h3.819c.904 0 1.636-.732 1.636-1.636V7.64l-5.455 4.09v9.269z" />
+    <path fill="#EA4335" d="M18.545 5.455V11.73L24 7.64 21.69 5.455c-.79-.594-1.89-.594-3.145 0z" />
+    <path fill="#FBBC05" d="M5.455 5.455L0 7.64l5.455 4.09V5.455z" />
+    <path fill="#EA4335" d="M5.455 5.455L12 10.364l6.545-4.909c-1.255-.594-2.355-.594-3.145 0L12 8l-3.4-2.545c-.79-.594-1.89-.594-3.145 0z" />
   </svg>
 );
+
 

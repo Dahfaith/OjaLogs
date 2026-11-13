@@ -185,7 +185,10 @@ export const TalkatoneLogo = () => (
 export const WhatsAppLogo = () => (
   <svg viewBox="0 0 24 24" className="w-8 h-8 shrink-0" fill="none">
     <circle cx="12" cy="12" r="11" fill="#25D366" />
-    <path d="M17.5 14.4c-.3-.2-1.7-.8-2-.9-.3-.1-.5-.1-.7.2-.2.3-.8.9-1 .1.1-.2.4-.4.7-.6.3-.3.8-1.5 1.7-2.3 2.5-.7.9-1.3 1.3-1.6 1.4-.3.1-.6.1-.8 0-.3-.1-1.1-.4-2.1-1.3-.8-.7-1.3-1.6-1.5-1.9-.2-.3 0-.5.1-.7.1-.1.3-.4.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5 0-.2-.7-1.7-1-2.3-.3-.6-.6-.5-.8-.5h-.7c-.2 0-.7.1-1.1.5-.4.4-1.5 1.5-1.5 3.6 0 2.1 1.5 4.2 1.7 4.5.2.3 3 4.6 7.4 6.4 1 .4 1.9.7 2.5.9 1.1.3 2.1.3 2.9.2.9-.1 2.8-1.1 3.2-2.2.4-1.1.4-2.1.3-2.3-.1-.2-.4-.3-.7-.5z" fill="#FFFFFF" />
+    <path
+      fill="#FFFFFF"
+      d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967c-.273-.099-.471-.148-.67.15c-.197.297-.767.966-.94 1.164c-.173.199-.347.223-.644.075c-.297-.15-1.255-.463-2.39-1.475c-.883-.788-1.48-1.761-1.653-2.059c-.173-.297-.018-.458.13-.606c.134-.133.298-.347.446-.52s.198-.298.298-.497c.099-.198.05-.371-.025-.52s-.669-1.612-.916-2.207c-.242-.579-.487-.5-.669-.51a13 13 0 0 0-.57-.01c-.198 0-.52.074-.792.372c-.272.297-1.04 1.016-1.04 2.479c0 1.462 1.065 2.875 1.213 3.074s2.096 3.2 5.077 4.487c.709.306 1.262.489 1.694.625c.712.227 1.36.195 1.871.118c.571-.085 1.758-.719 2.006-1.413s.248-1.289.173-1.413c-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214l-3.741.982l.998-3.648l-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884c2.64 0 5.122 1.03 6.988 2.898a9.82 9.82 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.82 11.82 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.9 11.9 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.82 11.82 0 0 0-3.48-8.413"
+    />
   </svg>
 );
 
@@ -299,14 +302,47 @@ export const YouTubeLogo = () => (
 
 export const ThreadsLogo = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8 text-black shrink-0">
-    <path d="M12 24C5.383 24 0 18.617 0 12S5.383 0 12 0s12 5.383 12 12-5.383 12-12 12zm0-21.818C6.587 2.182 2.182 6.587 2.182 12S6.587 21.818 12 21.818 21.818 17.413 21.818 12 17.413 2.182 12 2.182zm3.176 13.916c-1.047 1.046-2.477 1.623-4.029 1.623-3.13 0-5.676-2.547-5.676-5.677 0-3.13 2.546-5.676 5.676-5.676 2.036 0 3.896 1.077 4.908 2.836l-1.905 1.089c-.643-1.121-1.828-1.743-3.003-1.743-1.927 0-3.494 1.568-3.494 3.494s1.567 3.495 3.494 3.495c.954 0 1.838-.356 2.488-1.005l1.541 1.564z" />
+    <path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098c1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015c-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164c1.43 1.783 3.631 2.698 6.54 2.717c2.623-.02 4.358-.631 5.8-2.045c1.647-1.613 1.618-3.593 1.09-4.798c-.31-.71-.873-1.3-1.634-1.75c-.192 1.352-.622 2.446-1.284 3.272c-.886 1.102-2.14 1.704-3.73 1.79c-1.202.065-2.361-.218-3.259-.801c-1.063-.689-1.685-1.74-1.752-2.964c-.065-1.19.408-2.285 1.33-3.082c.88-.76 2.119-1.207 3.583-1.291a14 14 0 0 1 3.02.142c-.126-.742-.375-1.332-.75-1.757c-.513-.586-1.308-.883-2.359-.89h-.029c-.844 0-1.992.232-2.721 1.32l-1.757-1.18c.98-1.454 2.568-2.256 4.478-2.256h.044c3.194.02 5.097 1.975 5.287 5.388q.163.07.321.142c1.49.7 2.58 1.761 3.154 3.07c.797 1.82.871 4.79-1.548 7.158c-1.85 1.81-4.094 2.628-7.277 2.65Zm1.003-11.69q-.362 0-.739.021c-1.836.103-2.98.946-2.916 2.143c.067 1.256 1.452 1.839 2.784 1.767c1.224-.065 2.818-.543 3.086-3.71a10.5 10.5 0 0 0-2.215-.221" />
   </svg>
 );
 
 export const SnapchatLogo = () => (
   <svg viewBox="0 0 24 24" className="w-8 h-8 shrink-0" fill="none">
-    <rect width="24" height="24" rx="5" fill="#FFFC00" />
-    <path d="M12 4.5c-2.8 0-4.5 2-4.5 4.5 0 .8.2 1.8.5 2.5-.5.2-1.3.6-1.5 1.5-.2.8.5 1.2 1 1.3-.2.5-.8 1.5-1.5 1.7-.5.2-1 .4-.5 1 .8.8 3 .8 4 .2.5.8 1.5 1.3 2.5 1.3s2-.5 2.5-1.3c1 .6 3.2.6 4-.2.5-.6 0-.8-.5-1-.7-.2-1.3-1.2-1.5-1.7.5-.1 1.2-.5 1-1.3-.2-.9-1-1.3-1.5-1.5.3-.7.5-1.7.5-2.5 0-2.5-1.7-4.5-4.5-4.5z" fill="#000000" />
+    <rect width="24" height="24" rx="6" fill="#FFFC00" />
+    <path
+      fill="#000000"
+      d="M12.206.793c.99 0 4.347.276 5.93 3.821.529 1.193.403 3.219.299 4.847l-.003.06c-.012.18-.022.343-.031.503a.62.62 0 0 0 .322.072c.241-.013.53-.096.831-.241a.81.81 0 0 1 .373-.084c.146 0 .289.023.409.072c.361.12.59.385.59.674c.013.361-.313.675-.975.939-.071.023-.169.061-.276.096c-.637.208-1.558.508-1.745 1.472-.089.46.126.834.636 1.114.773.424 1.761.82 2.457 1.465.466.432.81 1.002.81 1.722 0 .914-.582 1.637-1.353 2.158-.291.198-.588.384-.87.568-.375.249-.74.492-1.042.825-.39.431-.531 1.053-.44 1.602.046.282.179.57.42.868.514.633 1.393 1.716 1.393 2.946 0 1.25-.973 2.062-2.894 2.417-.674.124-1.398.187-2.138.187s-1.464-.063-2.138-.187c-1.921-.355-2.894-1.167-2.894-2.417 0-1.23.879-2.313 1.393-2.946.241-.298.374-.586.42-.868.091-.549-.05-1.171-.44-1.602-.302-.333-.667-.576-1.042-.825-.282-.184-.579-.37-.87-.568-.771-.521-1.353-1.244-1.353-2.158 0-.72.344-1.29.81-1.722.696-.645 1.684-1.041 2.457-1.465.51-.28.725-.654.636-1.114-.187-.964-1.108-1.264-1.745-1.472-.107-.035-.205-.073-.276-.096-.662-.264-.988-.578-.975-.939 0-.289.229-.554.59-.674.12-.049.263-.072.409-.072.135 0 .265.03.373.084.301.145.59.228.831.241a.62.62 0 0 0 .322-.072c-.009-.16-.019-.323-.031-.503l-.003-.06c-.104-1.628-.23-3.654.299-4.847C7.859 1.069 11.216.793 12.206.793Z"
+    />
+  </svg>
+);
+
+export const RedditLogo = () => (
+  <svg viewBox="0 0 24 24" className="w-8 h-8 shrink-0" fill="none">
+    <circle cx="12" cy="12" r="11" fill="#FF4500" />
+    <path
+      fill="#FFFFFF"
+      d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.88-6.991 4.88-3.863 0-6.992-2.186-6.992-4.88 0-.183.015-.366.043-.52a1.856 1.856 0 0 1-1.01-1.614c0-.968.786-1.754 1.754-1.754.477 0 .898.182 1.206.491 1.225-.877 2.92-1.455 4.787-1.503l.913-4.276a.315.315 0 0 1 .376-.244l3.15.664a1.24 1.24 0 0 1 1.05-1.205zm-9.458 7.502c-.85 0-1.54.69-1.54 1.54 0 .85.69 1.54 1.54 1.54.85 0 1.54-.69 1.54-1.54 0-.85-.69-1.54-1.54-1.54zm9.435 0c-.85 0-1.54.69-1.54 1.54 0 .85.69 1.54 1.54 1.54.85 0 1.54-.69 1.54-1.54 0-.85-.69-1.54-1.54-1.54zm-8.318 4.793a.315.315 0 0 0-.443.084c-.752.983-1.954 1.616-3.315 1.67a.315.315 0 0 0-.304.398c.287 1.008 1.456 2.378 4.28 2.378 2.825 0 3.993-1.37 4.28-2.378a.315.315 0 0 0-.304-.398c-1.36-.054-2.563-.687-3.315-1.67a.315.315 0 0 0-.079-.084z"
+    />
+  </svg>
+);
+
+export const LinkedInLogo = () => (
+  <svg viewBox="0 0 24 24" className="w-8 h-8 shrink-0" fill="none">
+    <rect width="24" height="24" rx="4" fill="#0A66C2" />
+    <path
+      fill="#FFFFFF"
+      d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564z"
+    />
+  </svg>
+);
+
+export const PinterestLogo = () => (
+  <svg viewBox="0 0 24 24" className="w-8 h-8 shrink-0" fill="none">
+    <circle cx="12" cy="12" r="11" fill="#BD081C" />
+    <path
+      fill="#FFFFFF"
+      d="M12 0C5.373 0 0 5.372 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738.098.119.112.224.083.345-.09.375-.293 1.199-.334 1.363-.053.225-.172.271-.401.165-1.495-.69-2.433-2.878-2.433-4.646 0-3.776 2.748-7.252 7.92-7.252 4.158 0 7.392 2.967 7.392 6.923 0 4.135-2.607 7.462-6.233 7.462-1.214 0-2.354-.629-2.744-1.379l-.749 2.848c-.269 1.045-1.004 2.352-1.498 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12 0-6.628-5.373-12-12-12z"
+    />
   </svg>
 );
 
@@ -784,18 +820,49 @@ export function getBrandConfig(
     }
 
     // -------------------------------------------------------------
-    // PRIORITY 7: SOCIAL MEDIA PLATFORMS (STRICT REGEX)
+    // PRIORITY 7: SOCIAL MEDIA PLATFORMS (STRICT REGEX & HIERARCHY)
     // -------------------------------------------------------------
+    // RULE A: THREADS MUST PRECEDE INSTAGRAM!
+    // Threads accounts almost always specify "Instagram Login", "Instagram linked",
+    // or "2FA Instagram" because Threads authenticates through Meta's Instagram service.
+    // We match BOTH singular ("thread") and plural ("threads").
+    if (
+      /\b(threads?)\b/i.test(target) ||
+      target.includes('thread account') ||
+      target.includes('threads account') ||
+      target.includes('thread high quality') ||
+      target.includes('threads high quality') ||
+      target.includes('show thread') ||
+      target.includes('show threads')
+    ) {
+      // If title is explicitly an Instagram account that just joined threads (e.g. "Instagram account ... join threads"),
+      // and not a Threads account using Instagram login:
+      const isExplicitInstagramPrimary =
+        /\b(instagram\s*accounts?|ig\s*accounts?)\b/i.test(target) &&
+        !/\b(threads?\s*accounts?|threads?\s*accs?)\b/i.test(target) &&
+        !target.includes('instagram login') &&
+        !target.includes('ig login');
+
+      if (!isExplicitInstagramPrimary) {
+        return {
+          key: 'threads',
+          platformName: 'Threads',
+          gradientClass: 'from-[#0a0a0a] via-[#171717] to-[#000000]',
+          accentColor: '#ffffff',
+          renderLogo: () => <ThreadsLogo />
+        };
+      }
+    }
+
+    // RULE B: INSTAGRAM ACCOUNTS
     // Strictly requires explicit 'instagram' or standalone word '\big\b'
     // NEVER match bare substring 'insta' to prevent 'instant delivery' collisions!
     if (
-      target.includes('instagram') ||
-      /\b(ig)\b/i.test(target) ||
-      target.includes('aged creator') ||
-      target.includes('russian instagram') ||
-      target.includes('brazil instagram') ||
+      /\b(instagram|instagrams|aged\s*creator|ig\s*account|ig\s*accounts|\big\b)\b/i.test(target) ||
       target.includes('instagram account') ||
-      target.includes('instagram followers')
+      target.includes('instagram followers') ||
+      target.includes('russian instagram') ||
+      target.includes('brazil instagram')
     ) {
       return {
         key: 'instagram',
@@ -806,13 +873,13 @@ export function getBrandConfig(
       };
     }
 
+    // RULE C: FACEBOOK ACCOUNTS & ASSETS
     if (
+      /\b(facebook|facebooks|bm50|bm250|business\s*manager|facebook\s*account|facebook\s*accounts|fb\s*account|fb\s*accounts|\bfb\b)\b/i.test(target) ||
       target.includes('facebook') ||
       target.includes('bm50') ||
       target.includes('bm250') ||
-      target.includes('business manager') ||
-      target.includes('facebook account') ||
-      /\b(fb)\b/i.test(target)
+      target.includes('business manager')
     ) {
       return {
         key: 'facebook',
@@ -823,7 +890,12 @@ export function getBrandConfig(
       };
     }
 
-    if (target.includes('tiktok') || target.includes('tik tok')) {
+    // RULE D: TIKTOK
+    if (
+      /\b(tiktok|tiktoks|tik\s*tok)\b/i.test(target) ||
+      target.includes('tiktok') ||
+      target.includes('tik tok')
+    ) {
       return {
         key: 'tiktok',
         platformName: 'TikTok',
@@ -833,13 +905,13 @@ export function getBrandConfig(
       };
     }
 
+    // RULE E: X / TWITTER
     if (
+      /\b(twitter|twitters|aged\s*x|x\.com|x\s*\(twitter\)|twitter\s*account|twitter\s*accounts|x\s*account|x\s*accounts)\b/i.test(target) ||
       target.includes('twitter') ||
       target.includes('aged x') ||
       target.includes('x.com') ||
-      target.includes('x (twitter)') ||
-      target.includes('twitter account') ||
-      /\b(twitter|x account|twitter x)\b/i.test(target)
+      target.includes('x (twitter)')
     ) {
       return {
         key: 'twitter',
@@ -850,23 +922,59 @@ export function getBrandConfig(
       };
     }
 
-    if (target.includes('threads')) {
-      return {
-        key: 'threads',
-        platformName: 'Threads',
-        gradientClass: 'from-[#171717] via-[#262626] to-[#0a0a0a]',
-        accentColor: '#ffffff',
-        renderLogo: () => <ThreadsLogo />
-      };
-    }
-
-    if (target.includes('snapchat') || /\b(snap)\b/i.test(target)) {
+    // RULE F: SNAPCHAT
+    if (
+      /\b(snapchat|snapchats|snap\s*account|snap\s*accounts|\bsnap\b)\b/i.test(target) ||
+      target.includes('snapchat')
+    ) {
       return {
         key: 'snapchat',
         platformName: 'Snapchat',
         gradientClass: 'from-[#2e2b05] via-[#4d4809] to-[#1c1a03]',
         accentColor: '#fffc00',
         renderLogo: () => <SnapchatLogo />
+      };
+    }
+
+    // RULE G: REDDIT
+    if (
+      /\b(reddit|reddits|reddit\s*account|reddit\s*accounts|karma\s*account)\b/i.test(target) ||
+      target.includes('reddit')
+    ) {
+      return {
+        key: 'reddit',
+        platformName: 'Reddit',
+        gradientClass: 'from-[#2b0c03] via-[#ff4500] to-[#1a0701]',
+        accentColor: '#ff4500',
+        renderLogo: () => <RedditLogo />
+      };
+    }
+
+    // RULE H: LINKEDIN
+    if (
+      /\b(linkedin|linkedins|linkedin\s*account|linkedin\s*accounts)\b/i.test(target) ||
+      target.includes('linkedin')
+    ) {
+      return {
+        key: 'linkedin',
+        platformName: 'LinkedIn',
+        gradientClass: 'from-[#001c3d] via-[#0a66c2] to-[#001026]',
+        accentColor: '#0a66c2',
+        renderLogo: () => <LinkedInLogo />
+      };
+    }
+
+    // RULE I: PINTEREST
+    if (
+      /\b(pinterest|pinterests|pinterest\s*account|pinterest\s*accounts)\b/i.test(target) ||
+      target.includes('pinterest')
+    ) {
+      return {
+        key: 'pinterest',
+        platformName: 'Pinterest',
+        gradientClass: 'from-[#290005] via-[#bd081c] to-[#190003]',
+        accentColor: '#bd081c',
+        renderLogo: () => <PinterestLogo />
       };
     }
 

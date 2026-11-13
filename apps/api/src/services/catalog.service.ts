@@ -103,7 +103,10 @@ function resolveProductImage(title: string, category: string = '', description: 
     return 'https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?auto=format&fit=crop&w=600&q=80';
   }
 
-  // 7. SOCIAL MEDIA PLATFORMS (STRICT regex - never collide bare 'insta' with 'instant')
+  // 7. SOCIAL MEDIA PLATFORMS (STRICT regex - Threads precedes Instagram)
+  if (matchTitle(/\b(threads?)\b/i) && (!matchTitle(/\b(instagram\s*accounts?|ig\s*accounts?)\b/i) || matchTitle(/instagram\s*login/i))) {
+    return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80';
+  }
   if (matchTitle(/\b(twitter|aged\s*x|x\.com|x\s*\(twitter\)|twitter\s*account)\b/i)) {
     return 'https://images.unsplash.com/photo-1611605698335-8b1569810432?auto=format&fit=crop&w=600&q=80';
   }
@@ -118,9 +121,6 @@ function resolveProductImage(title: string, category: string = '', description: 
   }
   if (matchTitle(/\b(reddit)\b/i)) {
     return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80';
-  }
-  if (matchTitle(/\b(threads)\b/i)) {
-    return 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=600&q=80';
   }
   if (matchTitle(/\b(snapchat)\b/i)) {
     return 'https://images.unsplash.com/photo-1611605698335-8b1569810432?auto=format&fit=crop&w=600&q=80';
