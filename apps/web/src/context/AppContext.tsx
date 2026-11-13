@@ -174,9 +174,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Supabase Magic Link redirect & session listener
   useEffect(() => {
-    // Check if session has timed out due to inactivity (>45 mins)
+    // Check if session has timed out due to inactivity (>30 mins)
     const storedLastActivity = localStorage.getItem('oj_last_activity');
-    if (storedLastActivity && Date.now() - Number(storedLastActivity) > 45 * 60 * 1000) {
+    if (storedLastActivity && Date.now() - Number(storedLastActivity) > 30 * 60 * 1000) {
       console.log('[AUTH] Inactivity timeout reached on page start. Resetting session.');
       signOutUser().catch(() => {});
       localStorage.removeItem('oj_user');
@@ -349,7 +349,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // =========================================================================
   // AUTOMATIC SESSION TIMEOUT & INACTIVITY AUTO-LOGOUT
   // =========================================================================
-  const INACTIVITY_TIMEOUT_MS = 45 * 60 * 1000; // 45 minutes of inactivity
+  const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes of inactivity
 
   const updateLastActivity = useCallback(() => {
     try {
@@ -587,10 +587,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
-      // If backend was sleeping and returned 0, retain verified non-zero local balance
+      // If backend returned 0 or was temporarily cold, protect verified non-zero balance
       const userKey = user.email || user.id;
       const cachedBal = Number(localStorage.getItem(`oj_wallet_bal_${userKey}`) || localStorage.getItem('oj_wallet_bal') || 0);
-      if (finalBalance === 0 && cachedBal > 0 && balRes === null) {
+      if (finalBalance === 0 && cachedBal > 0) {
         finalBalance = cachedBal;
       }
 

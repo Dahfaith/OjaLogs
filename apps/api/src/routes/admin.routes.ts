@@ -500,9 +500,17 @@ router.get('/users', async (req, res) => {
     console.warn('[ADMIN_USERS] Notice listing Supabase auth users:', err);
   }
 
+  const users = notificationService.getManagedUsers();
+  for (const u of users) {
+    try {
+      const bal = await walletService.getBalanceAsync(u.id, u.email);
+      u.balanceNgn = bal;
+    } catch {}
+  }
+
   res.json({
     success: true,
-    data: notificationService.getManagedUsers(),
+    data: users,
     meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
   });
 });

@@ -68,6 +68,22 @@ export class WalletService {
         }
       }
 
+      // Also map Supabase Auth users directly
+      try {
+        const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
+        if (Array.isArray(authUsers?.users)) {
+          for (const u of authUsers.users) {
+            if (u.id && u.email) {
+              const cleanEmail = u.email.toLowerCase().trim();
+              this.userEmails.set(u.id, cleanEmail);
+              this.emailToUserMap.set(cleanEmail, u.id);
+            }
+          }
+        }
+      } catch (authErr) {
+        console.warn('[WALLET_SERVICE] Supabase auth listUsers notice:', authErr);
+      }
+
       // 2. Load wallets
       const { data: wallets } = await supabaseAdmin
         .from('wallets')
@@ -297,6 +313,17 @@ export class WalletService {
             targetUuid = prof.id;
             this.userEmails.set(prof.id, cleanEmail);
             this.emailToUserMap.set(cleanEmail, prof.id);
+          } else {
+            // 3. Query Supabase Auth users
+            try {
+              const { data: authList } = await supabaseAdmin.auth.admin.listUsers();
+              const foundAuth = authList?.users?.find(u => u.email?.toLowerCase().trim() === cleanEmail);
+              if (foundAuth?.id && this.isValidUuid(foundAuth.id)) {
+                targetUuid = foundAuth.id;
+                this.userEmails.set(foundAuth.id, cleanEmail);
+                this.emailToUserMap.set(cleanEmail, foundAuth.id);
+              }
+            } catch {}
           }
         }
       }

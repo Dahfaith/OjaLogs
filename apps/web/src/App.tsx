@@ -31,14 +31,21 @@ export const App: React.FC = () => {
   useEffect(() => {
     try {
       const tawk = (window as any).Tawk_API;
+      const crisp = (window as any).$crisp;
       if (isAdminRoute) {
         if (typeof tawk?.hideWidget === 'function') {
           tawk.hideWidget();
+        }
+        if (Array.isArray(crisp)) {
+          crisp.push(['do', 'chat:hide']);
         }
         document.body.classList.add('admin-mode-active');
       } else {
         if (typeof tawk?.showWidget === 'function') {
           tawk.showWidget();
+        }
+        if (Array.isArray(crisp)) {
+          crisp.push(['do', 'chat:show']);
         }
         document.body.classList.remove('admin-mode-active');
       }

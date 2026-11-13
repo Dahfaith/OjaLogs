@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, ArrowRight, ShieldCheck, CheckCircle2, RotateCw, X, Sparkles, KeyRound } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -13,6 +14,7 @@ interface AuthModalProps {
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultEmail = '' }) => {
+  const navigate = useNavigate();
   const { setUser, showToast, setRole } = useApp();
   const [step, setStep] = useState<'input' | 'sent'>('input');
   const [email, setEmail] = useState(defaultEmail);
@@ -154,6 +156,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultEm
         verifiedUser.role = 'administrator';
         setRole('admin');
         apiClient.setToken(`mock_jwt_admin_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`);
+        navigate('/admin');
       }
 
       setUser(verifiedUser);
