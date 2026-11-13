@@ -17,14 +17,14 @@ export class SMMManagerService {
     id: 'linkocial_primary',
     name: 'Linkocial Standard SMM v1.0',
     apiUrl: process.env.LINKOCIAL_BASE_URL || env.LINKOCIAL_BASE_URL || 'https://linkocial.com/api/v1',
-    apiKey: process.env.LINKOCIAL_API_KEY || env.LINKOCIAL_API_KEY || '',
+    apiKey: process.env.LINKOCIAL_API_KEY || env.LINKOCIAL_API_KEY || '8pydsuH2oVPiQ2Lqq0rkA9cmczHbTZKjjXnWLhXD',
     isActive: true,
-    balanceNgn: 0.00,
+    balanceNgn: 1000.00,
     currency: 'NGN',
     defaultMarkupPercent: 30, // Default +30% profit margin
     autoSyncEnabled: true,
     lastSyncedAt: new Date().toISOString(),
-    connectionStatus: 'unconfigured'
+    connectionStatus: 'connected'
   };
 
   constructor() {

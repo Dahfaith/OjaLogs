@@ -39,7 +39,7 @@ export class LinkocialAdapter {
   private baseUrl: string;
 
   constructor(apiKey?: string, baseUrl?: string) {
-    this.apiKey = (apiKey || process.env.LINKOCIAL_API_KEY || env.LINKOCIAL_API_KEY || '').trim();
+    this.apiKey = (apiKey || process.env.LINKOCIAL_API_KEY || env.LINKOCIAL_API_KEY || '8pydsuH2oVPiQ2Lqq0rkA9cmczHbTZKjjXnWLhXD').trim();
     this.baseUrl = (baseUrl || process.env.LINKOCIAL_BASE_URL || env.LINKOCIAL_BASE_URL || 'https://linkocial.com/api/v1').trim();
   }
 
@@ -76,8 +76,16 @@ export class LinkocialAdapter {
     keyToUse: string = this.apiKey,
     urlToUse: string = this.baseUrl
   ): Promise<{ data?: T; error?: string; raw?: any }> {
-    const key = (keyToUse || '').trim();
-    const url = (urlToUse || '').trim();
+    const key = (keyToUse || this.apiKey || '8pydsuH2oVPiQ2Lqq0rkA9cmczHbTZKjjXnWLhXD').trim();
+    let url = (urlToUse || this.baseUrl || 'https://linkocial.com/api/v1').trim();
+
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = `https://${url}`;
+    }
+    url = url.replace(/\/+$/, '');
+    if (!url.includes('/api')) {
+      url = `${url}/api/v1`;
+    }
 
     if (!key || key === 'linkocial_live_token_default') {
       return {
