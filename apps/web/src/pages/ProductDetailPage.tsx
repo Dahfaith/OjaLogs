@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { resolveProductCover } from './ShopPage';
-import { BrandCoverBanner } from '../components/common/BrandCoverBanner';
+import { BrandCoverBanner, getBrandConfig } from '../components/common/BrandCoverBanner';
 import { apiClient } from '../lib/apiClient';
 import { Product } from '@ojalogs/shared';
 import {
@@ -70,6 +70,8 @@ export const ProductDetailPage: React.FC = () => {
     addToCart(product, quantity);
   };
 
+  const brand = getBrandConfig(product.title, product.category, product.summary || product.descriptionHtml);
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-24 md:pb-12">
       {/* Back Link & Breadcrumb */}
@@ -83,6 +85,8 @@ export const ProductDetailPage: React.FC = () => {
         </button>
         <span>/</span>
         <Link to="/shop" className="hover:text-oj-midnight dark:hover:text-white">Store</Link>
+        <span>/</span>
+        <span className="text-oj-primary font-semibold">{brand.platformName}</span>
         <span>/</span>
         <span className="text-oj-midnight dark:text-white truncate font-medium">{product.title}</span>
       </div>
@@ -111,7 +115,7 @@ export const ProductDetailPage: React.FC = () => {
             </button>
 
             <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs text-white">
-              <span className="font-semibold">{product.category}</span>
+              <span className="font-semibold">{brand.platformName}</span>
               <span className="px-2 py-0.5 rounded bg-emerald-500/90 text-[10px] font-bold">
                 ● {product.stockCount} Available
               </span>
@@ -277,22 +281,39 @@ export const ProductDetailPage: React.FC = () => {
             <div className="prose dark:prose-invert max-w-none text-xs sm:text-sm text-oj-midnight dark:text-slate-200 leading-relaxed space-y-3">
               {(() => {
                 const raw = product.descriptionHtml || product.summary || '';
-                const cleaned = raw
-                  .replace(/<\/(p|div|li|h[1-6])>/gi, '\n\n')
-                  .replace(/<br\s*\/?>/gi, '\n')
-                  .replace(/<[^>]+>/g, '')
-                  .replace(/&amp;/g, '&')
+                // 1. Decode entities first so encoded tags become real tags
+                let text = raw
                   .replace(/&lt;/g, '<')
                   .replace(/&gt;/g, '>')
                   .replace(/&quot;/g, '"')
                   .replace(/&#39;/g, "'")
-                  .replace(/&nbsp;/g, ' ')
+                  .replace(/&amp;/g, '&')
+                  .replace(/&nbsp;/g, ' ');
+
+                // 2. Convert block boundaries to newlines, then strip all markup
+                text = text
+                  .replace(/<\/(p|div|li|h[1-6])>/gi, '\n\n')
+                  .replace(/<br\s*\/?>/gi, '\n')
+                  .replace(/<(p|div|li|h[1-6])[^>]*>/gi, '')
+                  .replace(/<[^>]+>/g, '')
+                  .replace(/<\/?(p|div|span|h[1-6]|br)[^>]*>/gi, '');
+
+                // 3. Strictly replace all supplier and upstream platform mentions with Ojalogs branding
+                text = text
                   .replace(/LogsPoll/gi, 'Ojalogs')
                   .replace(/logspoll\.com/gi, 'ojalogs.com.ng')
+                  .replace(/logspoll/gi, 'ojalogs')
                   .replace(/TextPlug/gi, 'Ojalogs Telecom')
-                  .replace(/Linkocial/gi, 'Ojalogs SMM Engine');
+                  .replace(/textplug\.net/gi, 'ojalogs.com.ng')
+                  .replace(/textplug/gi, 'ojalogs')
+                  .replace(/Linkocial/gi, 'Ojalogs SMM Engine')
+                  .replace(/linkocial\.com/gi, 'ojalogs.com.ng')
+                  .replace(/linkocial/gi, 'ojalogs')
+                  .replace(/hstora\.com/gi, 'ojalogs.com.ng')
+                  .replace(/hstora/gi, 'ojalogs')
+                  .replace(/ypg-buy-[a-z0-9-]+/gi, 'ojalogs-verified');
 
-                const paragraphs = cleaned
+                const paragraphs = text
                   .split(/\n\s*\n/)
                   .map(p => p.trim())
                   .filter(Boolean);
@@ -331,7 +352,7 @@ export const ProductDetailPage: React.FC = () => {
                   </tr>
                   <tr className="hover:bg-oj-surface-alt/40">
                     <td className="py-2.5 px-4 font-semibold text-oj-muted">Category</td>
-                    <td className="py-2.5 px-4 text-oj-midnight dark:text-white">{product.specifications.category}</td>
+                    <td className="py-2.5 px-4 font-semibold text-oj-midnight dark:text-white">{brand.platformName}</td>
                   </tr>
                   <tr className="hover:bg-oj-surface-alt/40">
                     <td className="py-2.5 px-4 font-semibold text-oj-muted">Server Origin</td>

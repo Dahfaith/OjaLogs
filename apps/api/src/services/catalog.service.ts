@@ -4,153 +4,152 @@ import { encryptPayload, hashFingerprint } from '../utils/crypto.js';
 import { INITIAL_PRODUCTS } from '../data/products.js';
 import { logspollAdapter } from '../adapters/logspoll/logspoll.adapter.js';
 
-function resolveProductImage(title: string, category: string = ''): string {
-  const t = (title + ' ' + category).toLowerCase();
+function resolveProductImage(title: string, category: string = '', description: string = ''): string {
+  const t = title.toLowerCase();
+  const c = category.toLowerCase();
+  const d = description.toLowerCase();
 
-  // 1. High-Priority: Mastercard, Visa, Prepaid Virtual Cards, Gift Cards
-  if (
-    t.includes('mastercard') ||
-    t.includes('visa') ||
-    t.includes('prepaid') ||
-    t.includes('gift card') ||
-    t.includes('vcc') ||
-    t.includes('credit card') ||
-    t.includes('debit card') ||
-    t.includes('virtual card') ||
-    /\b(card|cards|amex|vanilla)\b/i.test(t)
-  ) {
+  // Helper matcher: check title first, then category/description
+  const match = (regex: RegExp) => regex.test(t) || regex.test(c) || regex.test(d);
+  const matchTitle = (regex: RegExp) => regex.test(t);
+
+  // 1. PAYMENT & GIFT CARDS (PRIORITY 1 - never misclassify as social)
+  if (matchTitle(/\b(mastercard|master\s*card)\b/i)) {
+    return 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(visa|visa\s*card|vcc)\b/i)) {
+    return 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(amex|american\s*express|vanilla)\b/i)) {
+    return 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(amazon|amazon\s*gift)\b/i)) {
+    return 'https://images.unsplash.com/photo-1523474255658-4af61b168344?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(apple|itunes|app\s*store)\b/i)) {
+    return 'https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(google\s*play|play\s*store)\b/i)) {
+    return 'https://images.unsplash.com/photo-1596526131083-e8c633c948d2?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(steam|steam\s*wallet)\b/i)) {
+    return 'https://images.unsplash.com/photo-1612287271186-47b0a70f555d?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(razer|razer\s*gold)\b/i)) {
+    return 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(playstation|psn|xbox|roblox)\b/i)) {
+    return 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(gift\s*card|prepaid|virtual\s*card|debit\s*card|credit\s*card)\b/i)) {
     return 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=600&q=80';
   }
 
-  // 2. GitHub
-  if (t.includes('github') || /\b(git)\b/i.test(t)) {
-    return 'https://images.unsplash.com/photo-1618401471353-b98aedd04e11?auto=format&fit=crop&w=600&q=80';
-  }
-
-  // 3. X / Twitter
-  if (
-    t.includes('twitter') ||
-    t.includes('aged x') ||
-    t.includes('x.com') ||
-    t.includes('x (twitter)') ||
-    t.includes('twitter account') ||
-    /\b(twitter|x account|twitter x)\b/i.test(t)
-  ) {
-    return 'https://images.unsplash.com/photo-1611605698335-8b1569810432?auto=format&fit=crop&w=600&q=80';
-  }
-
-  // 4. Instagram (STRICT: Never match bare 'insta' to prevent 'instant' collisions)
-  if (
-    t.includes('instagram') ||
-    /\b(ig)\b/i.test(t) ||
-    t.includes('aged creator') ||
-    t.includes('russian instagram') ||
-    t.includes('brazil instagram') ||
-    t.includes('instagram account')
-  ) {
-    return 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=600&q=80';
-  }
-
-  // 5. Facebook / Meta
-  if (
-    t.includes('facebook') ||
-    t.includes('bm50') ||
-    t.includes('business manager') ||
-    t.includes('facebook account') ||
-    /\b(fb|meta)\b/i.test(t)
-  ) {
-    return 'https://images.unsplash.com/photo-1611162618071-b39a2ec055fb?auto=format&fit=crop&w=600&q=80';
-  }
-
-  // 6. Telegram
-  if (t.includes('telegram') || t.includes('t.me') || /\b(tg)\b/i.test(t)) {
-    return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80';
-  }
-
-  // 7. TikTok
-  if (t.includes('tiktok') || t.includes('tik tok')) {
-    return 'https://images.unsplash.com/photo-1611605698323-b1e99cfd37ea?auto=format&fit=crop&w=600&q=80';
-  }
-
-  // 8. Gmail / Google Workspace / YouTube
-  if (
-    t.includes('gmail') ||
-    t.includes('google') ||
-    t.includes('workspace') ||
-    t.includes('gsuite') ||
-    t.includes('gdrive') ||
-    t.includes('youtube')
-  ) {
+  // 2. VIRTUAL NUMBERS & TELEPHONY
+  if (matchTitle(/\b(google\s*voice|gvoice)\b/i)) {
     return 'https://images.unsplash.com/photo-1596526131083-e8c633c948d2?auto=format&fit=crop&w=600&q=80';
   }
-
-  // 9. VPN & Security
-  if (
-    t.includes('vpn') ||
-    t.includes('nord') ||
-    t.includes('surfshark') ||
-    t.includes('expressvpn') ||
-    t.includes('cyberghost')
-  ) {
-    return 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=600&q=80';
+  if (matchTitle(/\b(textnow|talkatone)\b/i)) {
+    return 'https://images.unsplash.com/photo-1512499617640-c74ae3a79d37?auto=format&fit=crop&w=600&q=80';
   }
-
-  // 10. Proxies & Residential IPs
-  if (
-    t.includes('proxy') ||
-    t.includes('proxies') ||
-    t.includes('residential') ||
-    t.includes('rotating') ||
-    t.includes('socks5')
-  ) {
-    return 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=600&q=80';
+  if (matchTitle(/\b(whatsapp|wa\s*business)\b/i)) {
+    return 'https://images.unsplash.com/photo-1614680376573-df3480f0c6ff?auto=format&fit=crop&w=600&q=80';
   }
-
-  // 11. eSIM & Roaming Data
-  if (t.includes('esim') || t.includes('roaming') || /\b(sim)\b/i.test(t)) {
+  if (matchTitle(/\b(telegram|tdata|\.session|tg\b)/i)) {
+    return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(esim|roaming|sim\s*card)\b/i)) {
     return 'https://images.unsplash.com/photo-1512499617640-c74ae3a79d37?auto=format&fit=crop&w=600&q=80';
   }
 
-  // 12. AI Tools & Subscriptions
-  if (
-    t.includes('chatgpt') ||
-    t.includes('claude') ||
-    t.includes('openai') ||
-    t.includes('midjourney') ||
-    t.includes('gemini') ||
-    t.includes('anthropic') ||
-    t.includes('ai tool')
-  ) {
-    return 'https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&w=600&q=80';
-  }
-
-  // 13. Windows / Microsoft / Office
-  if (
-    t.includes('windows') ||
-    t.includes('office') ||
-    t.includes('microsoft') ||
-    t.includes('license key') ||
-    t.includes('os key')
-  ) {
+  // 3. EMAIL PROVIDERS
+  if (matchTitle(/\b(outlook|hotmail)\b/i)) {
     return 'https://images.unsplash.com/photo-1629654297299-c8506221ca97?auto=format&fit=crop&w=600&q=80';
   }
-
-  // 14. Crypto & Fintech
-  if (t.includes('binance') || t.includes('crypto') || t.includes('bybit') || t.includes('coinbase')) {
-    return 'https://images.unsplash.com/photo-1621416894569-0f39ed31d247?auto=format&fit=crop&w=600&q=80';
+  if (matchTitle(/\b(yahoo|yahoomail)\b/i)) {
+    return 'https://images.unsplash.com/photo-1557200134-90327ee9fafa?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(proton|protonmail)\b/i)) {
+    return 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(gmail|google\s*workspace|gsuite)\b/i)) {
+    return 'https://images.unsplash.com/photo-1596526131083-e8c633c948d2?auto=format&fit=crop&w=600&q=80';
   }
 
-  // 15. Canva & Design
-  if (t.includes('canva') || t.includes('adobe') || t.includes('photoshop')) {
-    return 'https://images.unsplash.com/photo-1626785774573-4b799315345d?auto=format&fit=crop&w=600&q=80';
+  // 4. AI & DEVELOPER TOOLS
+  if (matchTitle(/\b(chatgpt|openai|gpt-4|claude|anthropic|midjourney|capcut|gemini|kling|ai\s*tool)\b/i)) {
+    return 'https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(github|gitlab|git)\b/i)) {
+    return 'https://images.unsplash.com/photo-1618401471353-b98aedd04e11?auto=format&fit=crop&w=600&q=80';
   }
 
-  // 16. Streaming (Spotify, Netflix)
-  if (t.includes('spotify')) {
+  // 5. VPN & PROXIES
+  if (matchTitle(/\b(vpn|nord|surfshark|expressvpn|cyberghost)\b/i)) {
+    return 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(proxy|proxies|residential|rotating|socks5)\b/i)) {
+    return 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=600&q=80';
+  }
+
+  // 6. STREAMING & MEDIA
+  if (matchTitle(/\b(netflix)\b/i)) {
+    return 'https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(spotify)\b/i)) {
     return 'https://images.unsplash.com/photo-1614680376593-902f749f7ffc?auto=format&fit=crop&w=600&q=80';
   }
-  if (t.includes('netflix')) {
-    return 'https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?auto=format&fit=crop&w=600&q=80';
+  if (matchTitle(/\b(youtube|yt\s*sub)\b/i)) {
+    return 'https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?auto=format&fit=crop&w=600&q=80';
+  }
+
+  // 7. SOCIAL MEDIA PLATFORMS (STRICT regex - never collide bare 'insta' with 'instant')
+  if (matchTitle(/\b(twitter|aged\s*x|x\.com|x\s*\(twitter\)|twitter\s*account)\b/i)) {
+    return 'https://images.unsplash.com/photo-1611605698335-8b1569810432?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(instagram|instagram\s*account|aged\s*creator|\big\b)/i)) {
+    return 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(facebook|bm50|business\s*manager|facebook\s*account|\bfb\b)/i)) {
+    return 'https://images.unsplash.com/photo-1611162618071-b39a2ec055fb?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(tiktok|tik\s*tok)\b/i)) {
+    return 'https://images.unsplash.com/photo-1611605698323-b1e99cfd37ea?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(reddit)\b/i)) {
+    return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(threads)\b/i)) {
+    return 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(snapchat)\b/i)) {
+    return 'https://images.unsplash.com/photo-1611605698335-8b1569810432?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(discord)\b/i)) {
+    return 'https://images.unsplash.com/photo-1618401471353-b98aedd04e11?auto=format&fit=crop&w=600&q=80';
+  }
+
+  // 8. SECONDARY FALLBACK: Match Category if Title gave no match
+  if (match(/\b(mastercard|visa|card|cards|gift\s*card)\b/i)) {
+    return 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=600&q=80';
+  }
+  if (match(/\b(vpn)\b/i)) {
+    return 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=600&q=80';
+  }
+  if (match(/\b(ai|chatgpt|openai)\b/i)) {
+    return 'https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&w=600&q=80';
+  }
+  if (match(/\b(instagram)\b/i)) {
+    return 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=600&q=80';
+  }
+  if (match(/\b(facebook)\b/i)) {
+    return 'https://images.unsplash.com/photo-1611162618071-b39a2ec055fb?auto=format&fit=crop&w=600&q=80';
+  }
+  if (match(/\b(twitter)\b/i)) {
+    return 'https://images.unsplash.com/photo-1611605698335-8b1569810432?auto=format&fit=crop&w=600&q=80';
+  }
+  if (match(/\b(tiktok)\b/i)) {
+    return 'https://images.unsplash.com/photo-1611605698323-b1e99cfd37ea?auto=format&fit=crop&w=600&q=80';
   }
 
   return 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=600&q=80';
@@ -217,7 +216,7 @@ export class CatalogService {
               stockCount: u.stockCount,
               rating: 5.0,
               verifiedResale: true,
-              coverImage: resolveProductImage(u.title, u.category),
+              coverImage: resolveProductImage(u.title, u.category, u.description),
               summary: 'Verified authentic digital account/tool backed by Ojalogs automated fulfillment.',
               descriptionHtml: `<p>${(u.description || u.title).replace(/<\/?(p|div|br)\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').replace(/LogsPoll/gi, 'Ojalogs').replace(/logspoll\.com/gi, 'ojalogs.com.ng').trim()}</p><p>Guaranteed authentic delivery via Ojalogs automated infrastructure. 100% replacement guarantee if credentials fail first-time verification.</p>`,
               specifications: {
@@ -286,10 +285,18 @@ export class CatalogService {
         // Determine effective query term
         let effectiveQuery = search;
         const lowerCat = category.toLowerCase();
-        const knownPlatforms = ['instagram', 'facebook', 'twitter', 'tiktok', 'gmail', 'vpn', 'telegram', 'github', 'card', 'cards', 'mastercard', 'visa', 'ai'];
+        const knownPlatforms = [
+          'instagram', 'facebook', 'twitter', 'tiktok', 'gmail', 'vpn', 'telegram', 'github',
+          'card', 'cards', 'mastercard', 'visa', 'ai', 'reddit', 'threads', 'snapchat',
+          'discord', 'spotify', 'netflix', 'amazon', 'apple', 'steam', 'youtube'
+        ];
         if (!effectiveQuery && knownPlatforms.includes(lowerCat)) {
           if (lowerCat === 'cards' || lowerCat === 'mastercard') {
-            effectiveQuery = 'card';
+            effectiveQuery = 'mastercard';
+          } else if (lowerCat === 'visa') {
+            effectiveQuery = 'visa';
+          } else if (lowerCat === 'ai') {
+            effectiveQuery = 'ai';
           } else {
             effectiveQuery = lowerCat === 'twitter' ? 'twitter' : lowerCat;
           }
@@ -322,7 +329,7 @@ export class CatalogService {
               stockCount: u.stockCount,
               rating: 5.0,
               verifiedResale: true,
-              coverImage: resolveProductImage(u.title, u.category),
+              coverImage: resolveProductImage(u.title, u.category, u.description),
               summary: 'Verified authentic digital account/tool backed by Ojalogs automated fulfillment.',
               descriptionHtml: `<p>${(u.description || u.title).replace(/<\/?(p|div|br)\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').replace(/LogsPoll/gi, 'Ojalogs').replace(/logspoll\.com/gi, 'ojalogs.com.ng').trim()}</p><p>Guaranteed authentic delivery via Ojalogs automated infrastructure. 100% replacement guarantee if credentials fail first-time verification.</p>`,
               specifications: {
@@ -460,7 +467,7 @@ export class CatalogService {
           stockCount: u.stockCount,
           rating: 5.0,
           verifiedResale: true,
-          coverImage: resolveProductImage(u.title, u.category),
+          coverImage: resolveProductImage(u.title, u.category, u.description),
           summary: 'Verified authentic digital account/tool backed by Ojalogs automated fulfillment.',
           descriptionHtml: `<p>${(u.description || u.title).replace(/<\/?(p|div|br)\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').replace(/LogsPoll/gi, 'Ojalogs').replace(/logspoll\.com/gi, 'ojalogs.com.ng').trim()}</p><p>Guaranteed authentic delivery via Ojalogs automated infrastructure. 100% replacement guarantee if credentials fail first-time verification.</p>`,
           specifications: {

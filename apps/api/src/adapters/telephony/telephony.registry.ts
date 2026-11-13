@@ -13,7 +13,7 @@ const INITIAL_PROVIDERS: TelephonyProviderConfig[] = [
     name: 'TextPlug Telephony Hub',
     badge: 'Primary Virtual SMS Hub (textplug.net)',
     apiUrl: process.env.TEXTPLUG_BASE_URL || 'https://merchant.textplug.net',
-    apiKey: process.env.TEXTPLUG_API_KEY || '',
+    apiKey: process.env.TEXTPLUG_API_KEY || 'tp_8c6e8ab0a682c44c3148c3a7055007c658717577f88ebb67bbc486b6dc00b75e',
     webhookSecret: process.env.TEXTPLUG_WEBHOOK_SECRET || 'whsec_textplug_ojalogs',
     markupPercent: 25,
     autoRefundTimeoutSeconds: 900,
