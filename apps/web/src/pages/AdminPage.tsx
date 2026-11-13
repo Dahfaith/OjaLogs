@@ -54,7 +54,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { mockAdminMetrics } from '../lib/mockData';
-import { Product, ServerClusterConfig, PaymentGatewayConfig, TelephonyProviderConfig, AdminManagedUser, AdminNotification, UserRole, Order, SMMService, SMMOrder, SMMProviderConfig } from '@ojalogs/shared';
+import { Product, ServerClusterConfig, PaymentGatewayConfig, TelephonyProviderConfig, AdminManagedUser, AdminNotification, UserRole, Order, SMMService, SMMOrder, SMMProviderConfig, APPROVED_CATEGORIES, resolveProductCategory } from '@ojalogs/shared';
 import { apiClient } from '../lib/apiClient';
 import { supabase } from '../lib/supabaseClient';
 
@@ -71,7 +71,7 @@ export const AdminPage: React.FC = () => {
   const [isAddListingOpen, setIsAddListingOpen] = useState(false);
   const [newListingForm, setNewListingForm] = useState({
     title: '',
-    category: 'VPNs & Proxies',
+    category: 'Social Media Accounts',
     serverCluster: 'Server 1' as 'Server 1' | 'Server 2' | 'Server 3' | 'Server 4',
     priceNgn: 4500,
     stockCount: 50,
@@ -1130,12 +1130,13 @@ export const AdminPage: React.FC = () => {
       return;
     }
 
+    const resolved = resolveProductCategory(newListingForm.title, newListingForm.category, newListingForm.summary);
     const newProd: Product = {
       id: `prod_${Date.now()}`,
       slug: newListingForm.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
       title: newListingForm.title.trim(),
-      category: newListingForm.category,
-      categoryId: newListingForm.category.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      category: resolved.category,
+      categoryId: resolved.categoryId,
       division: 'A',
       serverCluster: newListingForm.serverCluster,
       priceNgn: Number(newListingForm.priceNgn),
@@ -1148,7 +1149,7 @@ export const AdminPage: React.FC = () => {
       descriptionHtml: `<p>${newListingForm.summary || newListingForm.title}</p>`,
       specifications: {
         title: newListingForm.title,
-        category: newListingForm.category,
+        category: resolved.category,
         serverOrigin: newListingForm.serverCluster,
         deliveryType: 'instant_automated',
         validityDuration: 'Standard Validity',
@@ -1172,7 +1173,7 @@ export const AdminPage: React.FC = () => {
     setIsAddListingOpen(false);
     setNewListingForm({
       title: '',
-      category: 'VPNs & Proxies',
+      category: 'Social Media Accounts',
       serverCluster: 'Server 1',
       priceNgn: 4500,
       stockCount: 50,
@@ -2423,12 +2424,9 @@ export const AdminPage: React.FC = () => {
                         onChange={(e) => setNewListingForm({ ...newListingForm, category: e.target.value })}
                         className="w-full px-3 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-midnight dark:text-white font-medium focus:outline-none focus:border-oj-primary"
                       >
-                        <option value="VPNs & Proxies">VPNs & Proxies</option>
-                        <option value="Social Media Accounts">Social Media Accounts</option>
-                        <option value="Software & OS Keys">Software & OS Keys</option>
-                        <option value="AI Subscriptions">AI Subscriptions</option>
-                        <option value="Development Tools">Development Tools</option>
-                        <option value="eSIM & Global Roaming">eSIM & Global Roaming</option>
+                        {APPROVED_CATEGORIES.map(c => (
+                          <option key={c.id} value={c.name}>{c.name}</option>
+                        ))}
                       </select>
                     </div>
 

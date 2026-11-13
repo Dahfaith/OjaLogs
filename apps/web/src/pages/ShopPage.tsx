@@ -18,11 +18,12 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { APPROVED_CATEGORIES, Product } from '@ojalogs/shared';
+import { APPROVED_CATEGORIES, Product, resolveProductCategory } from '@ojalogs/shared';
 import { apiClient } from '../lib/apiClient';
 import {
   BrandCoverBanner,
-  getBrandConfig
+  getBrandConfig,
+  ThreadsLogo
 } from '../components/common/BrandCoverBanner';
 import {
   InstagramIcon,
@@ -39,13 +40,14 @@ export const resolveProductCover = (prod: Product): string => {
 // Platform Quick Filter Definitions
 const PLATFORM_PILLS = [
   { id: 'All', label: 'All Categories', icon: null },
+  { id: 'cards', label: 'Mastercard & Cards', icon: () => <CreditCard className="w-3.5 h-3.5 shrink-0 text-amber-500" /> },
+  { id: 'threads', label: 'Threads', icon: () => <ThreadsLogo /> },
   { id: 'instagram', label: 'Instagram', icon: () => <InstagramIcon className="w-3.5 h-3.5 shrink-0" /> },
   { id: 'facebook', label: 'Facebook', icon: () => <FacebookIcon className="w-3.5 h-3.5 shrink-0 text-[#1877f2]" /> },
   { id: 'twitter', label: 'Twitter (X)', icon: () => <TwitterXIcon className="w-3.5 h-3.5 shrink-0 text-slate-900 dark:text-white" /> },
   { id: 'tiktok', label: 'TikTok', icon: () => <TikTokIcon className="w-3.5 h-3.5 shrink-0 text-black dark:text-white" /> },
   { id: 'gmail', label: 'Gmail', icon: () => <GmailIcon className="w-3.5 h-3.5 shrink-0" /> },
   { id: 'vpn', label: 'VPN & Security', icon: () => <Shield className="w-3.5 h-3.5 shrink-0 text-emerald-500" /> },
-  { id: 'cards', label: 'Mastercard & Cards', icon: () => <CreditCard className="w-3.5 h-3.5 shrink-0 text-amber-500" /> },
   { id: 'ai', label: 'AI Subscriptions', icon: () => <Zap className="w-3.5 h-3.5 shrink-0 text-amber-500" /> }
 ];
 
@@ -137,9 +139,39 @@ export const ShopPage: React.FC = () => {
       }
     } catch (err: any) {
       console.warn('[SHOP_CATALOG] Could not fetch paginated catalog:', err.message);
-      // Fallback to local products
-      const fallback = localProducts.slice((page - 1) * pageSize, page * pageSize);
+      // Fallback to local products with accurate category normalization
+      let pool = localProducts.map(p => {
+        const { category, categoryId } = resolveProductCategory(p.title, p.category, p.summary || p.descriptionHtml);
+        return { ...p, category, categoryId };
+      });
+      if (selectedServer && selectedServer !== 'All') {
+        pool = pool.filter(p => p.serverCluster === selectedServer);
+      }
+      if (selectedPlatform && selectedPlatform !== 'All') {
+        const lowerCat = selectedPlatform.toLowerCase();
+        pool = pool.filter(p => {
+          if (p.categoryId === lowerCat || p.category.toLowerCase() === lowerCat) return true;
+          const t = p.title.toLowerCase();
+          if (lowerCat === 'cards' || lowerCat === 'gift-cards') return p.categoryId === 'gift-cards' || /\b(mastercard|visa|card|gift)\b/i.test(t);
+          if (lowerCat === 'gmail' || lowerCat === 'email') return p.categoryId === 'email' || /\b(gmail|google\s*mail)\b/i.test(t);
+          if (lowerCat === 'ai' || lowerCat === 'ai-tools') return p.categoryId === 'ai-tools' || /\b(ai|chatgpt|openai)\b/i.test(t);
+          return t.includes(lowerCat);
+        });
+      }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        pool = pool.filter(p => p.title.toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
+      }
+      const fallback = pool.slice((page - 1) * pageSize, page * pageSize);
       setCatalogProducts(fallback);
+      setPagination({
+        page,
+        limit: pageSize,
+        total: pool.length,
+        totalPages: Math.max(1, Math.ceil(pool.length / pageSize)),
+        inStock: pool.filter(p => p.inStock).length,
+        outOfStock: pool.filter(p => !p.inStock).length
+      });
     } finally {
       setIsLoading(false);
     }
@@ -158,6 +190,27 @@ export const ShopPage: React.FC = () => {
     }, 350);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  const categoryDropdownValue = useMemo(() => {
+    if (selectedPlatform === 'All') return 'All';
+    if (['instagram', 'facebook', 'twitter', 'tiktok', 'threads', 'telegram', 'snapchat', 'reddit'].includes(selectedPlatform)) {
+      return 'social-media';
+    }
+    if (selectedPlatform === 'cards') return 'gift-cards';
+    if (selectedPlatform === 'gmail') return 'email';
+    if (selectedPlatform === 'ai') return 'ai-tools';
+    return selectedPlatform;
+  }, [selectedPlatform]);
+
+  const isPillActive = (pillId: string) => {
+    if (pillId === selectedPlatform) return true;
+    if (pillId === 'cards' && selectedPlatform === 'gift-cards') return true;
+    if (pillId === 'gmail' && selectedPlatform === 'email') return true;
+    if (pillId === 'ai' && selectedPlatform === 'ai-tools') return true;
+    if (pillId === 'vpn' && selectedPlatform === 'vpn') return true;
+    if (pillId === 'All' && selectedPlatform === 'All') return true;
+    return false;
+  };
 
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > pagination.totalPages || newPage === currentPage) return;
@@ -272,7 +325,7 @@ export const ShopPage: React.FC = () => {
         {/* Dropdowns Row: Categories, Availability, Items Per Page */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
           <select
-            value={selectedPlatform}
+            value={categoryDropdownValue}
             onChange={(e) => setSelectedPlatform(e.target.value)}
             className="text-xs px-3.5 py-2.5 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary font-medium shadow-xs"
           >
@@ -328,7 +381,7 @@ export const ShopPage: React.FC = () => {
       {/* Platform Category Pills Row */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-none">
         {PLATFORM_PILLS.map((pill) => {
-          const isActive = selectedPlatform === pill.id;
+          const isActive = isPillActive(pill.id);
           return (
             <button
               key={pill.id}
@@ -401,6 +454,8 @@ export const ShopPage: React.FC = () => {
             const qty = getQty(product.id);
             const isAdded = addedAnimation[product.id];
             const cleanTitle = product.title.replace(/^["']+|["']+$/g, '').trim();
+            const resolved = resolveProductCategory(cleanTitle, product.category, product.summary || product.descriptionHtml);
+            const displayCategory = resolved.category;
 
             return (
               <motion.div
@@ -414,7 +469,7 @@ export const ShopPage: React.FC = () => {
                   <BrandCoverBanner
                     product={product}
                     title={cleanTitle}
-                    category={product.category}
+                    category={displayCategory}
                     className="h-44 sm:h-46"
                   />
 
@@ -443,8 +498,12 @@ export const ShopPage: React.FC = () => {
                       {cleanTitle}
                     </Link>
 
-                    {/* Tags Row: SERVER cluster, Stock Status, Instant Delivery */}
+                    {/* Tags Row: Category Tag, SERVER cluster, Stock Status, Instant Delivery */}
                     <div className="flex items-center gap-1.5 flex-wrap mt-2.5">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 truncate max-w-[170px]" title={displayCategory}>
+                        {displayCategory}
+                      </span>
+
                       <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-oj-primary/10 text-oj-primary dark:bg-oj-primary/20 border border-oj-primary/20 uppercase tracking-wide">
                         {product.serverCluster || 'Server 1'}
                       </span>

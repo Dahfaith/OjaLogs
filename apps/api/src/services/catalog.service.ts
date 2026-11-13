@@ -1,4 +1,4 @@
-import { Product, APPROVED_CATEGORIES } from '@ojalogs/shared';
+import { Product, APPROVED_CATEGORIES, resolveProductCategory } from '@ojalogs/shared';
 import { AppError } from '../middleware/errorHandler.js';
 import { encryptPayload, hashFingerprint } from '../utils/crypto.js';
 import { INITIAL_PRODUCTS } from '../data/products.js';
@@ -176,7 +176,18 @@ export interface CatalogPaginationResult {
 }
 
 export class CatalogService {
-  private products: Product[] = [...INITIAL_PRODUCTS];
+  private products: Product[] = INITIAL_PRODUCTS.map(p => {
+    const { category, categoryId } = resolveProductCategory(p.title, p.category, p.descriptionHtml);
+    return {
+      ...p,
+      category,
+      categoryId,
+      specifications: {
+        ...p.specifications,
+        category
+      }
+    };
+  });
   private isSynced = false;
   private lastSyncTime = 0;
   private cache = new Map<string, { data: CatalogPaginationResult; expiresAt: number }>();
@@ -203,12 +214,13 @@ export class CatalogService {
           const lpId = `lp_${u.id}`;
           if (!existingIds.has(lpId)) {
             const retailNgn = Math.ceil(u.priceNgn * 1.15); // 15% standard margin
+            const { category: resolvedCat, categoryId: resolvedCatId } = resolveProductCategory(u.title, u.category, u.description);
             const prodObj: Product = {
               id: lpId,
               slug: `lp-${u.id.slice(0, 8)}`,
               title: u.title,
-              category: u.category || 'Social Media Accounts',
-              categoryId: 'social-media',
+              category: resolvedCat,
+              categoryId: resolvedCatId,
               division: 'A',
               serverCluster: normalizeServerCluster(u.serverCluster),
               priceNgn: retailNgn,
@@ -216,12 +228,12 @@ export class CatalogService {
               stockCount: u.stockCount,
               rating: 5.0,
               verifiedResale: true,
-              coverImage: resolveProductImage(u.title, u.category, u.description),
+              coverImage: resolveProductImage(u.title, resolvedCat, u.description),
               summary: 'Verified authentic digital account/tool backed by Ojalogs automated fulfillment.',
               descriptionHtml: `<p>${(u.description || u.title).replace(/<\/?(p|div|br)\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').replace(/LogsPoll/gi, 'Ojalogs').replace(/logspoll\.com/gi, 'ojalogs.com.ng').trim()}</p><p>Guaranteed authentic delivery via Ojalogs automated infrastructure. 100% replacement guarantee if credentials fail first-time verification.</p>`,
               specifications: {
                 title: u.title,
-                category: u.category || 'Social Media Accounts',
+                category: resolvedCat,
                 serverOrigin: `${u.serverCluster || 'Server 2'} (Ojalogs Enterprise Fleet)`,
                 deliveryType: 'instant_automated',
                 validityDuration: 'Permanent Access',
@@ -285,23 +297,36 @@ export class CatalogService {
         // Determine effective query term
         let effectiveQuery = search;
         const lowerCat = category.toLowerCase();
-        const knownPlatforms = [
-          'instagram', 'facebook', 'twitter', 'tiktok', 'gmail', 'vpn', 'telegram', 'github',
-          'card', 'cards', 'mastercard', 'visa', 'ai', 'reddit', 'threads', 'snapchat',
-          'discord', 'spotify', 'netflix', 'amazon', 'apple', 'steam', 'youtube'
-        ];
-        if (!effectiveQuery && knownPlatforms.includes(lowerCat)) {
-          if (lowerCat === 'cards' || lowerCat === 'mastercard') {
-            effectiveQuery = 'mastercard';
-          } else if (lowerCat === 'visa') {
-            effectiveQuery = 'visa';
-          } else if (lowerCat === 'ai') {
-            effectiveQuery = 'ai';
-          } else {
-            effectiveQuery = lowerCat === 'twitter' ? 'twitter' : lowerCat;
-          }
-        } else if (effectiveQuery && knownPlatforms.includes(lowerCat)) {
-          effectiveQuery = `${effectiveQuery} ${lowerCat === 'cards' ? 'card' : lowerCat}`;
+        const categoryQueryMap: Record<string, string> = {
+          'gift-cards': 'card',
+          'cards': 'card',
+          'mastercard': 'mastercard',
+          'visa': 'visa',
+          'email': 'mail',
+          'gmail': 'gmail',
+          'vpn': 'vpn',
+          'proxies': 'proxy',
+          'esim': 'esim',
+          'ai-tools': 'ai',
+          'ai': 'ai',
+          'streaming': 'netflix',
+          'software': 'license',
+          'cloud-hosting': 'vps',
+          'virtual-numbers': 'voice',
+          'instagram': 'instagram',
+          'facebook': 'facebook',
+          'twitter': 'twitter',
+          'tiktok': 'tiktok',
+          'threads': 'threads',
+          'telegram': 'telegram',
+          'snapchat': 'snapchat',
+          'reddit': 'reddit'
+        };
+
+        if (!effectiveQuery && categoryQueryMap[lowerCat]) {
+          effectiveQuery = categoryQueryMap[lowerCat];
+        } else if (effectiveQuery && categoryQueryMap[lowerCat]) {
+          effectiveQuery = `${effectiveQuery} ${categoryQueryMap[lowerCat]}`;
         }
 
         const lpResult = await logspollAdapter.fetchCatalogPaginated({
@@ -316,12 +341,13 @@ export class CatalogService {
           const products: Product[] = lpResult.records.map(u => {
             const lpId = `lp_${u.id}`;
             const retailNgn = Math.ceil(u.priceNgn * 1.15); // 15% standard margin
+            const { category: resolvedCat, categoryId: resolvedCatId } = resolveProductCategory(u.title, u.category, u.description);
             const prodObj: Product = {
               id: lpId,
               slug: u.slug || `lp-${u.id.slice(0, 8)}`,
               title: u.title,
-              category: u.category || 'Social Media Accounts',
-              categoryId: 'social-media',
+              category: resolvedCat,
+              categoryId: resolvedCatId,
               division: 'A',
               serverCluster: normalizeServerCluster(u.serverCluster || (serverNum ? `Server ${serverNum}` : 'Server 2')),
               priceNgn: retailNgn,
@@ -329,12 +355,12 @@ export class CatalogService {
               stockCount: u.stockCount,
               rating: 5.0,
               verifiedResale: true,
-              coverImage: resolveProductImage(u.title, u.category, u.description),
+              coverImage: resolveProductImage(u.title, resolvedCat, u.description),
               summary: 'Verified authentic digital account/tool backed by Ojalogs automated fulfillment.',
               descriptionHtml: `<p>${(u.description || u.title).replace(/<\/?(p|div|br)\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').replace(/LogsPoll/gi, 'Ojalogs').replace(/logspoll\.com/gi, 'ojalogs.com.ng').trim()}</p><p>Guaranteed authentic delivery via Ojalogs automated infrastructure. 100% replacement guarantee if credentials fail first-time verification.</p>`,
               specifications: {
                 title: u.title,
-                category: u.category || 'Social Media Accounts',
+                category: resolvedCat,
                 serverOrigin: `${u.serverCluster || 'Server 2'} (Ojalogs Enterprise Fleet)`,
                 deliveryType: 'instant_automated',
                 validityDuration: 'Permanent Access',
@@ -419,10 +445,27 @@ export class CatalogService {
     }
 
     if (filters?.category) {
-      result = result.filter(p => 
-        p.categoryId.toLowerCase() === filters.category!.toLowerCase() || 
-        p.category.toLowerCase() === filters.category!.toLowerCase()
-      );
+      const catLower = filters.category.toLowerCase();
+      result = result.filter(p => {
+        const resolved = resolveProductCategory(p.title, p.category, p.descriptionHtml);
+        if (resolved.categoryId.toLowerCase() === catLower || resolved.category.toLowerCase() === catLower) {
+          return true;
+        }
+        if (p.categoryId.toLowerCase() === catLower || p.category.toLowerCase() === catLower) {
+          return true;
+        }
+        const t = p.title.toLowerCase();
+        if (catLower === 'cards' || catLower === 'gift-cards') {
+          return resolved.categoryId === 'gift-cards' || /\b(mastercard|visa|card|gift\s*card)\b/i.test(t);
+        }
+        if (catLower === 'ai' || catLower === 'ai-tools') {
+          return resolved.categoryId === 'ai-tools' || /\b(ai|chatgpt|openai)\b/i.test(t);
+        }
+        if (catLower === 'gmail' || catLower === 'email') {
+          return resolved.categoryId === 'email' || /\b(gmail|google\s*mail)\b/i.test(t);
+        }
+        return t.includes(catLower);
+      });
     }
 
     if (filters?.search) {
@@ -454,12 +497,13 @@ export class CatalogService {
       if (u) {
         const lpId = `lp_${u.id}`;
         const retailNgn = Math.ceil(u.priceNgn * 1.15);
+        const { category: resolvedCat, categoryId: resolvedCatId } = resolveProductCategory(u.title, u.category, u.description);
         const prodObj: Product = {
           id: lpId,
           slug: u.slug || `lp-${u.id.slice(0, 8)}`,
           title: u.title,
-          category: u.category || 'Social Media Accounts',
-          categoryId: 'social-media',
+          category: resolvedCat,
+          categoryId: resolvedCatId,
           division: 'A',
           serverCluster: normalizeServerCluster(u.serverCluster),
           priceNgn: retailNgn,
@@ -467,12 +511,12 @@ export class CatalogService {
           stockCount: u.stockCount,
           rating: 5.0,
           verifiedResale: true,
-          coverImage: resolveProductImage(u.title, u.category, u.description),
+          coverImage: resolveProductImage(u.title, resolvedCat, u.description),
           summary: 'Verified authentic digital account/tool backed by Ojalogs automated fulfillment.',
           descriptionHtml: `<p>${(u.description || u.title).replace(/<\/?(p|div|br)\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').replace(/LogsPoll/gi, 'Ojalogs').replace(/logspoll\.com/gi, 'ojalogs.com.ng').trim()}</p><p>Guaranteed authentic delivery via Ojalogs automated infrastructure. 100% replacement guarantee if credentials fail first-time verification.</p>`,
           specifications: {
             title: u.title,
-            category: u.category || 'Social Media Accounts',
+            category: resolvedCat,
             serverOrigin: `${u.serverCluster || 'Server 2'} (Ojalogs Enterprise Fleet)`,
             deliveryType: 'instant_automated',
             validityDuration: 'Permanent Access',

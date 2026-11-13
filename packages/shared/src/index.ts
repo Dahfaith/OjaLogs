@@ -61,14 +61,195 @@ export function formatCurrencyAmount(
 
 export const APPROVED_CATEGORIES = [
   { id: 'social-media', name: 'Social Media Accounts', division: 'A', icon: 'Share2', description: 'Verified aged accounts, business managers, and creator profiles' },
+  { id: 'gift-cards', name: 'Prepaid & Gift Cards', division: 'A', icon: 'CreditCard', description: 'Prepaid Mastercards, Visa VCCs, Steam, Apple & gaming vouchers' },
+  { id: 'email', name: 'Email & Messaging Services', division: 'A', icon: 'Mail', description: 'Verified aged Gmail, Outlook, Yahoo, and business mail accounts' },
+  { id: 'vpn', name: 'VPN Subscriptions', division: 'A', icon: 'Shield', description: 'Official vouchers & premium multi-device VPN subscriptions' },
   { id: 'proxies', name: 'Proxies & Network IPs', division: 'A', icon: 'Network', description: 'Clean residential, mobile LTE, and datacenter proxy packages' },
   { id: 'esim', name: 'eSIM Profiles & Data', division: 'A', icon: 'QrCode', description: 'Instant global travel eSIM profiles and high-speed data plans' },
-  { id: 'vpn', name: 'VPN Subscriptions', division: 'A', icon: 'Shield', description: 'Official vouchers & premium multi-device VPN subscriptions' },
   { id: 'ai-tools', name: 'AI Subscriptions & APIs', division: 'A', icon: 'Sparkles', description: 'API access keys, credits & authorized productivity tool tiers' },
+  { id: 'streaming', name: 'Streaming & Entertainment', division: 'A', icon: 'Tv', description: 'Premium streaming subscriptions, Spotify, Netflix & YouTube' },
   { id: 'software', name: 'Software Licenses & Keys', division: 'A', icon: 'KeyRound', description: 'Genuine OS activation keys, IDEs, and developer software' },
   { id: 'cloud-hosting', name: 'Cloud & Domain Hosting', division: 'A', icon: 'Server', description: 'Cloud VPS vouchers, domain credits, and web hosting subscriptions' },
   { id: 'virtual-numbers', name: 'Virtual Phone Numbers', division: 'B', icon: 'PhoneCall', description: 'Authorized verification SMS and long-term phone rentals' }
 ] as const;
+
+export type CategoryId = (typeof APPROVED_CATEGORIES)[number]['id'];
+
+export interface ResolvedCategory {
+  category: string;
+  categoryId: CategoryId;
+}
+
+/**
+ * Deterministic, title-first product categorizer.
+ * Accurately maps every digital product to its authorized category,
+ * preventing upstream generic categories (like "Social Media Accounts")
+ * from overriding gift cards, emails, VPNs, proxies, and developer tools.
+ */
+export function resolveProductCategory(
+  title: string = '',
+  rawCategory: string = '',
+  description: string = ''
+): ResolvedCategory {
+  const t = (title || '').toLowerCase();
+  const c = (rawCategory || '').toLowerCase();
+  const d = (description || '').toLowerCase();
+
+  const matchTitle = (regex: RegExp) => regex.test(t);
+  const matchCategory = (regex: RegExp) => regex.test(c);
+  const matchDesc = (regex: RegExp) => regex.test(d);
+
+  // 1. PREPAID & GIFT CARDS (PRIORITY 1 - Never misclassify cards/vouchers)
+  if (
+    matchTitle(/\b(mastercard|master\s*card|visa|amex|american\s*express|vanilla)\b/i) ||
+    matchTitle(/\b(gift\s*card|giftcard|prepaid|vcc|virtual\s*card|debit\s*card|credit\s*card)\b/i) ||
+    matchTitle(/\b(steam|steam\s*wallet|razer|razer\s*gold|roblox|robux|playstation|psn|xbox|amazon\s*gift|itunes|apple\s*gift|google\s*play)\b/i)
+  ) {
+    return { category: 'Prepaid & Gift Cards', categoryId: 'gift-cards' };
+  }
+
+  // 2. EMAIL & MESSAGING SERVICES (PRIORITY 2 - Email accounts must never be generic social media)
+  if (
+    matchTitle(/\b(gmail|google\s*mail|gsuite|google\s*workspace)\b/i) ||
+    matchTitle(/\b(outlook|hotmail|live\.com|msn\.com)\b/i) ||
+    matchTitle(/\b(yahoo|yahoomail|ymail)\b/i) ||
+    matchTitle(/\b(proton|protonmail|mail\.ru|webmail|zoho\s*mail|inbox)\b/i)
+  ) {
+    return { category: 'Email & Messaging Services', categoryId: 'email' };
+  }
+
+  // 3. VPN SUBSCRIPTIONS
+  if (
+    matchTitle(/\b(vpn|nordvpn|nord\s*vpn|surfshark|expressvpn|cyberghost|protonvpn|windscribe|mullvad|ipvanish)\b/i)
+  ) {
+    return { category: 'VPN Subscriptions', categoryId: 'vpn' };
+  }
+
+  // 4. PROXIES & NETWORK IPS
+  if (
+    matchTitle(/\b(proxy|proxies|residential|rotating\s*ip|socks5|http\s*proxy|datacenter\s*ip|ipv4|ipv6|mobile\s*proxy|lte\s*proxy)\b/i)
+  ) {
+    return { category: 'Proxies & Network IPs', categoryId: 'proxies' };
+  }
+
+  // 5. ESIM PROFILES & DATA
+  if (
+    matchTitle(/\b(esim|e-sim|roaming|travel\s*data|data\s*sim|mobile\s*data)\b/i)
+  ) {
+    return { category: 'eSIM Profiles & Data', categoryId: 'esim' };
+  }
+
+  // 6. AI SUBSCRIPTIONS & APIS
+  if (
+    matchTitle(/\b(chatgpt|openai|gpt-4|gpt-3|claude|anthropic|midjourney|kling|runway|elevenlabs|gemini|perplexity|cursor|copilot|deepseek|ai\s*tool|ai\s*sub)\b/i)
+  ) {
+    return { category: 'AI Subscriptions & APIs', categoryId: 'ai-tools' };
+  }
+
+  // 7. STREAMING & ENTERTAINMENT
+  if (
+    matchTitle(/\b(netflix|spotify|youtube\s*premium|yt\s*premium|disney\+|hulu|apple\s*tv|hbo\s*max|tidal|deezer|crunchyroll)\b/i)
+  ) {
+    return { category: 'Streaming & Entertainment', categoryId: 'streaming' };
+  }
+
+  // 8. TELEPHONY & VIRTUAL NUMBERS
+  if (
+    matchTitle(/\b(google\s*voice|gvoice|\bgv\b|textnow|talkatone|virtual\s*number|phone\s*rental|sms\s*verification|receive\s*sms|one-time\s*sms)\b/i)
+  ) {
+    return { category: 'Virtual Phone Numbers', categoryId: 'virtual-numbers' };
+  }
+
+  // 9. SOFTWARE LICENSES & KEYS
+  if (
+    matchTitle(/\b(windows\s*10|windows\s*11|windows\s*server|office\s*365|ms\s*office|activation\s*key|license\s*key|retail\s*key|github|jetbrains|adobe|canva\s*pro|antivirus|kaspersky)\b/i)
+  ) {
+    return { category: 'Software Licenses & Keys', categoryId: 'software' };
+  }
+
+  // 10. CLOUD & DOMAIN HOSTING
+  if (
+    matchTitle(/\b(cloud|vps|digitalocean|aws|azure|google\s*cloud|linode|vultr|domain|hosting|cpanel|rdp)\b/i)
+  ) {
+    return { category: 'Cloud & Domain Hosting', categoryId: 'cloud-hosting' };
+  }
+
+  // 11. SOCIAL MEDIA ACCOUNTS (Strict title matching)
+  if (
+    matchTitle(/\b(threads?)\b/i) || t.includes('thread') ||
+    matchTitle(/\b(instagram|\big\b|ig\s*account)\b/i) ||
+    matchTitle(/\b(facebook|\bfb\b|bm50|business\s*manager|fb\s*account)\b/i) ||
+    matchTitle(/\b(tiktok|tik\s*tok)\b/i) ||
+    matchTitle(/\b(twitter|aged\s*x|x\.com|x\s*\(twitter\)|twitter\s*account)\b/i) ||
+    matchTitle(/\b(telegram|tdata|\.session|\btg\b)\b/i) ||
+    matchTitle(/\b(snapchat|snap)\b/i) ||
+    matchTitle(/\b(reddit)\b/i) ||
+    matchTitle(/\b(linkedin)\b/i) ||
+    matchTitle(/\b(pinterest)\b/i) ||
+    matchTitle(/\b(discord)\b/i) ||
+    matchTitle(/\b(followers|pva\b|aged\s*account|account\s*with\s*2fa)\b/i)
+  ) {
+    return { category: 'Social Media Accounts', categoryId: 'social-media' };
+  }
+
+  // 12. SECONDARY CHECK: Check rawCategory (Upstream Category Metadata)
+  if (matchCategory(/\b(mastercard|visa|card|gift\s*card|prepaid)\b/i)) {
+    return { category: 'Prepaid & Gift Cards', categoryId: 'gift-cards' };
+  }
+  if (matchCategory(/\b(gmail|google\s*mail|outlook|hotmail|yahoo|proton|email|mail)\b/i)) {
+    return { category: 'Email & Messaging Services', categoryId: 'email' };
+  }
+  if (matchCategory(/\b(vpn)\b/i)) {
+    return { category: 'VPN Subscriptions', categoryId: 'vpn' };
+  }
+  if (matchCategory(/\b(proxy|proxies|socks5)\b/i)) {
+    return { category: 'Proxies & Network IPs', categoryId: 'proxies' };
+  }
+  if (matchCategory(/\b(esim|roaming)\b/i)) {
+    return { category: 'eSIM Profiles & Data', categoryId: 'esim' };
+  }
+  if (matchCategory(/\b(ai|chatgpt|openai)\b/i)) {
+    return { category: 'AI Subscriptions & APIs', categoryId: 'ai-tools' };
+  }
+  if (matchCategory(/\b(netflix|spotify|streaming)\b/i)) {
+    return { category: 'Streaming & Entertainment', categoryId: 'streaming' };
+  }
+  if (matchCategory(/\b(voice|phone|sms|number|telephony)\b/i)) {
+    return { category: 'Virtual Phone Numbers', categoryId: 'virtual-numbers' };
+  }
+  if (matchCategory(/\b(software|license|windows|office)\b/i)) {
+    return { category: 'Software Licenses & Keys', categoryId: 'software' };
+  }
+  if (matchCategory(/\b(cloud|vps|hosting|domain)\b/i)) {
+    return { category: 'Cloud & Domain Hosting', categoryId: 'cloud-hosting' };
+  }
+  if (matchCategory(/\b(telegram|instagram|facebook|twitter|tiktok|social|threads|snapchat|reddit|linkedin)\b/i)) {
+    return { category: 'Social Media Accounts', categoryId: 'social-media' };
+  }
+
+  // 13. TERTIARY CHECK: Inconclusive title/category - inspect description
+  if (matchDesc(/\b(mastercard|gift\s*card|prepaid\s*card)\b/i)) {
+    return { category: 'Prepaid & Gift Cards', categoryId: 'gift-cards' };
+  }
+  if (matchDesc(/\b(gmail|outlook|hotmail|yahoo\s*mail)\b/i)) {
+    return { category: 'Email & Messaging Services', categoryId: 'email' };
+  }
+  if (matchDesc(/\b(vpn\s*subscription|nordvpn|expressvpn)\b/i)) {
+    return { category: 'VPN Subscriptions', categoryId: 'vpn' };
+  }
+  if (matchDesc(/\b(socks5\s*proxy|residential\s*proxy)\b/i)) {
+    return { category: 'Proxies & Network IPs', categoryId: 'proxies' };
+  }
+
+  // Exact matching against APPROVED_CATEGORIES names/ids
+  for (const cat of APPROVED_CATEGORIES) {
+    if (c === cat.id.toLowerCase() || c === cat.name.toLowerCase()) {
+      return { category: cat.name, categoryId: cat.id as CategoryId };
+    }
+  }
+
+  return { category: 'Social Media Accounts', categoryId: 'social-media' };
+}
 
 // ==========================================
 // ENUMS & TYPINGS

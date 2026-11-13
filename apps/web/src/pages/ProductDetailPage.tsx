@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import { resolveProductCover } from './ShopPage';
 import { BrandCoverBanner, getBrandConfig } from '../components/common/BrandCoverBanner';
 import { apiClient } from '../lib/apiClient';
-import { Product } from '@ojalogs/shared';
+import { Product, resolveProductCategory } from '@ojalogs/shared';
 import {
   ArrowLeft,
   Star,
@@ -71,6 +71,7 @@ export const ProductDetailPage: React.FC = () => {
   };
 
   const brand = getBrandConfig(product.title, product.category, product.summary || product.descriptionHtml);
+  const resolvedCategory = resolveProductCategory(product.title, product.category, product.summary || product.descriptionHtml);
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-24 md:pb-12">
@@ -352,7 +353,11 @@ export const ProductDetailPage: React.FC = () => {
                   </tr>
                   <tr className="hover:bg-oj-surface-alt/40">
                     <td className="py-2.5 px-4 font-semibold text-oj-muted">Category</td>
-                    <td className="py-2.5 px-4 font-semibold text-oj-midnight dark:text-white">{brand.platformName}</td>
+                    <td className="py-2.5 px-4 font-semibold text-oj-midnight dark:text-white">{resolvedCategory.category}</td>
+                  </tr>
+                  <tr className="hover:bg-oj-surface-alt/40">
+                    <td className="py-2.5 px-4 font-semibold text-oj-muted">Platform / Brand</td>
+                    <td className="py-2.5 px-4 font-semibold text-oj-primary dark:text-oj-cyan">{brand.platformName}</td>
                   </tr>
                   <tr className="hover:bg-oj-surface-alt/40">
                     <td className="py-2.5 px-4 font-semibold text-oj-muted">Server Origin</td>
