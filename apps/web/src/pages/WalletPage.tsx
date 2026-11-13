@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   Wallet,
@@ -20,7 +20,7 @@ import { FundWalletModal } from '../components/wallet/FundWalletModal';
 import { StatementModal } from '../components/wallet/StatementModal';
 
 export const WalletPage: React.FC = () => {
-  const { user, isAuthLoading, wallet, ledger, hideBalance, toggleHideBalance, formatPrice, currency, setIsAuthModalOpen, refreshWallet } = useApp();
+  const { user, isAuthLoading, wallet, ledger, orders, hideBalance, toggleHideBalance, formatPrice, currency, setIsAuthModalOpen, refreshWallet } = useApp();
   const [isFundOpen, setIsFundOpen] = useState(false);
   const [isStatementOpen, setIsStatementOpen] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'deposit' | 'order_payment' | 'refund'>('all');
@@ -39,7 +39,42 @@ export const WalletPage: React.FC = () => {
     }
   };
 
-  const filteredLedger = ledger.filter(tx => {
+  // Unified Transaction History: Merges ledger transactions and customer store purchases
+  const unifiedLedger = useMemo(() => {
+    const list = [...ledger];
+    if (Array.isArray(orders)) {
+      for (const ord of orders) {
+        const alreadyInLedger = list.some(
+          l => l.reference === ord.reference || (l as any).relatedOrderReference === ord.reference
+        );
+        if (!alreadyInLedger) {
+          const firstItem = ord.items?.[0];
+          const title = firstItem?.product?.title || 'Store Digital Product';
+          const count = ord.items?.length || 1;
+          list.push({
+            id: `ord_${ord.id}`,
+            reference: ord.reference,
+            type: 'debit',
+            category: 'order_payment',
+            amountNgn: ord.totalNgn,
+            balanceAfterNgn: Math.max(0, (wallet?.balanceNgn || 0)),
+            description: `${title} (${count} item${count === 1 ? '' : 's'})`,
+            status: (ord.status === 'completed' || ord.status === 'processing')
+              ? 'successful'
+              : (ord.status === 'cancelled' || ord.status === 'refunded')
+              ? 'refunded'
+              : ord.status === 'failed'
+              ? 'failed'
+              : 'pending',
+            timestamp: ord.createdAt
+          });
+        }
+      }
+    }
+    return list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }, [ledger, orders, wallet?.balanceNgn]);
+
+  const filteredLedger = unifiedLedger.filter(tx => {
     if (selectedFilter === 'all') return true;
     if (selectedFilter === 'deposit') return tx.category === 'deposit';
     if (selectedFilter === 'order_payment') return tx.category === 'order_payment' || tx.category === 'virtual_number_order';

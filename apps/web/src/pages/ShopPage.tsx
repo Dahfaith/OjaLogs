@@ -131,7 +131,11 @@ export const ShopPage: React.FC = () => {
       });
 
       if (res && res.products) {
-        setCatalogProducts(res.products);
+        const verified = res.products.map(p => {
+          const { category, categoryId } = resolveProductCategory(p.title, p.category, p.descriptionHtml || p.summary);
+          return { ...p, category, categoryId };
+        });
+        setCatalogProducts(verified);
         if (res.pagination) {
           setPagination(res.pagination);
           setCurrentPage(res.pagination.page);

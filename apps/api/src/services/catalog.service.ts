@@ -298,6 +298,7 @@ export class CatalogService {
         let effectiveQuery = search;
         const lowerCat = category.toLowerCase();
         const categoryQueryMap: Record<string, string> = {
+          'social-media': 'account',
           'gift-cards': 'card',
           'cards': 'card',
           'mastercard': 'mastercard',
@@ -381,15 +382,38 @@ export class CatalogService {
             return prodObj;
           });
 
+          // Post-filter by resolved category to prevent cross-category leakage
+          let finalProducts = products;
+          if (category && category !== 'All') {
+            finalProducts = products.filter(p => {
+              if (lowerCat === 'social-media') {
+                return p.categoryId === 'social-media' || ['threads', 'instagram', 'facebook', 'twitter', 'tiktok', 'telegram', 'snapchat', 'reddit'].includes(p.categoryId as string);
+              }
+              if (lowerCat === 'gift-cards' || lowerCat === 'cards') {
+                return p.categoryId === 'gift-cards';
+              }
+              if (lowerCat === 'email' || lowerCat === 'gmail') {
+                return p.categoryId === 'email';
+              }
+              if (lowerCat === 'ai-tools' || lowerCat === 'ai') {
+                return p.categoryId === 'ai-tools';
+              }
+              if (lowerCat === 'vpn') {
+                return p.categoryId === 'vpn';
+              }
+              return p.categoryId === lowerCat || p.category.toLowerCase().includes(lowerCat);
+            });
+          }
+
           const result: CatalogPaginationResult = {
-            products,
+            products: finalProducts,
             pagination: {
               page: lpResult.page,
               limit: lpResult.limit,
-              total: lpResult.total,
-              totalPages: lpResult.pages,
-              inStock: lpResult.inStock,
-              outOfStock: lpResult.outOfStock
+              total: finalProducts.length < products.length ? finalProducts.length : lpResult.total,
+              totalPages: finalProducts.length < products.length ? Math.max(1, Math.ceil(finalProducts.length / limit)) : lpResult.pages,
+              inStock: finalProducts.filter(p => p.inStock).length,
+              outOfStock: finalProducts.filter(p => !p.inStock).length
             }
           };
 
