@@ -174,12 +174,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Supabase Magic Link redirect & session listener
   useEffect(() => {
+    // Check if session has timed out due to inactivity (>45 mins)
+    const storedLastActivity = localStorage.getItem('oj_last_activity');
+    if (storedLastActivity && Date.now() - Number(storedLastActivity) > 45 * 60 * 1000) {
+      console.log('[AUTH] Inactivity timeout reached on page start. Resetting session.');
+      signOutUser().catch(() => {});
+      localStorage.removeItem('oj_user');
+      localStorage.removeItem('oj_auth_token');
+      localStorage.removeItem('oj_last_activity');
+      setIsAuthLoading(false);
+      return;
+    }
+
     // Check existing active Supabase session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         if (session.access_token) {
           apiClient.setToken(session.access_token);
         }
+        localStorage.setItem('oj_last_activity', String(Date.now()));
         if (!user) {
           const u = session.user;
           const name = u.user_metadata?.full_name || u.email?.split('@')[0] || 'Customer';
@@ -229,6 +242,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (session.access_token) {
           apiClient.setToken(session.access_token);
         }
+        localStorage.setItem('oj_last_activity', String(Date.now()));
         const u = session.user;
         const name = u.user_metadata?.full_name || u.email?.split('@')[0] || 'Customer';
         const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
@@ -267,6 +281,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveNumbers([]);
         localStorage.removeItem('oj_user');
         localStorage.removeItem('oj_user_ledger');
+        localStorage.removeItem('oj_last_activity');
       }
     });
 
@@ -321,6 +336,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem('oj_user');
     localStorage.removeItem('oj_auth_token');
     localStorage.removeItem('oj_user_ledger');
+    localStorage.removeItem('oj_wallet_bal');
+    localStorage.removeItem('oj_last_activity');
     setUser(null);
     setWallet(initialGuestWallet);
     setLedger([]);
@@ -328,6 +345,82 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setActiveNumbers([]);
     showToast('Signed out of Ojalogs.');
   };
+
+  // =========================================================================
+  // AUTOMATIC SESSION TIMEOUT & INACTIVITY AUTO-LOGOUT
+  // =========================================================================
+  const INACTIVITY_TIMEOUT_MS = 45 * 60 * 1000; // 45 minutes of inactivity
+
+  const updateLastActivity = useCallback(() => {
+    try {
+      localStorage.setItem('oj_last_activity', String(Date.now()));
+    } catch {}
+  }, []);
+
+  const checkSessionInactivity = useCallback(async () => {
+    if (!user) return false;
+    try {
+      const storedTime = localStorage.getItem('oj_last_activity');
+      if (storedTime) {
+        const lastActive = Number(storedTime);
+        const elapsed = Date.now() - lastActive;
+        if (elapsed > INACTIVITY_TIMEOUT_MS) {
+          console.log(`[AUTH_TIMEOUT] Inactivity of ${(elapsed / 60000).toFixed(1)} mins reached. Logging out.`);
+          await logout();
+          showToast('Session expired due to inactivity. Please sign in again.');
+          return true;
+        }
+      }
+      updateLastActivity();
+    } catch {}
+    return false;
+  }, [user, updateLastActivity]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    checkSessionInactivity();
+
+    let lastRecorded = Date.now();
+    const handleUserInteraction = () => {
+      const now = Date.now();
+      if (now - lastRecorded > 30000) {
+        lastRecorded = now;
+        updateLastActivity();
+      }
+    };
+
+    const handleTabFocus = () => {
+      checkSessionInactivity();
+    };
+
+    window.addEventListener('mousemove', handleUserInteraction, { passive: true });
+    window.addEventListener('keydown', handleUserInteraction, { passive: true });
+    window.addEventListener('touchstart', handleUserInteraction, { passive: true });
+    window.addEventListener('click', handleUserInteraction, { passive: true });
+    window.addEventListener('focus', handleTabFocus);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        checkSessionInactivity();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    const inactivityInterval = setInterval(() => {
+      checkSessionInactivity();
+    }, 60000);
+
+    return () => {
+      window.removeEventListener('mousemove', handleUserInteraction);
+      window.removeEventListener('keydown', handleUserInteraction);
+      window.removeEventListener('touchstart', handleUserInteraction);
+      window.removeEventListener('click', handleUserInteraction);
+      window.removeEventListener('focus', handleTabFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(inactivityInterval);
+    };
+  }, [user, checkSessionInactivity, updateLastActivity]);
 
   // Catalog & Favourites
   const [products, setProducts] = useState<Product[]>(initialMockProducts);
@@ -421,8 +514,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCart({ items: [], totalQuantity: 0, totalAmountNgn: 0 });
   };
 
-  // Wallet & Ledger: Strictly empty for new accounts and guests (real balances loaded from backend)
-  const [wallet, setWallet] = useState<WalletState>(initialGuestWallet);
+  // Wallet & Ledger: Instantly restored from LocalStorage so users never see an empty ₦0 balance flash
+  const [wallet, setWallet] = useState<WalletState>(() => {
+    try {
+      const storedUser = localStorage.getItem('oj_user');
+      if (storedUser) {
+        const u = JSON.parse(storedUser);
+        const userKey = u.email || u.id;
+        const savedBal = localStorage.getItem(`oj_wallet_bal_${userKey}`) || localStorage.getItem('oj_wallet_bal');
+        if (savedBal && !isNaN(Number(savedBal))) {
+          return {
+            ...initialGuestWallet,
+            balanceNgn: Number(savedBal)
+          };
+        }
+      }
+    } catch {}
+    return initialGuestWallet;
+  });
   const [ledger, setLedger] = useState<LedgerTransaction[]>(() => {
     try {
       const saved = localStorage.getItem('oj_user_ledger');
@@ -478,7 +587,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
-      setWallet(prev => ({ ...prev, balanceNgn: finalBalance }));
+      // If backend was sleeping and returned 0, retain verified non-zero local balance
+      const userKey = user.email || user.id;
+      const cachedBal = Number(localStorage.getItem(`oj_wallet_bal_${userKey}`) || localStorage.getItem('oj_wallet_bal') || 0);
+      if (finalBalance === 0 && cachedBal > 0 && balRes === null) {
+        finalBalance = cachedBal;
+      }
+
+      setWallet(prev => ({ ...prev, balanceNgn: finalBalance, lastUpdated: new Date().toISOString() }));
+      try {
+        localStorage.setItem(`oj_wallet_bal_${userKey}`, String(finalBalance));
+        localStorage.setItem('oj_wallet_bal', String(finalBalance));
+      } catch {}
 
       // 1. Process ledger transactions from API
       let resolvedTxs: LedgerTransaction[] = [];
@@ -553,9 +673,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [user]);
 
+  // Real-Time Rapid Wallet Polling & Tab Focus Synchronization
   useEffect(() => {
+    if (!user) return;
+
+    // 1. Initial immediate refresh
     refreshWallet();
-  }, [refreshWallet]);
+
+    // 2. Poll every 6 seconds in background to catch incoming bank transfers & webhooks
+    const pollInterval = setInterval(() => {
+      refreshWallet();
+    }, 6000);
+
+    // 3. Immediately refresh when user returns from bank app to browser tab
+    const handleFocus = () => {
+      refreshWallet();
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        refreshWallet();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [user, refreshWallet]);
 
   const fundWallet = async (amount: number): Promise<{
     reference: string;

@@ -823,35 +823,20 @@ export function getBrandConfig(
     // PRIORITY 7: SOCIAL MEDIA PLATFORMS (STRICT REGEX & HIERARCHY)
     // -------------------------------------------------------------
     // RULE A: THREADS MUST PRECEDE INSTAGRAM!
-    // Threads accounts almost always specify "Instagram Login", "Instagram linked",
+    // Threads accounts almost always specify "Instagram", "Instagram Login", "Instagram linked",
     // or "2FA Instagram" because Threads authenticates through Meta's Instagram service.
-    // We match BOTH singular ("thread") and plural ("threads").
+    // ANY product mentioning "thread" or "threads" is categorized as Threads.
     if (
       /\b(threads?)\b/i.test(target) ||
-      target.includes('thread account') ||
-      target.includes('threads account') ||
-      target.includes('thread high quality') ||
-      target.includes('threads high quality') ||
-      target.includes('show thread') ||
-      target.includes('show threads')
+      target.includes('thread')
     ) {
-      // If title is explicitly an Instagram account that just joined threads (e.g. "Instagram account ... join threads"),
-      // and not a Threads account using Instagram login:
-      const isExplicitInstagramPrimary =
-        /\b(instagram\s*accounts?|ig\s*accounts?)\b/i.test(target) &&
-        !/\b(threads?\s*accounts?|threads?\s*accs?)\b/i.test(target) &&
-        !target.includes('instagram login') &&
-        !target.includes('ig login');
-
-      if (!isExplicitInstagramPrimary) {
-        return {
-          key: 'threads',
-          platformName: 'Threads',
-          gradientClass: 'from-[#0a0a0a] via-[#171717] to-[#000000]',
-          accentColor: '#ffffff',
-          renderLogo: () => <ThreadsLogo />
-        };
-      }
+      return {
+        key: 'threads',
+        platformName: 'Threads',
+        gradientClass: 'from-[#0a0a0a] via-[#171717] to-[#000000]',
+        accentColor: '#ffffff',
+        renderLogo: () => <ThreadsLogo />
+      };
     }
 
     // RULE B: INSTAGRAM ACCOUNTS

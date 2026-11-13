@@ -104,7 +104,7 @@ function resolveProductImage(title: string, category: string = '', description: 
   }
 
   // 7. SOCIAL MEDIA PLATFORMS (STRICT regex - Threads precedes Instagram)
-  if (matchTitle(/\b(threads?)\b/i) && (!matchTitle(/\b(instagram\s*accounts?|ig\s*accounts?)\b/i) || matchTitle(/instagram\s*login/i))) {
+  if (matchTitle(/\b(threads?)\b/i) || t.includes('thread')) {
     return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80';
   }
   if (matchTitle(/\b(twitter|aged\s*x|x\.com|x\s*\(twitter\)|twitter\s*account)\b/i)) {
