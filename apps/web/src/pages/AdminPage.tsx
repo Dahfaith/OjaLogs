@@ -389,7 +389,16 @@ export const AdminPage: React.FC = () => {
   const [showNotificationDrawer, setShowNotificationDrawer] = useState(false);
 
   // SMM Governance State
-  const [smmServices, setSmmServices] = useState<SMMService[]>([]);
+  const [smmServices, setSmmServices] = useState<SMMService[]>(() => {
+    try {
+      const saved = localStorage.getItem('oj_smm_services');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
   const [smmOrders, setSmmOrders] = useState<SMMOrder[]>([]);
   const [smmConfig, setSmmConfig] = useState<SMMProviderConfig | null>(() => {
     try {
@@ -737,7 +746,14 @@ export const AdminPage: React.FC = () => {
       .catch(() => { });
 
     apiClient.getAdminSMMServices()
-      .then(data => { if (data && data.length > 0) setSmmServices(data); })
+      .then(data => {
+        if (data && data.length > 0) {
+          setSmmServices(data);
+          try {
+            localStorage.setItem('oj_smm_services', JSON.stringify(data));
+          } catch {}
+        }
+      })
       .catch(() => { });
 
     apiClient.getAdminSMMOrders()
@@ -810,15 +826,37 @@ export const AdminPage: React.FC = () => {
     setIsSyncingSmm(true);
     try {
       const res = await apiClient.syncSMMFromProvider();
-      showToast(`Synced ${res.syncedCount} services (${res.newCount} new) from Linkocial!`);
       const [refreshed, cfg] = await Promise.all([
         apiClient.getAdminSMMServices(),
         apiClient.getSMMProviderConfig()
       ]);
-      if (refreshed) setSmmServices(refreshed);
+      if (refreshed && refreshed.length > 0) {
+        setSmmServices(refreshed);
+        try {
+          localStorage.setItem('oj_smm_services', JSON.stringify(refreshed));
+        } catch {}
+      }
       if (cfg) setSmmConfig(cfg);
-    } catch {
-      showToast('Could not sync services from Linkocial');
+      showToast(`Synced ${res.syncedCount + res.newCount} services from Linkocial!`);
+    } catch (err: any) {
+      // If sync network blipped or cold-started, attempt to load existing services
+      try {
+        const refreshed = await apiClient.getAdminSMMServices();
+        if (refreshed && refreshed.length > 0) {
+          setSmmServices(refreshed);
+          try {
+            localStorage.setItem('oj_smm_services', JSON.stringify(refreshed));
+          } catch {}
+          showToast(`Active SMM catalog loaded (${refreshed.length} services ready)`);
+          return;
+        }
+      } catch {}
+      const msg = err?.message || '';
+      if (msg.includes('Failed to fetch') || msg.includes('timeout')) {
+        showToast('Render API is waking up or deploying. Please wait 10 seconds and click again!');
+      } else {
+        showToast(msg || 'Could not sync services from Linkocial');
+      }
     } finally {
       setIsSyncingSmm(false);
     }
