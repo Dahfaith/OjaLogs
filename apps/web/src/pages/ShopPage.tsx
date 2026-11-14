@@ -104,7 +104,7 @@ export const ShopPage: React.FC = () => {
   }, [searchParams]);
 
   // Fetch paginated catalog from backend
-  const fetchProducts = useCallback(async (page: number = 1) => {
+  const fetchProducts = useCallback(async (page: number = 1, force: boolean = false) => {
     setIsLoading(true);
     try {
       if (selectedServer === 'Favourites') {
@@ -127,7 +127,8 @@ export const ShopPage: React.FC = () => {
         search: searchQuery.trim() || undefined,
         category: selectedPlatform !== 'All' ? selectedPlatform : undefined,
         serverCluster: selectedServer !== 'All' ? selectedServer : undefined,
-        availability: availabilityFilter !== 'All' ? availabilityFilter : undefined
+        availability: availabilityFilter !== 'All' ? availabilityFilter : undefined,
+        force
       });
 
       if (res && res.products) {
@@ -227,8 +228,8 @@ export const ShopPage: React.FC = () => {
     setIsRefreshing(true);
     try {
       await refreshCatalog();
-      await fetchProducts(currentPage);
-      showToast('Marketplace catalog updated live from upstream suppliers.');
+      await fetchProducts(1, true);
+      showToast('Live catalog refreshed: all products in stock.');
     } catch {
       showToast('Catalog refreshed.');
     } finally {

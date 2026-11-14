@@ -123,6 +123,7 @@ class ApiClient {
     page?: number;
     limit?: number;
     availability?: string;
+    force?: boolean;
   }): Promise<{
     products: Product[];
     pagination: {
@@ -141,6 +142,7 @@ class ApiClient {
     if (params?.page) query.set('page', String(params.page));
     if (params?.limit) query.set('limit', String(params.limit));
     if (params?.availability) query.set('availability', params.availability);
+    if (params?.force) query.set('force', 'true');
 
     const qs = query.toString();
     const url = `${API_BASE}/catalog/products${qs ? `?${qs}` : ''}`;

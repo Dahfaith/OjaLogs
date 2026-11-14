@@ -11,6 +11,7 @@ const DATA_DIR = fs.existsSync(path.join(process.cwd(), 'apps', 'api', 'data'))
   ? path.join(process.cwd(), 'apps', 'api', 'data')
   : path.join(process.cwd(), 'data');
 const CONFIG_FILE = path.join(DATA_DIR, 'smm_config.json');
+const SERVICES_FILE = path.join(DATA_DIR, 'smm_services.json');
 
 export class SMMManagerService {
   private config: SMMProviderConfig = {
@@ -29,6 +30,15 @@ export class SMMManagerService {
 
   constructor() {
     this.loadPersistedConfig();
+    this.loadPersistedServices();
+    // Auto-sync in the background on startup so Linkocial catalog is always up to date without admin login
+    if (this.config.autoSyncEnabled && this.config.apiKey) {
+      setTimeout(() => {
+        this.syncServicesFromProvider().catch(err => {
+          console.warn('[SMM_AUTO_SYNC] Startup sync notice:', err.message);
+        });
+      }, 3000);
+    }
   }
 
   private loadPersistedConfig() {
@@ -57,6 +67,30 @@ export class SMMManagerService {
       fs.writeFileSync(CONFIG_FILE, JSON.stringify(this.config, null, 2), 'utf-8');
     } catch (err: any) {
       console.warn(`[SMM_PERSISTENCE] Notice saving config: ${err.message}`);
+    }
+  }
+
+  private loadPersistedServices() {
+    try {
+      if (fs.existsSync(SERVICES_FILE)) {
+        const raw = fs.readFileSync(SERVICES_FILE, 'utf-8');
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          this.services = parsed;
+          console.log(`[SMM_PERSISTENCE] Loaded ${parsed.length} persisted SMM services from disk.`);
+        }
+      }
+    } catch (err: any) {
+      console.warn(`[SMM_PERSISTENCE] Notice loading services: ${err.message}`);
+    }
+  }
+
+  private savePersistedServices() {
+    try {
+      fs.mkdirSync(path.dirname(SERVICES_FILE), { recursive: true });
+      fs.writeFileSync(SERVICES_FILE, JSON.stringify(this.services, null, 2), 'utf-8');
+    } catch (err: any) {
+      console.warn(`[SMM_PERSISTENCE] Notice saving services: ${err.message}`);
     }
   }
 
@@ -228,6 +262,13 @@ export class SMMManagerService {
   // ==========================================
 
   getPublicServices(platform?: string): SMMService[] {
+    // If services catalog has fewer than 20 services, auto-trigger provider sync in background
+    if (this.services.length <= 12 && this.config.apiKey) {
+      this.syncServicesFromProvider().catch(err => {
+        console.warn('[SMM_AUTO_SYNC] Background sync notice:', err.message);
+      });
+    }
+
     let list = this.services.filter(s => s.isActive);
     if (platform && platform !== 'all') {
       list = list.filter(s => s.platform === platform);
@@ -262,6 +303,7 @@ export class SMMManagerService {
       service.isActive = isActive;
     }
 
+    this.savePersistedServices();
     return service;
   }
 
@@ -275,6 +317,7 @@ export class SMMManagerService {
       updatedCount++;
     });
 
+    this.savePersistedServices();
     return {
       updatedCount,
       defaultMarkupPercent: this.config.defaultMarkupPercent
@@ -322,6 +365,7 @@ export class SMMManagerService {
     }
 
     this.config.lastSyncedAt = new Date().toISOString();
+    this.savePersistedServices();
     return { syncedCount, newCount };
   }
 

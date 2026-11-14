@@ -15,8 +15,12 @@ router.get('/categories', (req, res) => {
 
 router.get('/products', async (req, res, next) => {
   try {
-    await catalogService.ensureSynced();
-    const { category, serverCluster, search, q, page, limit, availability } = req.query;
+    const { category, serverCluster, search, q, page, limit, availability, sync, refresh, force } = req.query;
+    if (sync || refresh || force) {
+      await catalogService.syncWithLogsPoll();
+    } else {
+      await catalogService.ensureSynced();
+    }
 
     const pageNum = page ? Number(page) : 1;
     const limitNum = limit ? Number(limit) : 20;
@@ -28,7 +32,8 @@ router.get('/products', async (req, res, next) => {
       search: querySearch,
       category: typeof category === 'string' ? category : undefined,
       serverCluster: typeof serverCluster === 'string' ? serverCluster : undefined,
-      availability: typeof availability === 'string' ? availability : undefined
+      availability: typeof availability === 'string' ? availability : undefined,
+      force: Boolean(sync || refresh || force)
     });
 
     res.json({

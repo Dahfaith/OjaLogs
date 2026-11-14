@@ -26,10 +26,166 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
+const defaultPublicServices: SMMService[] = [
+  {
+    id: 'smm_ig_001',
+    providerServiceId: '101',
+    name: 'Instagram High-Quality Followers [Non-Drop | 30 Days Refill]',
+    category: 'Instagram - Followers Guaranteed',
+    platform: 'instagram',
+    sourceRateNgn: 4500.00,
+    retailRateNgn: 5850.00,
+    minQuantity: 50,
+    maxQuantity: 100000,
+    description: 'High retention authentic profiles with profile photos and recent posts. Delivery speed: 5k - 10k/day.',
+    isActive: true,
+    refillSupported: true
+  },
+  {
+    id: 'smm_ig_002',
+    providerServiceId: '102',
+    name: 'Instagram Real Post Likes [Instant Start | Explore Algorithm]',
+    category: 'Instagram - Likes',
+    platform: 'instagram',
+    sourceRateNgn: 1200.00,
+    retailRateNgn: 1600.00,
+    minQuantity: 20,
+    maxQuantity: 50000,
+    description: 'Instant delivery likes for posts, reels, and IGTV. Enhances explore page visibility.',
+    isActive: true
+  },
+  {
+    id: 'smm_ig_003',
+    providerServiceId: '103',
+    name: 'Instagram Reel Views + Impressions [Viral Algorithm Trigger]',
+    category: 'Instagram - Views & Reach',
+    platform: 'instagram',
+    sourceRateNgn: 650.00,
+    retailRateNgn: 950.00,
+    minQuantity: 100,
+    maxQuantity: 500000,
+    description: 'Super-fast views with organic retention. Starts in under 60 seconds.',
+    isActive: true
+  },
+  {
+    id: 'smm_tk_001',
+    providerServiceId: '201',
+    name: 'TikTok Video Views [Super Instant | High Retention FYP]',
+    category: 'TikTok - Views',
+    platform: 'tiktok',
+    sourceRateNgn: 500.00,
+    retailRateNgn: 750.00,
+    minQuantity: 100,
+    maxQuantity: 1000000,
+    description: 'Instant algorithm boost to push your video to the For You Page (FYP).',
+    isActive: true
+  },
+  {
+    id: 'smm_tk_002',
+    providerServiceId: '202',
+    name: 'TikTok Followers [Active Real Users | Unlock LIVE]',
+    category: 'TikTok - Followers',
+    platform: 'tiktok',
+    sourceRateNgn: 5200.00,
+    retailRateNgn: 6800.00,
+    minQuantity: 50,
+    maxQuantity: 50000,
+    description: 'Real active TikTok followers. Helps unlock livestreaming (1k+) and creator fund.',
+    isActive: true
+  },
+  {
+    id: 'smm_yt_001',
+    providerServiceId: '301',
+    name: 'YouTube Monetizable Watch Hours [Desktop Views | Fast High Retention]',
+    category: 'YouTube - Watch Time',
+    platform: 'youtube',
+    sourceRateNgn: 12000.00,
+    retailRateNgn: 15500.00,
+    minQuantity: 100,
+    maxQuantity: 4000,
+    description: 'Guaranteed high-retention watch time towards YPP 4,000 hours monetization milestone.',
+    isActive: true
+  },
+  {
+    id: 'smm_yt_002',
+    providerServiceId: '302',
+    name: 'YouTube Subscribers [Non-Drop | Organic Speed]',
+    category: 'YouTube - Subscribers',
+    platform: 'youtube',
+    sourceRateNgn: 8500.00,
+    retailRateNgn: 11000.00,
+    minQuantity: 50,
+    maxQuantity: 10000,
+    description: 'Permanent subscribers from verified Google accounts. Non-drop lifetime guarantee.',
+    isActive: true
+  },
+  {
+    id: 'smm_tw_001',
+    providerServiceId: '401',
+    name: 'X / Twitter Followers [Aged Accounts | Organic Growth]',
+    category: 'X (Twitter) - Followers',
+    platform: 'twitter',
+    sourceRateNgn: 4800.00,
+    retailRateNgn: 6200.00,
+    minQuantity: 50,
+    maxQuantity: 50000,
+    description: 'Boost your X presence with real-looking active accounts.',
+    isActive: true
+  },
+  {
+    id: 'smm_tg_001',
+    providerServiceId: '501',
+    name: 'Telegram Channel / Group Members [0% Drop | 30 Days Guarantee]',
+    category: 'Telegram - Members',
+    platform: 'telegram',
+    sourceRateNgn: 2200.00,
+    retailRateNgn: 2900.00,
+    minQuantity: 100,
+    maxQuantity: 200000,
+    description: 'Clean global members for public and private channels or crypto communities.',
+    isActive: true
+  },
+  {
+    id: 'smm_fb_001',
+    providerServiceId: '601',
+    name: 'Facebook Page Likes + Followers [Official Meta Engagement]',
+    category: 'Facebook - Page Growth',
+    platform: 'facebook',
+    sourceRateNgn: 3800.00,
+    retailRateNgn: 4950.00,
+    minQuantity: 100,
+    maxQuantity: 50000,
+    description: 'High-authority page likes and followers to establish credibility.',
+    isActive: true
+  },
+  {
+    id: 'smm_sp_001',
+    providerServiceId: '701',
+    name: 'Spotify Track Plays [Algorithm & Royalty Eligible | Worldwide Streams]',
+    category: 'Spotify - Plays',
+    platform: 'spotify',
+    sourceRateNgn: 1400.00,
+    retailRateNgn: 1950.00,
+    minQuantity: 1000,
+    maxQuantity: 1000000,
+    description: 'Streams from premium accounts eligible for artist royalties.',
+    isActive: true
+  }
+];
+
 export const SocialBoostPage: React.FC = () => {
   const { user, wallet, formatPrice, setIsAuthModalOpen, showToast, refreshWallet } = useApp();
 
-  const [services, setServices] = useState<SMMService[]>([]);
+  const [services, setServices] = useState<SMMService[]>(() => {
+    try {
+      const saved = localStorage.getItem('oj_smm_services');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return defaultPublicServices;
+  });
   const [orders, setOrders] = useState<SMMOrder[]>([]);
   const [selectedPlatform, setSelectedPlatform] = useState<string>('all');
   const [selectedServiceId, setSelectedServiceId] = useState<string>('');
@@ -74,16 +230,18 @@ export const SocialBoostPage: React.FC = () => {
     }
   }, [user, setIsAuthModalOpen]);
 
-  // Fetch Services (only if user is authenticated)
+  // Fetch Services from backend (runs immediately on mount so visitors always see catalog)
   useEffect(() => {
-    if (!user) return;
     let isMounted = true;
     const fetchServices = async () => {
       setIsLoading(true);
       try {
         const data = await apiClient.getSMMServices();
-        if (isMounted && data && data.length > 0) {
+        if (isMounted && data && Array.isArray(data) && data.length > 0) {
           setServices(data);
+          try {
+            localStorage.setItem('oj_smm_services', JSON.stringify(data));
+          } catch {}
           if (!selectedServiceId) {
             setSelectedServiceId(data[0].id);
             setQuantity(data[0].minQuantity || 1000);
@@ -98,7 +256,7 @@ export const SocialBoostPage: React.FC = () => {
 
     fetchServices();
     return () => { isMounted = false; };
-  }, [user]);
+  }, []);
 
   // Fetch User SMM Orders
   useEffect(() => {

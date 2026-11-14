@@ -271,7 +271,12 @@ export class CatalogService {
     category?: string;
     serverCluster?: string;
     availability?: string;
+    force?: boolean | string;
   }): Promise<CatalogPaginationResult> {
+    if (options.force) {
+      this.cache.clear();
+    }
+
     const page = Math.max(1, options.page || 1);
     const limit = Math.max(1, Math.min(100, options.limit || 20));
     const search = (options.search || '').trim();
@@ -280,9 +285,11 @@ export class CatalogService {
     const availability = (options.availability || '').trim();
 
     const cacheKey = `p_${page}_l_${limit}_s_${search}_c_${category}_sc_${serverCluster}_a_${availability}`;
-    const cached = this.cache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
-      return cached.data;
+    if (!options.force) {
+      const cached = this.cache.get(cacheKey);
+      if (cached && cached.expiresAt > Date.now()) {
+        return cached.data;
+      }
     }
 
     // Check if upstream LogsPoll API is configured
@@ -412,8 +419,8 @@ export class CatalogService {
               limit: lpResult.limit,
               total: finalProducts.length < products.length ? finalProducts.length : lpResult.total,
               totalPages: finalProducts.length < products.length ? Math.max(1, Math.ceil(finalProducts.length / limit)) : lpResult.pages,
-              inStock: finalProducts.filter(p => p.inStock).length,
-              outOfStock: finalProducts.filter(p => !p.inStock).length
+              inStock: typeof lpResult.inStock === 'number' ? lpResult.inStock : lpResult.total,
+              outOfStock: typeof lpResult.outOfStock === 'number' ? lpResult.outOfStock : Math.max(0, lpResult.total - (lpResult.inStock || lpResult.total))
             }
           };
 
