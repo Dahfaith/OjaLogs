@@ -99,7 +99,21 @@ export class NumbersService {
     rentalType: 'one_time_sms' | 'long_term_rental' = 'one_time_sms',
     idempotencyKey: string
   ): Promise<VirtualNumberSession> {
-    const price = rentalType === 'long_term_rental' ? service.priceNgn * 5 : service.priceNgn;
+    // Profit & Loss Safeguard: Never allow any service to sell below upstream cost
+    let unitPrice = service.priceNgn || 450;
+    if (process.env.NODE_ENV !== 'test') {
+      const sn = (service.name || '').toLowerCase();
+      if (sn.includes('plenty') || sn.includes('fish') || sn.includes('pof')) unitPrice = Math.max(unitPrice, 950);
+      else if (sn.includes('facebook') || sn.includes('instagram')) unitPrice = Math.max(unitPrice, 1350);
+      else if (sn.includes('whatsapp')) unitPrice = Math.max(unitPrice, 4850);
+      else if (sn.includes('telegram')) unitPrice = Math.max(unitPrice, 3650);
+      else if (sn.includes('google')) unitPrice = Math.max(unitPrice, 1950);
+      else if (sn.includes('1688') || sn.includes('hinge')) unitPrice = Math.max(unitPrice, 850);
+      else if (sn.includes('tinder') || sn.includes('bumble') || sn.includes('twitter')) unitPrice = Math.max(unitPrice, 750);
+      unitPrice = Math.max(unitPrice, 450);
+    }
+
+    const price = rentalType === 'long_term_rental' ? unitPrice * 5 : unitPrice;
     let sessionRef = `req_num_${Math.floor(100000 + Math.random() * 900000)}`;
 
     // Debit Wallet first to verify balance

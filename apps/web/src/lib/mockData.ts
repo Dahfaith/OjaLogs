@@ -960,23 +960,23 @@ export const mockCountries: CountryOption[] = [
 ];
 
 export const mockServices: ServiceOption[] = [
-  // Top Featured & Popular (Real TextPlug Baseline Costs with Standard Profit Margin)
-  { id: 'whatsapp', name: 'WhatsApp Business / Messenger', category: 'Messaging', icon: 'MessageCircle', priceNgn: 3465, successRate: 98.4, popular: true },
-  { id: 'telegram', name: 'Telegram Messenger', category: 'Messaging', icon: 'Send', priceNgn: 2655, successRate: 99.1, popular: true },
-  { id: 'google', name: 'Google / Gmail Workspace', category: 'Email & Cloud', icon: 'Mail', priceNgn: 2015, successRate: 97.5, popular: true },
-  { id: 'openai', name: 'OpenAI / ChatGPT Verification', category: 'AI Tools', icon: 'Cpu', priceNgn: 245, successRate: 96.8, popular: true },
-  { id: '1688', name: '1688 (Alibaba Wholesale China)', category: 'E-Commerce', icon: 'ShoppingBag', priceNgn: 605, successRate: 97.9, popular: true },
-  { id: 'instagram', name: 'Instagram', category: 'Social', icon: 'Camera', priceNgn: 645, successRate: 98.1, popular: true },
-  { id: 'tiktok', name: 'TikTok', category: 'Social', icon: 'Video', priceNgn: 525, successRate: 97.4, popular: true },
-  { id: 'facebook', name: 'Facebook', category: 'Social', icon: 'Share2', priceNgn: 725, successRate: 98.2, popular: true },
-  { id: 'netflix', name: 'Netflix', category: 'Entertainment', icon: 'Tv', priceNgn: 885, successRate: 97.8, popular: true },
-  { id: 'twitter', name: 'X / Twitter Verification', category: 'Social', icon: 'AtSign', priceNgn: 565, successRate: 96.0, popular: true },
-  { id: 'plentyoffish', name: 'Plenty Of Fish / POF', category: 'Dating & Social', icon: 'Heart', priceNgn: 445, stock: 11506, successRate: 98.6, popular: true },
-  { id: 'tinder', name: 'Tinder Verification', category: 'Dating & Social', icon: 'Heart', priceNgn: 365, stock: 13617, successRate: 98.9, popular: true },
-  { id: 'bumble', name: 'Bumble Dating', category: 'Dating & Social', icon: 'Heart', priceNgn: 405, stock: 13686, successRate: 98.3, popular: true },
-  { id: 'hinge', name: 'Hinge Dating', category: 'Dating & Social', icon: 'Heart', priceNgn: 485, stock: 13845, successRate: 97.9, popular: true },
-  { id: 'badoo', name: 'Badoo Dating & Chat', category: 'Dating & Social', icon: 'Heart', priceNgn: 450, stock: 9400, successRate: 98.0, popular: true },
-  { id: 'asian-dating', name: 'Asian Dating', category: 'Dating & Social', icon: 'Heart', priceNgn: 1005, stock: 13978, successRate: 97.5, popular: true },
+  // Top Featured & Popular (Guaranteed Loss-Protected Retail Prices with Healthy Profit Margins)
+  { id: 'whatsapp', name: 'WhatsApp Business / Messenger', category: 'Messaging', icon: 'MessageCircle', priceNgn: 4850, successRate: 98.4, popular: true },
+  { id: 'telegram', name: 'Telegram Messenger', category: 'Messaging', icon: 'Send', priceNgn: 3650, successRate: 99.1, popular: true },
+  { id: 'google', name: 'Google / Gmail Workspace', category: 'Email & Cloud', icon: 'Mail', priceNgn: 1950, successRate: 97.5, popular: true },
+  { id: 'openai', name: 'OpenAI / ChatGPT Verification', category: 'AI Tools', icon: 'Cpu', priceNgn: 450, successRate: 96.8, popular: true },
+  { id: '1688', name: '1688 (Alibaba Wholesale China)', category: 'E-Commerce', icon: 'ShoppingBag', priceNgn: 850, successRate: 97.9, popular: true },
+  { id: 'instagram', name: 'Instagram', category: 'Social', icon: 'Camera', priceNgn: 1350, successRate: 98.1, popular: true },
+  { id: 'tiktok', name: 'TikTok', category: 'Social', icon: 'Video', priceNgn: 550, successRate: 97.4, popular: true },
+  { id: 'facebook', name: 'Facebook', category: 'Social', icon: 'Share2', priceNgn: 1350, successRate: 98.2, popular: true },
+  { id: 'netflix', name: 'Netflix', category: 'Entertainment', icon: 'Tv', priceNgn: 1050, successRate: 97.8, popular: true },
+  { id: 'twitter', name: 'X / Twitter Verification', category: 'Social', icon: 'AtSign', priceNgn: 750, successRate: 96.0, popular: true },
+  { id: 'plentyoffish', name: 'Plenty Of Fish / POF', category: 'Dating & Social', icon: 'Heart', priceNgn: 950, stock: 12816, successRate: 98.6, popular: true },
+  { id: 'tinder', name: 'Tinder Verification', category: 'Dating & Social', icon: 'Heart', priceNgn: 750, stock: 13680, successRate: 98.9, popular: true },
+  { id: 'bumble', name: 'Bumble Dating', category: 'Dating & Social', icon: 'Heart', priceNgn: 750, stock: 13754, successRate: 98.3, popular: true },
+  { id: 'hinge', name: 'Hinge Dating', category: 'Dating & Social', icon: 'Heart', priceNgn: 850, stock: 13849, successRate: 97.9, popular: true },
+  { id: 'badoo', name: 'Badoo Dating & Chat', category: 'Dating & Social', icon: 'Heart', priceNgn: 650, stock: 13922, successRate: 98.0, popular: true },
+  { id: 'asian-dating', name: 'Asian Dating', category: 'Dating & Social', icon: 'Heart', priceNgn: 1450, stock: 13978, successRate: 97.5, popular: true },
 
   // Alphabetical TextPlug Catalog (1-9 & A-Z)
   { id: '1q', name: '1Q', category: 'Surveys & Rewards', icon: 'HelpCircle', priceNgn: 950, successRate: 96.5 },

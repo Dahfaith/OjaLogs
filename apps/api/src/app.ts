@@ -12,7 +12,18 @@ app.use(helmet());
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'x-request-id', 'x-admin-email']
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'Idempotency-Key',
+    'x-request-id',
+    'x-admin-email',
+    'x-user-email',
+    'x-user-id',
+    'Accept',
+    'Origin',
+    'X-Requested-With'
+  ]
 }));
 app.options('*', cors());
 

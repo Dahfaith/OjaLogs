@@ -33,7 +33,7 @@ export const WalletPage: React.FC = () => {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await refreshWallet();
+      await refreshWallet(user);
     } finally {
       setIsRefreshing(false);
     }

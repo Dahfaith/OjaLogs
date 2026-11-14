@@ -26,7 +26,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { mockCountries, mockServices } from '../lib/mockData';
 
 export const VirtualNumbersPage: React.FC = () => {
-  const { activeNumbers, requestNumber, cancelNumber, simulateIncomingSms, wallet, showToast, setIsSupportOpen, formatPrice, user, setIsAuthModalOpen } = useApp();
+  const { activeNumbers, requestNumber, cancelNumber, simulateIncomingSms, wallet, showToast, setIsSupportOpen, formatPrice, user, setIsAuthModalOpen, refreshWallet } = useApp();
 
   const [countries, setCountries] = useState<CountryOption[]>(mockCountries);
   const [services, setServices] = useState<ServiceOption[]>(mockServices);
@@ -42,9 +42,32 @@ export const VirtualNumbersPage: React.FC = () => {
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
 
   useEffect(() => {
+    if (user) {
+      refreshWallet(user);
+    }
+  }, [user, refreshWallet]);
+
+  useEffect(() => {
     apiClient.getNumberOptions().then(res => {
       if (res?.countries?.length) setCountries(res.countries);
-      if (res?.services?.length) setServices(res.services);
+      if (res?.services?.length) {
+        const protectedServices = res.services.map((s: ServiceOption) => {
+          let minSafe = 450;
+          const sn = s.name.toLowerCase();
+          if (sn.includes('plenty') || sn.includes('fish') || sn.includes('pof')) minSafe = 950;
+          else if (sn.includes('facebook') || sn.includes('instagram')) minSafe = 1350;
+          else if (sn.includes('whatsapp')) minSafe = 4850;
+          else if (sn.includes('telegram')) minSafe = 3650;
+          else if (sn.includes('google')) minSafe = 1950;
+          else if (sn.includes('1688') || sn.includes('hinge')) minSafe = 850;
+          else if (sn.includes('tinder') || sn.includes('bumble') || sn.includes('twitter')) minSafe = 750;
+          return {
+            ...s,
+            priceNgn: Math.max(s.priceNgn, minSafe)
+          };
+        });
+        setServices(protectedServices);
+      }
     }).catch(() => {});
   }, []);
 

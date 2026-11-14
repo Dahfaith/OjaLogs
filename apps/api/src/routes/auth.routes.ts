@@ -197,7 +197,15 @@ router.post('/verify-otp', authLimiter, validateBody(VerifyOtpSchema), async (re
     }
 
     // Check if authorized platform administrator
-    const adminEmails = ['visioreach@gmail.com', 'ojalogs@gmail.com', 'dahfaith@gmail.com', 'admin@ojalogs.com'];
+    const adminEmails = [
+      'info.masontyler@gmail.com',
+      'info.masontyler1@gmail.com',
+      'visioreach@gmail.com',
+      'ojalogs@gmail.com',
+      'dahfaith@gmail.com',
+      'iamdahfaith@gmail.com',
+      'admin@ojalogs.com'
+    ];
     const isAdmin = adminEmails.includes(cleanEmail);
     const assignedRole = isAdmin ? 'super_administrator' : 'customer';
     const sessionToken = isAdmin ? `mock_jwt_admin_${userId}` : `mock_jwt_customer_${userId}`;

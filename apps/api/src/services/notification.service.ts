@@ -32,6 +32,28 @@ class NotificationService {
 
   private managedUsers: AdminManagedUser[] = [
     {
+      id: 'cb96d015-bc19-42f1-a2b6-531dc01f610b',
+      name: 'Info.masontyler1',
+      email: 'info.masontyler1@gmail.com',
+      role: 'super_administrator',
+      status: 'active',
+      balanceNgn: 500.00,
+      isVerified: true,
+      totalOrders: 0,
+      createdAt: '2026-11-08T10:30:49.000Z'
+    },
+    {
+      id: 'c73a61b1-78ec-4e07-8884-8a2054d8acb4',
+      name: 'Info.masontyler',
+      email: 'info.masontyler@gmail.com',
+      role: 'super_administrator',
+      status: 'active',
+      balanceNgn: 500.00,
+      isVerified: true,
+      totalOrders: 0,
+      createdAt: '2026-11-08T10:28:24.000Z'
+    },
+    {
       id: 'usr_admin_001',
       name: 'Visio Reach',
       email: 'visioreach@gmail.com',

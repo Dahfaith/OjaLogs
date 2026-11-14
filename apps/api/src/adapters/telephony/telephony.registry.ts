@@ -159,6 +159,24 @@ function categorizeServiceName(name: string): { category: string; icon: string }
   return { category: 'General', icon: 'MessageSquare' };
 }
 
+export function calculateProtectedRetailPrice(name: string, rawCost: number, markupPercent: number = 35): number {
+  let effectiveCost = Math.max(Number(rawCost) || 0, 0);
+  const n = name.toLowerCase();
+
+  // Known services that have higher costs (up to ₦600) on Dynamic SMS
+  if (n.includes('plenty') || n.includes('fish') || n.includes('pof')) {
+    effectiveCost = Math.max(effectiveCost, 600);
+  }
+  if (n.includes('match') && !n.includes('catholic') && !n.includes('senior')) {
+    effectiveCost = Math.max(effectiveCost, 600);
+  }
+
+  const effectiveMarkup = Math.max(Number(markupPercent) || 35, 30);
+  const percentPrice = Math.round(effectiveCost * (1 + effectiveMarkup / 100));
+  const minProfitPrice = effectiveCost + 250; // Minimum ₦250 profit per order
+  return Math.max(percentPrice, minProfitPrice, 450); // Minimum ₦450 floor
+}
+
 export class TelephonyRegistry {
   private providers = new Map<string, TelephonyProviderConfig>();
 
@@ -323,7 +341,7 @@ export class TelephonyRegistry {
             const rawCost = typeof item === 'object'
               ? Number(item.amount ?? item.price ?? item.cost ?? 1000)
               : 1000;
-            const retailPrice = Math.round(rawCost * (1 + markup / 100));
+            const retailPrice = calculateProtectedRetailPrice(name, rawCost, markup);
             const itemId = typeof item === 'object' && item.id ? String(item.id) : name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
             const catInfo = categorizeServiceName(name);
             const stock = typeof item === 'object' && typeof item.stock === 'number' ? item.stock : 1000;
@@ -338,7 +356,7 @@ export class TelephonyRegistry {
               name,
               category: (typeof item === 'object' && item.category) || catInfo.category,
               icon: catInfo.icon,
-              priceNgn: Math.max(retailPrice, 200),
+              priceNgn: retailPrice,
               stock,
               successRate: (typeof item === 'object' && item.successRate) || 98,
               popular: isPopular

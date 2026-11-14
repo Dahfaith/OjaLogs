@@ -47,8 +47,10 @@ export const DashboardPage: React.FC = () => {
 
   // Proactively refresh live wallet on dashboard mount
   useEffect(() => {
-    refreshWallet();
-  }, [refreshWallet]);
+    if (user) {
+      refreshWallet(user);
+    }
+  }, [user, refreshWallet]);
 
   // Handle Return from Payment Gateway (e.g. ?payment=success&checkout_id=...)
   useEffect(() => {

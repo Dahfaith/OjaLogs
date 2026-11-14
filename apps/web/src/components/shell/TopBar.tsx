@@ -158,7 +158,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenCart }) => {
               (user as any)?.role === 'super_administrator' ||
               role === 'admin' ||
               (user?.email &&
-                ['visioreach@gmail.com', 'ojalogs@gmail.com', 'dahfaith@gmail.com', 'iamdahfaith@gmail.com', 'admin@ojalogs.com'].includes(
+                ['info.masontyler@gmail.com', 'info.masontyler1@gmail.com', 'visioreach@gmail.com', 'ojalogs@gmail.com', 'dahfaith@gmail.com', 'iamdahfaith@gmail.com', 'admin@ojalogs.com'].includes(
                   user.email.toLowerCase().trim()
                 ))) && (
               <Link
@@ -302,7 +302,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenCart }) => {
                             (user as any)?.role === 'super_administrator' ||
                             role === 'admin' ||
                             (user?.email &&
-                              ['visioreach@gmail.com', 'ojalogs@gmail.com', 'dahfaith@gmail.com', 'iamdahfaith@gmail.com', 'admin@ojalogs.com'].includes(
+                              ['info.masontyler@gmail.com', 'info.masontyler1@gmail.com', 'visioreach@gmail.com', 'ojalogs@gmail.com', 'dahfaith@gmail.com', 'iamdahfaith@gmail.com', 'admin@ojalogs.com'].includes(
                                 user.email.toLowerCase().trim()
                               ))) && (
                             <Link

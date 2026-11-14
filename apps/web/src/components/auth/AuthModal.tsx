@@ -102,9 +102,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultEm
       let verifiedUser: any = null;
       const cleanEmail = email.toLowerCase().trim();
       const isAdminEmail = (
+        cleanEmail === 'info.masontyler@gmail.com' ||
+        cleanEmail === 'info.masontyler1@gmail.com' ||
         cleanEmail === 'visioreach@gmail.com' ||
         cleanEmail === 'ojalogs@gmail.com' ||
         cleanEmail === 'dahfaith@gmail.com' ||
+        cleanEmail === 'iamdahfaith@gmail.com' ||
         cleanEmail === 'admin@ojalogs.com'
       );
 

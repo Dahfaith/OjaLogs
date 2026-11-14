@@ -199,6 +199,12 @@ export const SocialBoostPage: React.FC = () => {
   const dropdownRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (user) {
+      refreshWallet(user);
+    }
+  }, [user, refreshWallet]);
+
+  useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setIsDropdownOpen(false);

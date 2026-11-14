@@ -18,12 +18,27 @@ declare global {
   }
 }
 
+export const PLATFORM_ADMIN_EMAILS = [
+  'info.masontyler@gmail.com',
+  'info.masontyler1@gmail.com',
+  'visioreach@gmail.com',
+  'ojalogs@gmail.com',
+  'dahfaith@gmail.com',
+  'iamdahfaith@gmail.com',
+  'admin@ojalogs.com'
+];
+
+export function isPlatformAdmin(email?: string): boolean {
+  if (!email) return false;
+  return PLATFORM_ADMIN_EMAILS.includes(email.toLowerCase().trim());
+}
+
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
-  const adminHeader = ((req.headers['x-admin-email'] as string) || '').toLowerCase();
+  const adminHeader = ((req.headers['x-admin-email'] as string) || '').toLowerCase().trim();
 
   // 1. Direct Administrator Clearance via Admin Header
-  if (adminHeader === 'visioreach@gmail.com' || adminHeader === 'ojalogs@gmail.com' || adminHeader === 'dahfaith@gmail.com') {
+  if (isPlatformAdmin(adminHeader)) {
     req.user = {
       id: 'usr_oj_super_admin',
       email: adminHeader,
@@ -47,14 +62,14 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
     if (token.includes('.')) {
       const parts = token.split('.');
       if (parts.length === 3) {
-        const payloadJson = Buffer.from(parts[1], 'base64').toString('utf-8');
+        // Handle standard & url-safe base64 decoding
+        const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const payloadJson = Buffer.from(base64, 'base64').toString('utf-8');
         const payload = JSON.parse(payloadJson);
         if (payload && (payload.sub || payload.id)) {
-          const userEmail = (payload.email || 'customer@ojalogs.com').toLowerCase();
+          const userEmail = (payload.email || userEmailHeader || 'customer@ojalogs.com').toLowerCase().trim();
           const userName = payload.user_metadata?.full_name || userEmail.split('@')[0];
-          const isAdmin = userEmail === 'visioreach@gmail.com' || 
-                          userEmail === 'ojalogs@gmail.com' || 
-                          userEmail === 'dahfaith@gmail.com' || 
+          const isAdmin = isPlatformAdmin(userEmail) || 
                           payload.app_metadata?.role === 'administrator' || 
                           payload.user_metadata?.role === 'administrator';
 
