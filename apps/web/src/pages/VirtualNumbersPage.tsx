@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { apiClient } from '../lib/apiClient';
-import { CountryOption, ServiceOption } from '@ojalogs/shared';
+import { CountryOption, ServiceOption, getServicePriceForCountry } from '@ojalogs/shared';
 import {
   PhoneCall,
   Globe2,
@@ -73,7 +73,7 @@ export const VirtualNumbersPage: React.FC = () => {
 
   const selectedCountry = countries.find(c => c.code === selectedCountryCode) || countries[0] || mockCountries[0];
   const selectedService = services.find(s => s.id === selectedServiceId) || services[0] || mockServices[0];
-  const price = rentalType === 'long_term_rental' ? selectedService.priceNgn * 5 : selectedService.priceNgn;
+  const price = getServicePriceForCountry(selectedService, selectedCountryCode, rentalType);
 
   const filteredServices = services.filter(s => {
     if (selectedCategoryFilter !== 'all') {
@@ -267,7 +267,7 @@ export const VirtualNumbersPage: React.FC = () => {
 
               <div className="flex items-center gap-2.5 shrink-0">
                 <span className="text-xs font-mono font-extrabold text-emerald-600 dark:text-emerald-400">
-                  {formatPrice(selectedService.priceNgn)}
+                  {formatPrice(getServicePriceForCountry(selectedService, selectedCountryCode, rentalType))}
                 </span>
                 <ChevronDown className={`w-4 h-4 text-oj-muted transition-transform duration-200 ${isServiceDropdownOpen ? 'rotate-180 text-oj-primary' : ''}`} />
               </div>
@@ -375,7 +375,7 @@ export const VirtualNumbersPage: React.FC = () => {
 
                             <div className="flex items-center gap-2 shrink-0">
                               <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                                {formatPrice(rentalType === 'long_term_rental' ? s.priceNgn * 5 : s.priceNgn)}
+                                {formatPrice(getServicePriceForCountry(s, selectedCountryCode, rentalType))}
                               </span>
                               {isSelected && <Check className="w-4 h-4 text-oj-primary" />}
                             </div>

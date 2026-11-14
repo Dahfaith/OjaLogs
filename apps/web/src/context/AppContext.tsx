@@ -11,7 +11,9 @@ import {
   Order,
   SupportedCurrency,
   formatCurrencyAmount,
-  convertNgnToCurrency
+  convertNgnToCurrency,
+  getServicePriceForCountry,
+  ServiceOption
 } from '@ojalogs/shared';
 import {
   initialMockUser,
@@ -1036,7 +1038,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   ): Promise<VirtualNumberSession> => {
     const country = mockCountries.find(c => c.code === countryCode) || mockCountries[0];
     const service = mockServices.find(s => s.id === serviceId) || mockServices[0];
-    const price = rentalType === 'long_term_rental' ? service.priceNgn * 5 : service.priceNgn;
+    const price = getServicePriceForCountry(service, countryCode, rentalType);
 
     if (wallet.balanceNgn < price) {
       throw new Error(`Insufficient wallet funds. Number costs ${formatPrice(price)}. Current balance: ${formatPrice(wallet.balanceNgn)}`);
@@ -1044,7 +1046,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     let session: VirtualNumberSession;
     try {
-      session = await apiClient.requestNumber(country, service, rentalType);
+      const countryAwareService: ServiceOption = {
+        ...service,
+        priceNgn: getServicePriceForCountry(service, countryCode, 'one_time_sms')
+      };
+      session = await apiClient.requestNumber(country, countryAwareService, rentalType);
     } catch (err: any) {
       console.error('[REQUEST_NUMBER_ERROR]', err);
       throw new Error(err.message || 'Telephony allocation failed. Please verify provider connectivity.');

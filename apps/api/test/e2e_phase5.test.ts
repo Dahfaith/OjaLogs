@@ -195,10 +195,10 @@ async function runPhase5Tests() {
 
     const cancelRes = await numbersService.cancelAndRefund(testUserId, session2.id);
     assert.strictEqual(cancelRes.cancelled, true);
-    assert.strictEqual(cancelRes.refundedAmount, services[1].priceNgn);
+    assert.strictEqual(cancelRes.refundedAmount, session2.priceNgn);
 
     const balAfter = walletService.getBalance(testUserId);
-    assert.strictEqual(balAfter, balBefore + services[1].priceNgn);
+    assert.strictEqual(balAfter, balBefore + session2.priceNgn);
 
     const updatedSession = numbersService.getSession(session2.id);
     assert.strictEqual(updatedSession?.status, 'cancelled');
@@ -216,10 +216,10 @@ async function runPhase5Tests() {
 
     const cronRes = await numbersService.reconcileExpiredRentals();
     assert(cronRes.expiredCount >= 1, 'Cron must find at least 1 expired session');
-    assert.strictEqual(cronRes.totalRefundedNgn, services[2].priceNgn);
+    assert.strictEqual(cronRes.totalRefundedNgn, session3.priceNgn);
 
     const balAfter = walletService.getBalance(testUserId);
-    assert.strictEqual(balAfter, balBefore + services[2].priceNgn);
+    assert.strictEqual(balAfter, balBefore + session3.priceNgn);
 
     const updatedSession = numbersService.getSession(session3.id);
     assert.strictEqual(updatedSession?.status, 'refunded');

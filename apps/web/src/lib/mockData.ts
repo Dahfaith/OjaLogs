@@ -959,7 +959,30 @@ export const mockCountries: CountryOption[] = [
   { code: 'NL', name: 'Netherlands', dialCode: '+31', flag: '🇳🇱', availableNumbers: 540 }
 ];
 
-export const mockServices: ServiceOption[] = [
+const SPECIFIC_COUNTRY_PRICES: Record<string, Record<string, number>> = {
+  plentyoffish: { US: 950, GB: 1150, NG: 850, CA: 1050, DE: 1250, FR: 1200, NL: 1180 },
+  whatsapp: { US: 4850, GB: 5200, NG: 2200, CA: 4950, DE: 5400, FR: 5300, NL: 5150 },
+  telegram: { US: 3650, GB: 3950, NG: 1800, CA: 3750, DE: 4100, FR: 4000, NL: 3900 },
+  facebook: { US: 1350, GB: 1550, NG: 950, CA: 1400, DE: 1600, FR: 1580, NL: 1500 },
+  instagram: { US: 1350, GB: 1550, NG: 950, CA: 1400, DE: 1600, FR: 1580, NL: 1500 },
+  google: { US: 1950, GB: 2200, NG: 1100, CA: 2050, DE: 2350, FR: 2300, NL: 2250 },
+  openai: { US: 550, GB: 650, NG: 500, CA: 580, DE: 700, FR: 680, NL: 650 },
+  '1688': { US: 850, GB: 950, NG: 800, CA: 880, DE: 1000, FR: 980, NL: 950 },
+  tinder: { US: 750, GB: 850, NG: 850, CA: 800, DE: 900, FR: 880, NL: 860 },
+  bumble: { US: 750, GB: 850, NG: 850, CA: 800, DE: 900, FR: 880, NL: 860 },
+  hinge: { US: 850, GB: 950, NG: 800, CA: 880, DE: 1000, FR: 980, NL: 950 },
+  twitter: { US: 750, GB: 850, NG: 700, CA: 800, DE: 900, FR: 880, NL: 860 },
+  tiktok: { US: 550, GB: 650, NG: 500, CA: 600, DE: 700, FR: 680, NL: 650 },
+  netflix: { US: 1050, GB: 1250, NG: 950, CA: 1150, DE: 1350, FR: 1300, NL: 1250 },
+  badoo: { US: 650, GB: 750, NG: 600, CA: 700, DE: 800, FR: 780, NL: 760 },
+  'asian-dating': { US: 1450, GB: 1650, NG: 1200, CA: 1500, DE: 1750, FR: 1700, NL: 1650 },
+  binance: { US: 1850, GB: 2100, NG: 1500, CA: 1950, DE: 2250, FR: 2200, NL: 2150 },
+  coinbase: { US: 1900, GB: 2150, NG: 1550, CA: 2000, DE: 2300, FR: 2250, NL: 2200 },
+  apple: { US: 2100, GB: 2400, NG: 1700, CA: 2200, DE: 2550, FR: 2500, NL: 2450 },
+  amazon: { US: 1550, GB: 1800, NG: 1300, CA: 1650, DE: 1900, FR: 1850, NL: 1800 }
+};
+
+const rawMockServices: ServiceOption[] = [
   // Top Featured & Popular (Guaranteed Loss-Protected Retail Prices with Healthy Profit Margins)
   { id: 'whatsapp', name: 'WhatsApp Business / Messenger', category: 'Messaging', icon: 'MessageCircle', priceNgn: 4850, successRate: 98.4, popular: true },
   { id: 'telegram', name: 'Telegram Messenger', category: 'Messaging', icon: 'Send', priceNgn: 3650, successRate: 99.1, popular: true },
@@ -1028,6 +1051,23 @@ export const mockServices: ServiceOption[] = [
   { id: 'wolt', name: 'Wolt', category: 'Food & Delivery', icon: 'Coffee', priceNgn: 1100, successRate: 97.0 },
   { id: 'yahoo', name: 'Yahoo / AOL Mail', category: 'Email & Cloud', icon: 'Mail', priceNgn: 950, successRate: 98.2 }
 ];
+
+export const mockServices: ServiceOption[] = rawMockServices.map(s => {
+  const specific = SPECIFIC_COUNTRY_PRICES[s.id];
+  const countryPrices = specific || {
+    US: s.priceNgn,
+    GB: Math.round(s.priceNgn * 1.15),
+    NG: Math.max(Math.round(s.priceNgn * 0.85), 450),
+    CA: Math.round(s.priceNgn * 1.05),
+    DE: Math.round(s.priceNgn * 1.20),
+    FR: Math.round(s.priceNgn * 1.18),
+    NL: Math.round(s.priceNgn * 1.16)
+  };
+  return {
+    ...s,
+    countryPrices
+  };
+});
 
 // Active mock number session
 export const initialMockVirtualNumber: VirtualNumberSession = {

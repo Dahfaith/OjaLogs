@@ -2,7 +2,7 @@ import { walletService } from './wallet.service.js';
 import { notificationService } from './notification.service.js';
 import { telephonyRegistry } from '../adapters/telephony/telephony.registry.js';
 import { AppError } from '../middleware/errorHandler.js';
-import { VirtualNumberSession, CountryOption, ServiceOption, SmsMessage } from '@ojalogs/shared';
+import { VirtualNumberSession, CountryOption, ServiceOption, SmsMessage, getServicePriceForCountry } from '@ojalogs/shared';
 import { COUNTRIES, SERVICES } from '../data/products.js';
 
 interface UserSessionMap {
@@ -99,18 +99,10 @@ export class NumbersService {
     rentalType: 'one_time_sms' | 'long_term_rental' = 'one_time_sms',
     idempotencyKey: string
   ): Promise<VirtualNumberSession> {
-    // Profit & Loss Safeguard: Never allow any service to sell below upstream cost
+    // Profit & Loss Safeguard: Compute exact country-specific protected price
     let unitPrice = service.priceNgn || 450;
     if (process.env.NODE_ENV !== 'test') {
-      const sn = (service.name || '').toLowerCase();
-      if (sn.includes('plenty') || sn.includes('fish') || sn.includes('pof')) unitPrice = Math.max(unitPrice, 950);
-      else if (sn.includes('facebook') || sn.includes('instagram')) unitPrice = Math.max(unitPrice, 1350);
-      else if (sn.includes('whatsapp')) unitPrice = Math.max(unitPrice, 4850);
-      else if (sn.includes('telegram')) unitPrice = Math.max(unitPrice, 3650);
-      else if (sn.includes('google')) unitPrice = Math.max(unitPrice, 1950);
-      else if (sn.includes('1688') || sn.includes('hinge')) unitPrice = Math.max(unitPrice, 850);
-      else if (sn.includes('tinder') || sn.includes('bumble') || sn.includes('twitter')) unitPrice = Math.max(unitPrice, 750);
-      unitPrice = Math.max(unitPrice, 450);
+      unitPrice = getServicePriceForCountry(service, country.code);
     }
 
     const price = rentalType === 'long_term_rental' ? unitPrice * 5 : unitPrice;
@@ -151,7 +143,9 @@ export class NumbersService {
             'Accept': 'application/json'
           },
           body: JSON.stringify({
-            serviceName: tpServiceName
+            serviceName: tpServiceName,
+            country: country.code,
+            countryCode: country.code
           })
         });
 

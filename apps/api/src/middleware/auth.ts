@@ -100,11 +100,12 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
   }
 
   if (userEmailHeader) {
+    const isAdmin = isPlatformAdmin(userEmailHeader);
     req.user = {
       id: userIdHeader || `usr_${userEmailHeader.split('@')[0]}`,
       email: userEmailHeader,
       name: userEmailHeader.split('@')[0],
-      role: 'customer',
+      role: isAdmin ? 'super_administrator' : 'customer',
       isVerified: true
     };
     return next();
