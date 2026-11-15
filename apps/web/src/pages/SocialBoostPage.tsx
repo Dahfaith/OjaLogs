@@ -276,7 +276,9 @@ export const SocialBoostPage: React.FC = () => {
     fetchOrders();
   }, [user]);
 
-  const filteredServices = services.filter(s => {
+  const effectiveServices = services && services.length > 0 ? services : defaultPublicServices;
+
+  const filteredServices = effectiveServices.filter(s => {
     if (selectedPlatform === 'all') return true;
     return s.platform === selectedPlatform;
   });
@@ -287,7 +289,7 @@ export const SocialBoostPage: React.FC = () => {
     return s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q) || s.platform.toLowerCase().includes(q);
   });
 
-  const selectedService = services.find(s => s.id === selectedServiceId) || filteredServices[0] || services[0];
+  const selectedService = effectiveServices.find(s => s.id === selectedServiceId) || filteredServices[0] || effectiveServices[0];
 
   // Auto-align quantity with minQuantity if user changes service
   useEffect(() => {

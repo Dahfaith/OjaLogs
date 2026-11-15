@@ -1093,7 +1093,13 @@ export const initialMockWallet: WalletState = {
   isLocked: false,
   pendingDeposits: 0,
   lifetimePurchases: 0,
-  monthlySpendNgn: 0.00
+  monthlySpendNgn: 0.00,
+  dedicatedAccount: {
+    bankName: 'Wema Bank / BACH Pay',
+    accountNumber: '9820491823',
+    accountName: 'Ojalogs · Customer',
+    status: 'active'
+  }
 };
 
 // Initial Immutable Ledger Transactions

@@ -16,12 +16,16 @@ import {
   ChevronRight,
   CheckCircle2,
   Clock,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Copy,
+  Check,
+  Building2
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { FundWalletModal } from '../components/wallet/FundWalletModal';
 import { apiClient } from '../lib/apiClient';
+import { generateDedicatedAccount } from '@ojalogs/shared';
 
 export const DashboardPage: React.FC = () => {
   const {
@@ -44,6 +48,23 @@ export const DashboardPage: React.FC = () => {
   const [isFundModalOpen, setIsFundModalOpen] = useState(false);
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
   const [activityFilter, setActivityFilter] = useState<'all' | 'deposits' | 'orders'>('all');
+  const [copiedAccount, setCopiedAccount] = useState(false);
+
+  const dedicatedAccount = wallet.dedicatedAccount || (user ? generateDedicatedAccount(user.email, user.name) : {
+    bankName: 'Wema Bank / BACH Pay',
+    accountNumber: '9820491823',
+    accountName: 'Ojalogs · Customer',
+    status: 'active' as const
+  });
+
+  const handleCopyAccount = () => {
+    if (dedicatedAccount?.accountNumber) {
+      navigator.clipboard.writeText(dedicatedAccount.accountNumber);
+      setCopiedAccount(true);
+      showToast('Dedicated account number copied to clipboard!');
+      setTimeout(() => setCopiedAccount(false), 2000);
+    }
+  };
 
   // Proactively refresh live wallet on dashboard mount
   useEffect(() => {
@@ -271,6 +292,79 @@ export const DashboardPage: React.FC = () => {
             <Wallet className="w-4 h-4 text-oj-cyan" />
             <span>View wallet</span>
           </Link>
+        </div>
+      </motion.div>
+
+      {/* Permanent Dedicated Virtual Account Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.05 }}
+        className="rounded-card border border-oj-border dark:border-oj-dark-border bg-white dark:bg-oj-dark-surface p-5 shadow-card"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-oj-primary/10 dark:bg-oj-primary/20 flex items-center justify-center shrink-0">
+              <Building2 className="w-5 h-5 text-oj-primary" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-oj-midnight dark:text-white">
+                  Your Dedicated Virtual Account
+                </h3>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400">
+                  <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                  Permanent & Instant
+                </span>
+              </div>
+              <p className="text-xs text-oj-muted dark:text-oj-dark-muted mt-0.5">
+                Bank transfer to this account automatically credits your Ojalogs wallet 24/7.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleCopyAccount}
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-border border border-oj-border dark:border-oj-dark-border text-xs font-bold text-oj-midnight dark:text-white transition-colors"
+          >
+            {copiedAccount ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-500" />
+                <span className="text-emerald-600 dark:text-emerald-400">Copied!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5 text-oj-primary" />
+                <span>Copy Account</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-oj-border/60 dark:border-oj-dark-border/60 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+          <div className="p-3 rounded-xl bg-oj-surface-alt/70 dark:bg-oj-dark-surface-alt/70 border border-oj-border/40 dark:border-oj-dark-border/40">
+            <span className="text-[10px] uppercase font-bold text-oj-muted dark:text-oj-dark-muted tracking-wider block">Bank Name</span>
+            <span className="font-bold text-oj-midnight dark:text-white mt-0.5 block">{dedicatedAccount.bankName}</span>
+          </div>
+          <div className="p-3 rounded-xl bg-oj-surface-alt/70 dark:bg-oj-dark-surface-alt/70 border border-oj-border/40 dark:border-oj-dark-border/40 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-oj-muted dark:text-oj-dark-muted tracking-wider block">Account Number</span>
+              <span className="font-mono font-extrabold text-sm text-oj-primary mt-0.5 block tracking-wider">{dedicatedAccount.accountNumber}</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleCopyAccount}
+              className="p-1.5 text-oj-muted hover:text-oj-primary transition-colors"
+              title="Copy account number"
+            >
+              <Copy className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="p-3 rounded-xl bg-oj-surface-alt/70 dark:bg-oj-dark-surface-alt/70 border border-oj-border/40 dark:border-oj-dark-border/40">
+            <span className="text-[10px] uppercase font-bold text-oj-muted dark:text-oj-dark-muted tracking-wider block">Account Name</span>
+            <span className="font-bold text-oj-midnight dark:text-white mt-0.5 block truncate">{dedicatedAccount.accountName}</span>
+          </div>
         </div>
       </motion.div>
 

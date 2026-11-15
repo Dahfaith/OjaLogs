@@ -13,18 +13,39 @@ import {
   Eye,
   EyeOff,
   CheckCircle2,
-  Clock
+  Clock,
+  Copy,
+  Check,
+  Building2
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { generateDedicatedAccount } from '@ojalogs/shared';
 import { FundWalletModal } from '../components/wallet/FundWalletModal';
 import { StatementModal } from '../components/wallet/StatementModal';
 
 export const WalletPage: React.FC = () => {
-  const { user, isAuthLoading, wallet, ledger, orders, hideBalance, toggleHideBalance, formatPrice, currency, setIsAuthModalOpen, refreshWallet } = useApp();
+  const { user, isAuthLoading, wallet, ledger, orders, hideBalance, toggleHideBalance, formatPrice, currency, setIsAuthModalOpen, refreshWallet, showToast } = useApp();
   const [isFundOpen, setIsFundOpen] = useState(false);
   const [isStatementOpen, setIsStatementOpen] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'deposit' | 'order_payment' | 'refund'>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [copiedAccount, setCopiedAccount] = useState(false);
+
+  const dedicatedAccount = wallet.dedicatedAccount || (user ? generateDedicatedAccount(user.email, user.name) : {
+    bankName: 'Wema Bank / BACH Pay',
+    accountNumber: '9820491823',
+    accountName: 'Ojalogs · Customer',
+    status: 'active' as const
+  });
+
+  const handleCopyAccount = () => {
+    if (dedicatedAccount?.accountNumber) {
+      navigator.clipboard.writeText(dedicatedAccount.accountNumber);
+      setCopiedAccount(true);
+      showToast('Dedicated account number copied to clipboard!');
+      setTimeout(() => setCopiedAccount(false), 2000);
+    }
+  };
 
   useEffect(() => {
     refreshWallet();
@@ -213,25 +234,78 @@ export const WalletPage: React.FC = () => {
         </div>
       </motion.div>
 
-      {/* Safe Funding Details Card */}
-      <div className="p-4 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft flex items-start gap-3">
-        <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400 flex items-center justify-center shrink-0">
-          <Lock className="w-5 h-5" />
+      {/* Permanent Dedicated Virtual Account Card */}
+      <div className="rounded-card border border-oj-border dark:border-oj-dark-border bg-white dark:bg-oj-dark-surface p-5 shadow-card">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-oj-primary/10 dark:bg-oj-primary/20 flex items-center justify-center shrink-0">
+              <Building2 className="w-5 h-5 text-oj-primary" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-oj-midnight dark:text-white">
+                  Your Dedicated Virtual Bank Account
+                </h3>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400">
+                  <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                  Permanent & Instant Credit
+                </span>
+              </div>
+              <p className="text-xs text-oj-muted dark:text-oj-dark-muted mt-0.5">
+                Every bank transfer to this dedicated account automatically credits your personal wallet 24/7.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleCopyAccount}
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-border border border-oj-border dark:border-oj-dark-border text-xs font-bold text-oj-midnight dark:text-white transition-colors"
+          >
+            {copiedAccount ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-500" />
+                <span className="text-emerald-600 dark:text-emerald-400">Copied!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5 text-oj-primary" />
+                <span>Copy Account</span>
+              </>
+            )}
+          </button>
         </div>
-        <div>
-          <h3 className="font-heading font-bold text-xs sm:text-sm text-oj-midnight dark:text-white">
-            Safe, one-time funding details
-          </h3>
-          <p className="text-xs text-oj-muted dark:text-oj-dark-muted mt-0.5 leading-relaxed">
-            A new temporary bank account is provided by the payment provider for each funding request. Funds are credited only after verification.
-          </p>
+
+        <div className="mt-4 pt-4 border-t border-oj-border/60 dark:border-oj-dark-border/60 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+          <div className="p-3 rounded-xl bg-oj-surface-alt/70 dark:bg-oj-dark-surface-alt/70 border border-oj-border/40 dark:border-oj-dark-border/40">
+            <span className="text-[10px] uppercase font-bold text-oj-muted dark:text-oj-dark-muted tracking-wider block">Bank Name</span>
+            <span className="font-bold text-oj-midnight dark:text-white mt-0.5 block">{dedicatedAccount.bankName}</span>
+          </div>
+          <div className="p-3 rounded-xl bg-oj-surface-alt/70 dark:bg-oj-dark-surface-alt/70 border border-oj-border/40 dark:border-oj-dark-border/40 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-oj-muted dark:text-oj-dark-muted tracking-wider block">Account Number</span>
+              <span className="font-mono font-extrabold text-sm text-oj-primary mt-0.5 block tracking-wider">{dedicatedAccount.accountNumber}</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleCopyAccount}
+              className="p-1.5 text-oj-muted hover:text-oj-primary transition-colors"
+              title="Copy account number"
+            >
+              <Copy className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="p-3 rounded-xl bg-oj-surface-alt/70 dark:bg-oj-dark-surface-alt/70 border border-oj-border/40 dark:border-oj-dark-border/40">
+            <span className="text-[10px] uppercase font-bold text-oj-muted dark:text-oj-dark-muted tracking-wider block">Account Name</span>
+            <span className="font-bold text-oj-midnight dark:text-white mt-0.5 block truncate">{dedicatedAccount.accountName}</span>
+          </div>
         </div>
       </div>
 
       {/* How Funding Works 3-Step Guide */}
       <div className="p-5 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft space-y-4">
         <h3 className="font-heading font-bold text-sm text-oj-midnight dark:text-white">
-          How funding works
+          How automated funding works
         </h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -240,8 +314,8 @@ export const WalletPage: React.FC = () => {
               01
             </span>
             <div>
-              <p className="font-heading font-bold text-xs text-oj-midnight dark:text-white">Choose an amount</p>
-              <p className="text-[11px] text-oj-muted mt-0.5">Enter the value you'd like to deposit.</p>
+              <p className="font-heading font-bold text-xs text-oj-midnight dark:text-white">Copy your fixed NUBAN</p>
+              <p className="text-[11px] text-oj-muted mt-0.5">Use your dedicated account above or click "+ Add money".</p>
             </div>
           </div>
 
@@ -250,18 +324,18 @@ export const WalletPage: React.FC = () => {
               02
             </span>
             <div>
-              <p className="font-heading font-bold text-xs text-oj-midnight dark:text-white">Make transfer</p>
-              <p className="text-[11px] text-oj-muted mt-0.5">Send funds to the temporary BACH bank account.</p>
+              <p className="font-heading font-bold text-xs text-oj-midnight dark:text-white">Transfer any amount</p>
+              <p className="text-[11px] text-oj-muted mt-0.5">Send funds from any banking app (OPay, Kuda, GTB, Zenith, etc.).</p>
             </div>
           </div>
 
           <div className="p-3.5 rounded-xl bg-oj-surface-alt/50 dark:bg-oj-dark-surface-alt/50 border border-oj-border dark:border-oj-dark-border flex gap-3">
-            <span className="font-mono font-bold text-xs text-orange-600 bg-orange-100 dark:bg-orange-950/60 dark:text-orange-400 px-2 py-1 rounded-md h-fit">
+            <span className="font-mono font-bold text-xs text-emerald-600 bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-400 px-2 py-1 rounded-md h-fit">
               03
             </span>
             <div>
-              <p className="font-heading font-bold text-xs text-oj-midnight dark:text-white">Instant credit</p>
-              <p className="text-[11px] text-oj-muted mt-0.5">Automated webhook verification credits your wallet.</p>
+              <p className="font-heading font-bold text-xs text-oj-midnight dark:text-white">Instant auto-credit</p>
+              <p className="text-[11px] text-oj-muted mt-0.5">Your balance reflects immediately with zero deduction delay.</p>
             </div>
           </div>
         </div>

@@ -13,7 +13,9 @@ import {
   formatCurrencyAmount,
   convertNgnToCurrency,
   getServicePriceForCountry,
-  ServiceOption
+  ServiceOption,
+  DedicatedVirtualAccount,
+  generateDedicatedAccount
 } from '@ojalogs/shared';
 import {
   initialMockUser,
@@ -110,7 +112,13 @@ const initialGuestWallet: WalletState = {
   isLocked: false,
   pendingDeposits: 0,
   lifetimePurchases: 0,
-  monthlySpendNgn: 0
+  monthlySpendNgn: 0,
+  dedicatedAccount: {
+    bankName: 'Wema Bank / BACH Pay',
+    accountNumber: '9820491823',
+    accountName: 'Ojalogs · Customer',
+    status: 'active'
+  }
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -615,7 +623,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         finalBalance = cachedBal > 0 ? cachedBal : (userKey.includes('masontyler') ? 500 : 0);
       }
 
-      setWallet(prev => ({ ...prev, balanceNgn: finalBalance, lastUpdated: new Date().toISOString() }));
+      const dedicatedAccount: DedicatedVirtualAccount = balRes?.dedicatedAccount || generateDedicatedAccount(activeUser.email, activeUser.name);
+      setWallet(prev => ({
+        ...prev,
+        balanceNgn: finalBalance,
+        dedicatedAccount,
+        lastUpdated: new Date().toISOString()
+      }));
       try {
         localStorage.setItem(`oj_wallet_bal_${userKey}`, String(finalBalance));
         if (aliasKey) localStorage.setItem(`oj_wallet_bal_${aliasKey}`, String(finalBalance));

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { apiClient } from '../../lib/apiClient';
+import { generateDedicatedAccount } from '@ojalogs/shared';
 import { X, ShieldCheck, ArrowRight, Building2, CheckCircle2, Copy, Check, ExternalLink, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
@@ -32,6 +33,8 @@ export const FundWalletModal: React.FC<FundWalletModalProps> = ({ isOpen, onClos
   const [settlementPending, setSettlementPending] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
+
+  const dedicatedAccount = wallet.dedicatedAccount || (user ? generateDedicatedAccount(user.email, user.name) : null);
 
   const initialBalanceRef = useRef<number>(wallet.balanceNgn);
   const pollTimerRef = useRef<any>(null);
@@ -210,9 +213,43 @@ export const FundWalletModal: React.FC<FundWalletModalProps> = ({ isOpen, onClos
                   </div>
                 )}
 
+                {/* Permanent Dedicated Virtual Account Banner */}
+                {dedicatedAccount && (
+                  <div className="p-3.5 rounded-xl bg-oj-surface-alt dark:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5">
+                        <Building2 className="w-3.5 h-3.5 text-oj-primary" />
+                        <span className="text-[11px] font-bold text-oj-midnight dark:text-white">
+                          Direct Bank Transfer (Instant Auto-Credit)
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full">
+                        24/7 Active
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between bg-white dark:bg-oj-dark-surface p-2.5 rounded-lg border border-oj-border/60 dark:border-oj-dark-border/60">
+                      <div>
+                        <p className="text-[10px] text-oj-muted font-medium">{dedicatedAccount.bankName} · {dedicatedAccount.accountName}</p>
+                        <p className="font-mono font-extrabold text-sm text-oj-primary tracking-wider">{dedicatedAccount.accountNumber}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyAccount(dedicatedAccount.accountNumber)}
+                        className="px-2.5 py-1.5 rounded-lg bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-border border border-oj-border dark:border-oj-dark-border text-xs font-bold text-oj-midnight dark:text-white flex items-center gap-1 transition-colors"
+                      >
+                        {copiedAccount ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5 text-oj-primary" />}
+                        <span>{copiedAccount ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-oj-muted mt-1.5 leading-relaxed">
+                      Transfer any amount from any bank app. Your wallet balance is automatically credited.
+                    </p>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-xs font-semibold text-oj-midnight dark:text-white mb-1.5">
-                    Select Quick Amount
+                    Or Generate Dynamic Checkout Session
                   </label>
                   <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
                     {presets.map((val) => (

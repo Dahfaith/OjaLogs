@@ -13,7 +13,8 @@ import {
   UserRole,
   SMMService,
   SMMOrder,
-  SMMProviderConfig
+  SMMProviderConfig,
+  DedicatedVirtualAccount
 } from '@ojalogs/shared';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'https://api.ojalogs.com.ng/api/v1';
@@ -186,8 +187,12 @@ class ApiClient {
   }
 
   // Wallet
-  async getWalletBalance(): Promise<{ balanceNgn: number; currency: string }> {
-    return this.request<{ balanceNgn: number; currency: string }>('/wallet/balance');
+  async getWalletBalance(): Promise<{ balanceNgn: number; currency: string; dedicatedAccount?: DedicatedVirtualAccount }> {
+    return this.request<{ balanceNgn: number; currency: string; dedicatedAccount?: DedicatedVirtualAccount }>('/wallet/balance');
+  }
+
+  async getDedicatedAccount(): Promise<DedicatedVirtualAccount> {
+    return this.request<DedicatedVirtualAccount>('/wallet/dedicated-account');
   }
 
   async getLedger(category?: string): Promise<{ transactions: LedgerTransaction[]; count: number }> {

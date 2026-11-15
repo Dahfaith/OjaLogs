@@ -227,8 +227,8 @@ export class NumbersService {
       throw new AppError('Unauthorized access to this session', 403, 'FORBIDDEN');
     }
 
-    if (session.status !== 'active') {
-      throw new AppError('Only active sessions with no received SMS can be cancelled for a refund', 400, 'CANNOT_CANCEL');
+    if (session.status !== 'active' || (session.messages && session.messages.length > 0) || !session.canCancel) {
+      throw new AppError('This session has already delivered verification SMS codes or is not eligible for cancellation. Non-refundable.', 400, 'CANNOT_CANCEL');
     }
 
     const refundAmount = session.priceNgn;

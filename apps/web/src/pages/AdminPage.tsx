@@ -1004,7 +1004,8 @@ export const AdminPage: React.FC = () => {
     const markup = Number(smmGlobalMarkupInput) || 30;
     const multiplier = 1 + (markup / 100);
 
-    const updated = smmServices.map(s => ({
+    const baseList = smmServices && smmServices.length > 0 ? smmServices : defaultSmmServices;
+    const updated = baseList.map(s => ({
       ...s,
       retailRateNgn: Math.round(s.sourceRateNgn * multiplier)
     }));
@@ -1054,6 +1055,14 @@ export const AdminPage: React.FC = () => {
             localStorage.setItem('oj_smm_services', JSON.stringify(refreshed));
           } catch {}
           showToast(`Active SMM catalog loaded (${refreshed.length} services ready)`);
+          return;
+        }
+        if (smmServices.length === 0) {
+          setSmmServices(defaultSmmServices);
+          try {
+            localStorage.setItem('oj_smm_services', JSON.stringify(defaultSmmServices));
+          } catch {}
+          showToast(`Active SMM catalog loaded (${defaultSmmServices.length} services ready)`);
           return;
         }
       } catch {}

@@ -13,14 +13,28 @@ router.use(authMiddleware);
 router.get('/balance', async (req, res, next) => {
   try {
     const balance = await walletService.getBalanceAsync(req.user!.id, req.user?.email);
+    const dedicatedAccount = walletService.getDedicatedAccount(req.user?.email, req.user?.name);
     res.json({
       success: true,
-      data: { balanceNgn: balance, currency: 'NGN' },
+      data: {
+        balanceNgn: balance,
+        currency: 'NGN',
+        dedicatedAccount
+      },
       meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
     });
   } catch (err) {
     next(err);
   }
+});
+
+router.get('/dedicated-account', (req, res) => {
+  const dedicatedAccount = walletService.getDedicatedAccount(req.user?.email, req.user?.name);
+  res.json({
+    success: true,
+    data: dedicatedAccount,
+    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+  });
 });
 
 router.get('/ledger', async (req, res, next) => {

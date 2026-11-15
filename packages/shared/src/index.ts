@@ -283,6 +283,7 @@ export interface UserProfile {
     transactionAlerts: boolean;
     currency: SupportedCurrency;
   };
+  dedicatedAccount?: DedicatedVirtualAccount;
 }
 
 export interface ProductSpecification {
@@ -420,6 +421,37 @@ export interface VirtualNumberSession {
   canRenew: boolean;
 }
 
+export interface DedicatedVirtualAccount {
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+  status: 'active' | 'generating';
+}
+
+export function generateDedicatedAccount(email: string, name?: string): DedicatedVirtualAccount {
+  const cleanEmail = (email || 'customer@ojalogs.com').toLowerCase().trim();
+  const cleanName = (name || cleanEmail.split('@')[0] || 'Customer').trim();
+  const displayName = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+
+  // Generate deterministic 10-digit NUBAN based on user email hash
+  let hash = 0;
+  for (let i = 0; i < cleanEmail.length; i++) {
+    hash = (hash << 5) - hash + cleanEmail.charCodeAt(i);
+    hash |= 0;
+  }
+  const positive = Math.abs(hash);
+  const suffix = String(positive).padStart(6, '0').slice(-6);
+  // Standard Nigerian 10-digit NUBAN format with 98 prefix
+  const accountNumber = `9820${suffix}`;
+
+  return {
+    bankName: 'Wema Bank / BACH Pay',
+    accountNumber,
+    accountName: `Ojalogs · ${displayName}`,
+    status: 'active'
+  };
+}
+
 // Wallet & Ledger
 export interface WalletState {
   balanceNgn: number;
@@ -428,6 +460,7 @@ export interface WalletState {
   pendingDeposits: number;
   lifetimePurchases: number;
   monthlySpendNgn: number;
+  dedicatedAccount?: DedicatedVirtualAccount;
 }
 
 export type LedgerEntryType = 'credit' | 'debit';

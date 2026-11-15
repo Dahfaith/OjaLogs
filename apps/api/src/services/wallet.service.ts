@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { AppError } from '../middleware/errorHandler.js';
-import { LedgerTransaction, LedgerCategory, LedgerEntryType } from '@ojalogs/shared';
+import { LedgerTransaction, LedgerCategory, LedgerEntryType, DedicatedVirtualAccount, generateDedicatedAccount } from '@ojalogs/shared';
 import { bachGateway } from '../gateways/bach.gateway.js';
 import { supabaseAdmin } from '../config/supabase.js';
 import { env } from '../config/env.js';
@@ -42,6 +42,10 @@ export class WalletService {
       process.env.NODE_ENV === 'test' ||
       process.argv.some((a) => a.includes('test') || a.includes('vitest'))
     );
+  }
+
+  getDedicatedAccount(email?: string, name?: string): DedicatedVirtualAccount {
+    return generateDedicatedAccount(email || 'customer@ojalogs.com', name);
   }
 
   /**

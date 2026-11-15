@@ -542,7 +542,7 @@ export const VirtualNumbersPage: React.FC = () => {
                     </span>
                   )}
 
-                  {session.canCancel && (
+                  {session.canCancel && session.status === 'active' && (!session.messages || session.messages.length === 0) && (
                     <button
                       onClick={() => cancelNumber(session.id)}
                       className="text-xs text-rose-600 hover:text-rose-700 font-semibold px-2 py-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/30"
