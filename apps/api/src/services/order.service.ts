@@ -118,7 +118,10 @@ export class OrderService {
       if (existing) {
         await supabaseAdmin
           .from('site_pages')
-          .update({ content: payload, updated_at: new Date().toISOString() })
+          .update({
+            content: payload,
+            last_updated_at: new Date().toISOString()
+          })
           .eq('slug', ORDERS_SLUG);
       } else {
         await supabaseAdmin
@@ -126,11 +129,10 @@ export class OrderService {
           .insert({
             slug: ORDERS_SLUG,
             title: 'Customer Orders Master Store',
-            content: payload,
+            category: 'system',
             summary: 'Persistent customer digital orders and vault secrets',
-            is_published: false,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            content: payload,
+            last_updated_at: new Date().toISOString()
           });
       }
     } catch (err: any) {
@@ -288,12 +290,58 @@ export class OrderService {
     return { ...newOrder, gatewayCheckoutUrl };
   }
 
-  getOrders(userId: string): Order[] {
-    return this.orders.get(userId) || [];
+  getOrders(userId: string, userEmail?: string): Order[] {
+    const emailLower = (userEmail || '').toLowerCase().trim();
+    const matched = this.allOrders.filter(o => {
+      const oEmail = (o.customerEmail || '').toLowerCase().trim();
+      return (
+        (o.userId && o.userId === userId) ||
+        (emailLower && oEmail === emailLower) ||
+        (userEmail && o.userId === userEmail)
+      );
+    });
+
+    return matched.map(order => ({
+      ...order,
+      items: order.items.map(item => ({
+        ...item,
+        deliveredSecrets: (item.deliveredSecrets || []).map((sec: any) => {
+          let val = sec.value;
+          if ((!val || val.includes('••••')) && sec.encryptedPayload) {
+            try {
+              val = decryptPayload(sec.encryptedPayload);
+            } catch {}
+          }
+          return {
+            ...sec,
+            revealed: true,
+            value: val || sec.value
+          };
+        })
+      }))
+    }));
   }
 
   getAllOrders(): Order[] {
-    return this.allOrders;
+    return this.allOrders.map(order => ({
+      ...order,
+      items: order.items.map(item => ({
+        ...item,
+        deliveredSecrets: (item.deliveredSecrets || []).map((sec: any) => {
+          let val = sec.value;
+          if ((!val || val.includes('••••')) && sec.encryptedPayload) {
+            try {
+              val = decryptPayload(sec.encryptedPayload);
+            } catch {}
+          }
+          return {
+            ...sec,
+            revealed: true,
+            value: val || sec.value
+          };
+        })
+      }))
+    }));
   }
 
   getOrder(orderId: string): Order | null {

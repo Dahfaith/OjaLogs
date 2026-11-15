@@ -730,8 +730,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return await apiClient.initiateFunding(amount);
   };
 
-  // Orders: Strictly empty for new accounts and guests (real orders loaded from backend)
-  const [orders, setOrders] = useState<Order[]>([]);
+  // Orders: Persisted in localStorage and synchronized with backend API
+  const [orders, setOrders] = useState<Order[]>(() => {
+    try {
+      const stored = localStorage.getItem('oj_orders');
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return [];
+  });
 
   const refreshOrders = useCallback(async () => {
     if (!user) {
@@ -740,8 +746,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     try {
       const data = await apiClient.getOrders();
-      if (data && data.length > 0) {
-        setOrders(data);
+      if (Array.isArray(data) && data.length > 0) {
+        setOrders(prev => {
+          const remoteIds = new Set(data.map(o => o.id || o.reference));
+          const localOnly = prev.filter(o => !remoteIds.has(o.id || o.reference));
+          const merged = [...data, ...localOnly];
+          try {
+            localStorage.setItem('oj_orders', JSON.stringify(merged));
+          } catch {}
+          return merged;
+        });
       }
     } catch {
       // Retain local orders
@@ -819,7 +833,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
 
     setLedger(prev => [debitTx, ...prev]);
-    setOrders(prev => [newOrder, ...prev]);
+    setOrders(prev => {
+      const updated = [newOrder, ...prev];
+      try {
+        localStorage.setItem('oj_orders', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
     clearCart();
 
     // Ensure backend records order alert and dispatches customer + admin Brevo notification emails
@@ -875,7 +895,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    setOrders(prev => [newOrder, ...prev]);
+    setOrders(prev => {
+      const updated = [newOrder, ...prev];
+      try {
+        localStorage.setItem('oj_orders', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
     clearCart();
 
     // Ensure backend records order alert and dispatches customer + admin Brevo notification emails

@@ -254,7 +254,13 @@ export const AdminPage: React.FC = () => {
   });
 
   // Orders Governance State
-  const [adminOrders, setAdminOrders] = useState<Order[]>([]);
+  const [adminOrders, setAdminOrders] = useState<Order[]>(() => {
+    try {
+      const stored = localStorage.getItem('oj_admin_orders');
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return [];
+  });
   const [orderSearch, setOrderSearch] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('all');
   const [inspectingOrder, setInspectingOrder] = useState<Order | null>(null);
@@ -937,6 +943,9 @@ export const AdminPage: React.FC = () => {
       .then(data => {
         if (data && data.length > 0) {
           setAdminOrders(data);
+          try {
+            localStorage.setItem('oj_admin_orders', JSON.stringify(data));
+          } catch {}
         }
       })
       .catch(() => { });

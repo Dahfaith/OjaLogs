@@ -64,7 +64,7 @@ router.post('/notify-placed', validateBody(NotifyPlacedSchema), async (req, res,
 });
 
 router.get('/', (req, res) => {
-  const orders = orderService.getOrders(req.user!.id);
+  const orders = orderService.getOrders(req.user!.id, req.user?.email);
   res.json({
     success: true,
     data: orders,
