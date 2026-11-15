@@ -112,13 +112,7 @@ const initialGuestWallet: WalletState = {
   isLocked: false,
   pendingDeposits: 0,
   lifetimePurchases: 0,
-  monthlySpendNgn: 0,
-  dedicatedAccount: {
-    bankName: 'Wema Bank / BACH Pay',
-    accountNumber: '9820491823',
-    accountName: 'Ojalogs · Customer',
-    status: 'active'
-  }
+  monthlySpendNgn: 0
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -608,11 +602,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         finalBalance = cachedBal > 0 ? cachedBal : (userKey === 'info.masontyler1@gmail.com' ? 500 : 0);
       }
 
-      const dedicatedAccount: DedicatedVirtualAccount = balRes?.dedicatedAccount || generateDedicatedAccount(activeUser.email, activeUser.name);
       setWallet(prev => ({
         ...prev,
         balanceNgn: finalBalance,
-        dedicatedAccount,
+        dedicatedAccount: balRes?.dedicatedAccount,
         lastUpdated: new Date().toISOString()
       }));
       try {

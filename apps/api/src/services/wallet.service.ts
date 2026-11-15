@@ -44,8 +44,8 @@ export class WalletService {
     );
   }
 
-  getDedicatedAccount(email?: string, name?: string): DedicatedVirtualAccount {
-    return generateDedicatedAccount(email || 'customer@ojalogs.com', name);
+  getDedicatedAccount(email?: string, name?: string): DedicatedVirtualAccount | undefined {
+    return undefined;
   }
 
   /**
