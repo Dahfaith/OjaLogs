@@ -27,10 +27,10 @@ export class Server4ApiAdapter implements IServerApiAdapter {
 
   async provisionSecret(sku: string, orderRef: string, metadata?: any): Promise<ProvisionResult> {
     // 1. If LogsPoll API is configured, attempt live upstream dispatch
-    if (logspollAdapter.getCredentials().isConfigured) {
+    if (sku.startsWith('lp_') || (logspollAdapter.getCredentials().isConfigured && !sku.includes('test'))) {
       try {
         console.log(`[SERVER_4_LOGSPOLL] Ordering AI tool voucher for SKU: ${sku} via LogsPoll API...`);
-        const orderResult = await logspollAdapter.orderProduct(sku, 1, orderRef);
+        const orderResult = await logspollAdapter.orderProduct(sku, metadata?.quantity || 1, orderRef);
         if (orderResult.success && orderResult.secretKey) {
           console.log(`[SERVER_4_LOGSPOLL] ✓ Successfully provisioned tool voucher from LogsPoll: ${orderResult.orderId}`);
           return {
@@ -45,8 +45,12 @@ export class Server4ApiAdapter implements IServerApiAdapter {
       }
     }
 
-    const isClaude = sku.toLowerCase().includes('claude');
-    const isMidjourney = sku.toLowerCase().includes('midjourney');
+    const titleLower = (metadata?.title || '').toLowerCase();
+    const skuLower = sku.toLowerCase();
+    const combined = `${titleLower} ${skuLower}`;
+
+    const isClaude = combined.includes('claude') || combined.includes('anthropic');
+    const isMidjourney = combined.includes('midjourney') || combined.includes('discord');
 
     if (isClaude) {
       return {

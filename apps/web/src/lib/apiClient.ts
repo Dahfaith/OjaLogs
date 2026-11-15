@@ -461,6 +461,23 @@ class ApiClient {
     });
   }
 
+  async markSingleAdminNotificationRead(id: string): Promise<AdminNotification[]> {
+    return this.request<AdminNotification[]>(`/admin/notifications/${encodeURIComponent(id)}/read`, {
+      method: 'PATCH'
+    });
+  }
+
+  async getAdminOrders(): Promise<Order[]> {
+    return this.request<Order[]>('/admin/orders');
+  }
+
+  async refundAdminOrder(orderId: string, reason?: string): Promise<Order> {
+    return this.request<Order>(`/admin/orders/${encodeURIComponent(orderId)}/refund`, {
+      method: 'POST',
+      body: JSON.stringify({ reason })
+    });
+  }
+
   async deleteAdminNotification(id: string): Promise<boolean> {
     const res = await this.request<{ id: string; deleted: boolean }>(`/admin/notifications/${encodeURIComponent(id)}`, {
       method: 'DELETE'

@@ -163,6 +163,37 @@ function normalizeServerCluster(val?: string | number): 'Server 1' | 'Server 2' 
   return 'Server 2';
 }
 
+function resolveServerCluster(title: string, categoryId: string, upstreamServer?: string | number): 'Server 1' | 'Server 2' | 'Server 3' | 'Server 4' {
+  const t = title.toLowerCase();
+  const cat = (categoryId || '').toLowerCase();
+
+  // Social accounts & Emails strictly belong to Server 2
+  if (
+    cat === 'social-media' ||
+    cat === 'email' ||
+    /\b(facebook|instagram|twitter|tiktok|threads|reddit|snapchat|telegram|gmail|mail|fb|ig)\b/i.test(t)
+  ) {
+    return 'Server 2';
+  }
+
+  // AI & Developer tools belong to Server 4
+  if (cat === 'ai-tools' || /\b(chatgpt|claude|openai|midjourney|gemini|kling|ai)\b/i.test(t)) {
+    return 'Server 4';
+  }
+
+  // Software & Genuine OS Keys belong to Server 3
+  if (cat === 'software' || /\b(windows|office|jetbrains|antivirus|license|product key)\b/i.test(t)) {
+    return 'Server 3';
+  }
+
+  // Security, VPN, Proxies & eSIM belong to Server 1
+  if (cat === 'vpn' || cat === 'proxies' || cat === 'esim' || cat === 'gift-cards' || /\b(vpn|proxy|proxies|esim|gift\s*card)\b/i.test(t)) {
+    return 'Server 1';
+  }
+
+  return normalizeServerCluster(upstreamServer);
+}
+
 export interface CatalogPaginationResult {
   products: Product[];
   pagination: {
@@ -222,7 +253,7 @@ export class CatalogService {
               category: resolvedCat,
               categoryId: resolvedCatId,
               division: 'A',
-              serverCluster: normalizeServerCluster(u.serverCluster),
+              serverCluster: resolveServerCluster(u.title, resolvedCatId, u.serverCluster),
               priceNgn: retailNgn,
               inStock: u.stockCount > 0,
               stockCount: u.stockCount,
@@ -357,7 +388,7 @@ export class CatalogService {
               category: resolvedCat,
               categoryId: resolvedCatId,
               division: 'A',
-              serverCluster: normalizeServerCluster(u.serverCluster || (serverNum ? `Server ${serverNum}` : 'Server 2')),
+              serverCluster: resolveServerCluster(u.title, resolvedCatId, u.serverCluster || (serverNum ? `Server ${serverNum}` : 'Server 2')),
               priceNgn: retailNgn,
               inStock: u.stockCount > 0,
               stockCount: u.stockCount,

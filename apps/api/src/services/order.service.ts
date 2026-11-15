@@ -1,10 +1,23 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { walletService } from './wallet.service.js';
 import { serverApiRegistry } from '../adapters/server/server.registry.js';
+import { logspollAdapter } from '../adapters/logspoll/logspoll.adapter.js';
 import { encryptPayload, decryptPayload } from '../utils/crypto.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { Order, OrderItem } from '@ojalogs/shared';
 import { bachGateway } from '../gateways/bach.gateway.js';
 import { notificationService } from './notification.service.js';
+import { supabaseAdmin } from '../config/supabase.js';
+
+const DATA_DIR = fs.existsSync(path.join(process.cwd(), 'apps', 'api', 'data'))
+  ? path.join(process.cwd(), 'apps', 'api', 'data')
+  : fs.existsSync(path.join(process.cwd(), 'data'))
+  ? path.join(process.cwd(), 'data')
+  : path.join(process.cwd(), 'data');
+
+const ORDERS_FILE = path.join(DATA_DIR, 'orders_store.json');
+const ORDERS_SLUG = '_system_orders_master';
 
 interface CheckoutItemInput {
   productId: string;
@@ -26,6 +39,113 @@ interface StoredSecret {
 
 export class OrderService {
   private orders = new Map<string, Order[]>();
+  private allOrders: (Order & { userId?: string })[] = [];
+
+  constructor() {
+    this.loadOrders();
+    this.loadFromSupabase().catch(() => {});
+  }
+
+  private isTestRuntime(): boolean {
+    return (
+      process.env.NODE_ENV === 'test' ||
+      process.argv.some((a) => a.includes('test') || a.includes('vitest'))
+    );
+  }
+
+  private loadOrders() {
+    try {
+      if (fs.existsSync(ORDERS_FILE)) {
+        const raw = fs.readFileSync(ORDERS_FILE, 'utf-8');
+        const list = JSON.parse(raw);
+        if (Array.isArray(list)) {
+          this.allOrders = list;
+          this.rebuildUserMap();
+        }
+      }
+    } catch (err: any) {
+      console.warn(`[ORDER_STORE] Notice loading disk orders: ${err.message}`);
+    }
+  }
+
+  private saveOrders() {
+    if (this.isTestRuntime()) return;
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+      fs.writeFileSync(ORDERS_FILE, JSON.stringify(this.allOrders, null, 2), 'utf-8');
+    } catch (err: any) {
+      console.warn(`[ORDER_STORE] Notice saving disk orders: ${err.message}`);
+    }
+  }
+
+  async loadFromSupabase(): Promise<void> {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('site_pages')
+        .select('content')
+        .eq('slug', ORDERS_SLUG)
+        .maybeSingle();
+
+      if (!error && data?.content) {
+        const list = JSON.parse(data.content);
+        if (Array.isArray(list) && list.length > 0) {
+          const existingIds = new Set(this.allOrders.map(o => o.id));
+          for (const ord of list) {
+            if (!existingIds.has(ord.id)) {
+              this.allOrders.push(ord);
+              existingIds.add(ord.id);
+            }
+          }
+          this.rebuildUserMap();
+        }
+      }
+    } catch (err: any) {
+      console.warn(`[ORDER_SUPABASE] Notice loading orders from Supabase: ${err.message}`);
+    }
+  }
+
+  async syncToSupabase(): Promise<void> {
+    try {
+      const payload = JSON.stringify(this.allOrders);
+      const { data: existing } = await supabaseAdmin
+        .from('site_pages')
+        .select('id')
+        .eq('slug', ORDERS_SLUG)
+        .maybeSingle();
+
+      if (existing) {
+        await supabaseAdmin
+          .from('site_pages')
+          .update({ content: payload, updated_at: new Date().toISOString() })
+          .eq('slug', ORDERS_SLUG);
+      } else {
+        await supabaseAdmin
+          .from('site_pages')
+          .insert({
+            slug: ORDERS_SLUG,
+            title: 'Customer Orders Master Store',
+            content: payload,
+            summary: 'Persistent customer digital orders and vault secrets',
+            is_published: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+      }
+    } catch (err: any) {
+      console.warn(`[ORDER_SUPABASE] Notice syncing orders to Supabase: ${err.message}`);
+    }
+  }
+
+  private rebuildUserMap() {
+    this.orders.clear();
+    for (const ord of this.allOrders) {
+      const uId = ord.userId || ord.customerEmail || 'default';
+      const current = this.orders.get(uId) || [];
+      this.orders.set(uId, [...current, ord]);
+    }
+  }
 
   async checkout(
     userId: string,
@@ -65,13 +185,40 @@ export class OrderService {
       gatewayCheckoutUrl = gatewayRes.checkoutUrl;
     }
 
-    // Provision each item through its dedicated Server API adapter!
+    // Provision each item through its dedicated Server API adapter or LogsPoll upstream
     const orderItems: OrderItem[] = [];
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      const adapter = serverApiRegistry.getAdapter(item.serverCluster);
-      const provisioned = await adapter.provisionSecret(item.productId, orderRef);
+      let provisioned: { secretKey: string; deliveryFormat: string; instructions: string } | null = null;
+
+      // 1. Direct LogsPoll Upstream Dispatch for LogsPoll Products or configured accounts
+      if (item.productId.startsWith('lp_') || (logspollAdapter.getCredentials().isConfigured && !item.productId.includes('test'))) {
+        try {
+          console.log(`[ORDER_SERVICE] Dispatching live LogsPoll order for ${item.productId} (${item.title})...`);
+          const lpRes = await logspollAdapter.orderProduct(item.productId, item.quantity, orderRef);
+          if (lpRes.success && lpRes.secretKey) {
+            console.log(`[ORDER_SERVICE] ✓ Successfully ordered from LogsPoll: ${lpRes.orderId}`);
+            provisioned = {
+              secretKey: lpRes.secretKey,
+              deliveryFormat: lpRes.deliveryFormat || 'Encrypted Account Credentials & 2FA Token',
+              instructions: lpRes.instructions || 'Delivered via LogsPoll automated upstream API.'
+            };
+          }
+        } catch (err: any) {
+          console.warn(`[ORDER_SERVICE] LogsPoll live dispatch notice: ${err.message}`);
+        }
+      }
+
+      // 2. Fallback to Dedicated Server API Adapter with metadata
+      if (!provisioned) {
+        const adapter = serverApiRegistry.getAdapter(item.serverCluster);
+        provisioned = await adapter.provisionSecret(item.productId, orderRef, {
+          title: item.title,
+          quantity: item.quantity,
+          serverCluster: item.serverCluster
+        });
+      }
 
       // Encrypt payload with AES-256-GCM before saving to delivery vault
       const encryptedSecret = encryptPayload(provisioned.secretKey);
@@ -114,7 +261,7 @@ export class OrderService {
       });
     }
 
-    const newOrder: Order = {
+    const newOrder: Order & { userId?: string } = {
       id: `ord_${Date.now()}`,
       reference: orderRef,
       createdAt: new Date().toISOString(),
@@ -122,11 +269,16 @@ export class OrderService {
       paymentMethod,
       totalNgn,
       items: orderItems,
-      customerEmail
+      customerEmail,
+      userId
     };
 
     const userOrders = this.orders.get(userId) || [];
     this.orders.set(userId, [newOrder, ...userOrders]);
+    this.allOrders.unshift(newOrder);
+
+    this.saveOrders();
+    this.syncToSupabase().catch(() => {});
 
     // Dispatch automated purchase confirmation to customer and operations alert to admin
     notificationService.recordOrderAlert(newOrder, customerEmail).catch(err => {
@@ -140,9 +292,51 @@ export class OrderService {
     return this.orders.get(userId) || [];
   }
 
+  getAllOrders(): Order[] {
+    return this.allOrders;
+  }
+
+  getOrder(orderId: string): Order | null {
+    return this.allOrders.find(o => o.id === orderId || o.reference === orderId) || null;
+  }
+
+  refundOrder(orderId: string, reason?: string): Order {
+    const order = this.allOrders.find(o => o.id === orderId || o.reference === orderId);
+    if (!order) {
+      throw new AppError('Order not found', 404, 'ORDER_NOT_FOUND');
+    }
+    if (order.status === 'refunded') {
+      return order;
+    }
+
+    order.status = 'refunded';
+
+    // Credit customer wallet back
+    const uId = order.userId || order.customerEmail || 'default';
+    if (order.paymentMethod === 'wallet' && order.totalNgn > 0) {
+      walletService.creditWallet(
+        uId,
+        order.totalNgn,
+        'refund',
+        `ref_rf_${Math.floor(1000000 + Math.random() * 9000000)}`,
+        reason || `Refund for Order ${order.reference}`,
+        undefined,
+        order.customerEmail
+      );
+    }
+
+    this.saveOrders();
+    this.syncToSupabase().catch(() => {});
+
+    return order;
+  }
+
   revealSecret(userId: string, orderId: string, orderItemId: string) {
     const userOrders = this.orders.get(userId) || [];
-    const order = userOrders.find(o => o.id === orderId);
+    let order = userOrders.find(o => o.id === orderId);
+    if (!order) {
+      order = this.allOrders.find(o => o.id === orderId);
+    }
     if (!order) {
       throw new AppError('Order not found', 404, 'ORDER_NOT_FOUND');
     }
@@ -169,6 +363,9 @@ export class OrderService {
     secretObj.value = decryptedValue;
     secretObj.revealCount = (secretObj.revealCount || 0) + 1;
     secretObj.lastRevealedAt = new Date().toISOString();
+
+    this.saveOrders();
+    this.syncToSupabase().catch(() => {});
 
     return {
       revealed: true,

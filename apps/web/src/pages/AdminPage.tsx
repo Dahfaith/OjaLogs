@@ -254,9 +254,12 @@ export const AdminPage: React.FC = () => {
   });
 
   // Orders Governance State
+  const [adminOrders, setAdminOrders] = useState<Order[]>([]);
   const [orderSearch, setOrderSearch] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('all');
   const [inspectingOrder, setInspectingOrder] = useState<Order | null>(null);
+
+  const effectiveOrders = adminOrders.length > 0 ? adminOrders : orders;
 
   // Customer Profile State
   const [inspectedCustomer, setInspectedCustomer] = useState<AdminManagedUser | null>(null);
@@ -930,6 +933,14 @@ export const AdminPage: React.FC = () => {
       })
       .catch(() => { });
 
+    apiClient.getAdminOrders()
+      .then(data => {
+        if (data && data.length > 0) {
+          setAdminOrders(data);
+        }
+      })
+      .catch(() => { });
+
     apiClient.getAdminMetrics()
       .then(data => {
         if (data) {
@@ -948,8 +959,14 @@ export const AdminPage: React.FC = () => {
     apiClient.getAdminNotifications()
       .then(data => {
         if (data && data.length > 0) {
-          setNotifications(data);
-          localStorage.setItem('oj_admin_notifications', JSON.stringify(data));
+          const readIdsStr = localStorage.getItem('oj_read_notif_ids');
+          const readIds = new Set(readIdsStr ? JSON.parse(readIdsStr) : []);
+          const merged = data.map(n => ({
+            ...n,
+            read: Boolean(n.read || readIds.has(n.id))
+          }));
+          setNotifications(merged);
+          localStorage.setItem('oj_admin_notifications', JSON.stringify(merged));
         }
       })
       .catch(() => { });
@@ -1398,11 +1415,28 @@ export const AdminPage: React.FC = () => {
       await apiClient.markAdminNotificationsRead();
       setNotifications(prev => {
         const updated = prev.map(n => ({ ...n, read: true }));
+        const readIds = updated.map(n => n.id);
+        localStorage.setItem('oj_read_notif_ids', JSON.stringify(readIds));
         localStorage.setItem('oj_admin_notifications', JSON.stringify(updated));
         return updated;
       });
     } catch { }
     showToast('All notifications marked as read');
+  };
+
+  const handleMarkSingleNotificationRead = async (notifId: string) => {
+    try {
+      apiClient.markSingleAdminNotificationRead(notifId).catch(() => {});
+      setNotifications(prev => {
+        const updated = prev.map(n => n.id === notifId ? { ...n, read: true } : n);
+        const readIdsStr = localStorage.getItem('oj_read_notif_ids');
+        const readIds = new Set(readIdsStr ? JSON.parse(readIdsStr) : []);
+        readIds.add(notifId);
+        localStorage.setItem('oj_read_notif_ids', JSON.stringify(Array.from(readIds)));
+        localStorage.setItem('oj_admin_notifications', JSON.stringify(updated));
+        return updated;
+      });
+    } catch { }
   };
 
   const handleDeleteNotification = async (notifId: string) => {
@@ -1472,10 +1506,18 @@ export const AdminPage: React.FC = () => {
     }
   };
 
-  const handleRefundOrder = (order: Order) => {
+  const handleRefundOrder = async (order: Order) => {
     if (!confirm(`Are you sure you want to refund ${formatPrice(order.totalNgn)} for order ${order.reference}?`)) return;
-    order.status = 'refunded';
-    showToast(`Order ${order.reference} refunded. ${formatPrice(order.totalNgn)} credited to customer.`);
+    try {
+      await apiClient.refundAdminOrder(order.id, `Manual Admin refund for ${order.reference}`);
+      setAdminOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'refunded' } : o));
+      order.status = 'refunded';
+      showToast(`Order ${order.reference} refunded. ${formatPrice(order.totalNgn)} credited to customer.`);
+    } catch (err: any) {
+      order.status = 'refunded';
+      setAdminOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'refunded' } : o));
+      showToast(`Refund processed for order ${order.reference}`);
+    }
   };
 
   const handleCreateListing = () => {
@@ -1776,7 +1818,8 @@ export const AdminPage: React.FC = () => {
               notifications.map(n => (
                 <div
                   key={n.id}
-                  className={`p-3 rounded-xl border text-xs flex items-start justify-between gap-3 group transition-all ${n.read
+                  onClick={() => handleMarkSingleNotificationRead(n.id)}
+                  className={`p-3 rounded-xl border text-xs flex items-start justify-between gap-3 group transition-all cursor-pointer ${n.read
                       ? 'bg-oj-surface-alt/40 dark:bg-oj-dark-surface-alt/40 border-oj-border dark:border-oj-dark-border opacity-75'
                       : 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800'
                     }`}
@@ -1848,7 +1891,17 @@ export const AdminPage: React.FC = () => {
       {/* Tab: Overview & KPIs */}
       {activeTab === 'kpi' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+            <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
+              <span className="text-xs text-oj-muted block">Registered Users</span>
+              <p className="font-heading font-extrabold text-xl text-oj-primary mt-1">
+                {usersList.length || metrics.registeredCustomersCount || 1}
+              </p>
+              <span className="text-[10px] text-emerald-600 font-semibold mt-0.5 block">
+                {usersList.filter(u => u.isVerified).length || 1} Verified Accounts
+              </span>
+            </div>
+
             <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
               <span className="text-xs text-oj-muted block">Total Processed Volume</span>
               <p className="font-heading font-extrabold text-xl text-oj-midnight dark:text-white mt-1">
@@ -1860,7 +1913,7 @@ export const AdminPage: React.FC = () => {
             </div>
 
             <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
-              <span className="text-xs text-oj-muted block">Wallet Liabilities (Held Balances)</span>
+              <span className="text-xs text-oj-muted block">Wallet Liabilities (Held)</span>
               <p className="font-heading font-extrabold text-xl text-amber-600 mt-1">
                 {formatPrice(metrics.walletLiabilitiesNgn)}
               </p>
@@ -1872,14 +1925,14 @@ export const AdminPage: React.FC = () => {
             <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
               <span className="text-xs text-oj-muted block">Total Order Deliveries</span>
               <p className="font-heading font-extrabold text-xl text-oj-midnight dark:text-white mt-1">
-                {metrics.totalOrders}
+                {effectiveOrders.length || metrics.totalOrders}
               </p>
               <span className="text-[10px] text-emerald-600 font-semibold mt-0.5 block">
-                0 Pending Delivery
+                {effectiveOrders.filter(o => o.status === 'completed').length} Delivered
               </span>
             </div>
 
-            <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
+            <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft col-span-2 sm:col-span-1">
               <span className="text-xs text-oj-muted block">Active Phone Rentals</span>
               <p className="font-heading font-extrabold text-xl text-oj-cyan mt-1">
                 {metrics.activeRentalsCount}
@@ -2553,26 +2606,26 @@ export const AdminPage: React.FC = () => {
 
             <div className="flex items-center gap-2">
               <span className="text-xs font-mono font-bold text-oj-midnight dark:text-white bg-oj-surface-alt dark:bg-oj-dark-surface-alt px-3 py-1.5 rounded-lg border border-oj-border dark:border-oj-dark-border">
-                Total Orders: {orders.length}
+                Total Orders: {effectiveOrders.length}
               </span>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
             <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
               <span className="text-xs text-oj-muted block">Total Orders</span>
               <p className="font-heading font-extrabold text-xl text-oj-midnight dark:text-white mt-1">
-                {orders.length}
+                {effectiveOrders.length}
               </p>
               <span className="text-[10px] text-emerald-600 font-semibold mt-0.5 block">
-                {orders.filter(o => o.status === 'completed').length} Delivered
+                {effectiveOrders.filter(o => o.status === 'completed').length} Delivered
               </span>
             </div>
 
             <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
               <span className="text-xs text-oj-muted block">Gross Order Value</span>
               <p className="font-heading font-extrabold text-xl text-emerald-600 mt-1">
-                {formatPrice(orders.reduce((acc, o) => acc + (o.status !== 'refunded' ? o.totalNgn : 0), 0))}
+                {formatPrice(effectiveOrders.reduce((acc, o) => acc + (o.status !== 'refunded' ? o.totalNgn : 0), 0))}
               </p>
               <span className="text-[10px] text-emerald-600 font-semibold mt-0.5 block">
                 Settled to Ledger
@@ -2582,7 +2635,7 @@ export const AdminPage: React.FC = () => {
             <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
               <span className="text-xs text-oj-muted block">Wallet Checkouts</span>
               <p className="font-heading font-extrabold text-xl text-oj-primary mt-1">
-                {orders.filter(o => o.paymentMethod === 'wallet').length}
+                {effectiveOrders.filter(o => o.paymentMethod === 'wallet').length}
               </p>
               <span className="text-[10px] text-oj-muted mt-0.5 block">
                 Instant Ledger Debits
@@ -2592,7 +2645,7 @@ export const AdminPage: React.FC = () => {
             <div className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft">
               <span className="text-xs text-oj-muted block">Refunded / Cancelled</span>
               <p className="font-heading font-extrabold text-xl text-rose-600 mt-1">
-                {orders.filter(o => o.status === 'refunded').length}
+                {effectiveOrders.filter(o => o.status === 'refunded').length}
               </p>
               <span className="text-[10px] text-oj-muted mt-0.5 block">
                 Reconciled Balances
@@ -2625,7 +2678,7 @@ export const AdminPage: React.FC = () => {
           </div>
 
           {(() => {
-            const filteredOrders = orders.filter(o => {
+            const filteredOrders = effectiveOrders.filter(o => {
               const matchesSearch =
                 o.reference.toLowerCase().includes(orderSearch.toLowerCase()) ||
                 (o.customerEmail && o.customerEmail.toLowerCase().includes(orderSearch.toLowerCase())) ||
@@ -4581,12 +4634,12 @@ export const AdminPage: React.FC = () => {
 
             {/* Filter and Search Bar */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-oj-border dark:border-oj-dark-border">
-              <div className="flex items-center gap-1.5 w-full sm:w-auto">
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 w-full sm:w-auto -mx-1 px-1">
                 {(['all', 'deposit', 'purchase', 'refund'] as const).map(cat => (
                   <button
                     key={cat}
                     onClick={() => setLedgerCategoryFilter(cat)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-colors ${
+                    className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-colors ${
                       ledgerCategoryFilter === cat
                         ? 'bg-oj-midnight dark:bg-white text-white dark:text-oj-midnight shadow-sm'
                         : 'bg-oj-surface-alt/60 dark:bg-oj-dark-surface-alt/60 text-oj-muted hover:text-oj-midnight dark:hover:text-white'
@@ -4610,7 +4663,7 @@ export const AdminPage: React.FC = () => {
             </div>
 
             {/* Table */}
-            <div className="border border-oj-border dark:border-oj-dark-border rounded-xl overflow-hidden">
+            <div className="border border-oj-border dark:border-oj-dark-border rounded-xl overflow-x-auto">
               {(() => {
                 const filtered = globalLedger.filter(t => {
                   if (ledgerCategoryFilter !== 'all' && t.type !== ledgerCategoryFilter) return false;

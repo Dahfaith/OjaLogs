@@ -7,6 +7,7 @@ import { catalogService } from '../services/catalog.service.js';
 import { serverApiRegistry } from '../adapters/server/server.registry.js';
 import { walletService } from '../services/wallet.service.js';
 import { notificationService } from '../services/notification.service.js';
+import { orderService } from '../services/order.service.js';
 import { smmService } from '../services/smm.service.js';
 import { balanceService } from '../services/balance.service.js';
 import { numbersService } from '../services/numbers.service.js';
@@ -589,6 +590,38 @@ router.post('/notifications/mark-read', (req, res) => {
   res.json({
     success: true,
     data: notificationService.markAllAsRead(),
+    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+  });
+});
+
+router.patch('/notifications/:id/read', (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const updated = notificationService.markNotificationAsRead(id);
+  res.json({
+    success: true,
+    data: updated,
+    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+  });
+});
+
+// ==========================================
+// Admin Orders & Deliveries Governance
+// ==========================================
+router.get('/orders', (req, res) => {
+  res.json({
+    success: true,
+    data: orderService.getAllOrders(),
+    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+  });
+});
+
+router.post('/orders/:orderId/refund', (req, res) => {
+  const orderId = Array.isArray(req.params.orderId) ? req.params.orderId[0] : req.params.orderId;
+  const reason = req.body?.reason || 'Administrator initiated order refund';
+  const refunded = orderService.refundOrder(orderId, reason);
+  res.json({
+    success: true,
+    data: refunded,
     meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
   });
 });

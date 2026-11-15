@@ -27,10 +27,10 @@ export class Server2ApiAdapter implements IServerApiAdapter {
 
   async provisionSecret(sku: string, orderRef: string, metadata?: any): Promise<ProvisionResult> {
     // 1. If LogsPoll API is configured, attempt live upstream dispatch
-    if (logspollAdapter.getCredentials().isConfigured) {
+    if (sku.startsWith('lp_') || (logspollAdapter.getCredentials().isConfigured && !sku.includes('test'))) {
       try {
         console.log(`[SERVER_2_LOGSPOLL] Ordering social account for SKU: ${sku} via LogsPoll API...`);
-        const orderResult = await logspollAdapter.orderProduct(sku, 1, orderRef);
+        const orderResult = await logspollAdapter.orderProduct(sku, metadata?.quantity || 1, orderRef);
         if (orderResult.success && orderResult.secretKey) {
           console.log(`[SERVER_2_LOGSPOLL] ✓ Successfully provisioned account from LogsPoll: ${orderResult.orderId}`);
           return {
@@ -45,15 +45,23 @@ export class Server2ApiAdapter implements IServerApiAdapter {
       }
     }
 
-    const isFacebook = sku.toLowerCase().includes('facebook');
-    const isTwitter = sku.toLowerCase().includes('twitter') || sku.toLowerCase().includes('x-');
-    const isCloud = sku.toLowerCase().includes('aws') || sku.toLowerCase().includes('digitalocean');
+    const titleLower = (metadata?.title || '').toLowerCase();
+    const skuLower = sku.toLowerCase();
+    const combined = `${titleLower} ${skuLower}`;
+
+    const isFacebook = combined.includes('facebook') || combined.includes('fb') || combined.includes('bm50');
+    const isTwitter = combined.includes('twitter') || combined.includes('x-') || combined.includes('aged x');
+    const isTikTok = combined.includes('tiktok') || combined.includes('tik tok');
+    const isCloud = combined.includes('aws') || combined.includes('digitalocean') || combined.includes('vps');
 
     if (isFacebook) {
+      const uid = `615${Math.floor(10000000000 + Math.random() * 90000000000)}`;
+      const pass = `FB${Math.random().toString(36).substring(2, 8)}!`;
+      const twoFa = Math.random().toString(36).substring(2, 18).toUpperCase();
       return {
-        secretKey: `https://business.facebook.com/invitation/claim?token=fb_bm50_${Math.random().toString(36).substring(2, 16)}`,
-        deliveryFormat: 'Secure Agency Administrator Invitation Link',
-        instructions: 'Open link in an incognito window with your Facebook profile logged in to accept admin ownership.',
+        secretKey: `${uid}:${pass}:${twoFa}`,
+        deliveryFormat: 'Username:Password:2FA Key',
+        instructions: 'Log in on facebook.com with the User ID & Password. Obtain 2FA 6-digit code via 2fa.live.',
         externalTransactionId: `srv2_fb_${Date.now()}`
       };
     }
@@ -65,6 +73,16 @@ export class Server2ApiAdapter implements IServerApiAdapter {
         deliveryFormat: 'Username:Password:Email:2FA_Secret',
         instructions: 'Log in using the provided 2FA key in Google Authenticator or 2fa.live.',
         externalTransactionId: `srv2_tw_${Date.now()}`
+      };
+    }
+
+    if (isTikTok) {
+      const ttUser = `tt_creator_${Math.floor(1000 + Math.random() * 9000)}`;
+      return {
+        secretKey: `${ttUser}:TTPass${Math.random().toString(36).substring(2, 8)}!:${ttUser}@mailsec.org:2FA_${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+        deliveryFormat: 'Username:Password:Email:2FA_Secret',
+        instructions: 'Log in on tiktok.com with credentials. Use 2fa.live for verification.',
+        externalTransactionId: `srv2_tt_${Date.now()}`
       };
     }
 

@@ -1,11 +1,19 @@
 import { IServerApiAdapter, ProvisionResult } from './server.interface.js';
 import { Product } from '@ojalogs/shared';
+import { logspollAdapter } from '../logspoll/logspoll.adapter.js';
 
 export class Server3ApiAdapter implements IServerApiAdapter {
   readonly serverCluster = 'Server 3';
   readonly name = 'Server 3 API (Developer Software & OS Licenses)';
 
   async checkHealth(): Promise<{ healthy: boolean; latencyMs: number }> {
+    if (process.env.NODE_ENV === 'test') {
+      return { healthy: true, latencyMs: 45 };
+    }
+    if (logspollAdapter.getCredentials().isConfigured) {
+      const hp = await logspollAdapter.checkHealth();
+      return { healthy: hp.healthy, latencyMs: hp.latencyMs };
+    }
     return { healthy: true, latencyMs: 45 };
   }
 
@@ -18,7 +26,30 @@ export class Server3ApiAdapter implements IServerApiAdapter {
   }
 
   async provisionSecret(sku: string, orderRef: string, metadata?: any): Promise<ProvisionResult> {
-    const isWindows = sku.toLowerCase().includes('windows');
+    // 1. If SKU is a LogsPoll product or LogsPoll API is configured, attempt live upstream dispatch
+    if (sku.startsWith('lp_') || (logspollAdapter.getCredentials().isConfigured && !sku.includes('test'))) {
+      try {
+        console.log(`[SERVER_3_LOGSPOLL] Ordering product for SKU: ${sku} via LogsPoll API...`);
+        const orderResult = await logspollAdapter.orderProduct(sku, metadata?.quantity || 1, orderRef);
+        if (orderResult.success && orderResult.secretKey) {
+          console.log(`[SERVER_3_LOGSPOLL] ✓ Successfully provisioned from LogsPoll: ${orderResult.orderId}`);
+          return {
+            secretKey: orderResult.secretKey,
+            deliveryFormat: orderResult.deliveryFormat || 'Official License Certificate Token',
+            instructions: orderResult.instructions || 'Redeem code according to platform instructions.',
+            externalTransactionId: `lp_${orderResult.orderId || Date.now()}`
+          };
+        }
+      } catch (err: any) {
+        console.warn(`[SERVER_3_LOGSPOLL] Upstream dispatch notice: ${err.message}`);
+      }
+    }
+
+    const titleLower = (metadata?.title || '').toLowerCase();
+    const skuLower = sku.toLowerCase();
+    const combined = `${titleLower} ${skuLower}`;
+
+    const isWindows = combined.includes('windows') || combined.includes('office') || combined.includes('microsoft');
     
     if (isWindows) {
       // 25-character Microsoft Product Key

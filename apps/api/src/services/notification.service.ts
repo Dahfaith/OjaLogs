@@ -18,6 +18,8 @@ const NOTIFICATIONS_FILE = path.join(DATA_DIR, 'admin_notifications.json');
 
 class NotificationService {
   private alertedSignups: Set<string> = new Set();
+  private readNotificationIds: Set<string> = new Set();
+  private dismissedNotificationIds: Set<string> = new Set();
 
   private notifications: AdminNotification[] = [
     {
@@ -78,11 +80,29 @@ class NotificationService {
 
       if (!error && data?.content) {
         const parsed = JSON.parse(data.content);
-        if (Array.isArray(parsed.notifications) && parsed.notifications.length > 0) {
-          this.notifications = parsed.notifications;
-        }
         if (Array.isArray(parsed.alertedSignups)) {
-          this.alertedSignups = new Set(parsed.alertedSignups.map((e: any) => String(e).toLowerCase().trim()));
+          for (const s of parsed.alertedSignups) {
+            this.alertedSignups.add(String(s).toLowerCase().trim());
+          }
+        }
+        if (Array.isArray(parsed.readNotificationIds)) {
+          for (const id of parsed.readNotificationIds) {
+            this.readNotificationIds.add(String(id));
+          }
+        }
+        if (Array.isArray(parsed.dismissedNotificationIds)) {
+          for (const id of parsed.dismissedNotificationIds) {
+            this.dismissedNotificationIds.add(String(id));
+          }
+        }
+        if (Array.isArray(parsed.notifications) && parsed.notifications.length > 0) {
+          // Filter out dismissed notifications and apply permanent read status
+          this.notifications = parsed.notifications
+            .filter((n: any) => !this.dismissedNotificationIds.has(n.id))
+            .map((n: any) => ({
+              ...n,
+              read: Boolean(n.read || this.readNotificationIds.has(n.id))
+            }));
         }
       }
     } catch (err: any) {
@@ -94,7 +114,9 @@ class NotificationService {
     try {
       const payload = JSON.stringify({
         notifications: this.notifications,
-        alertedSignups: Array.from(this.alertedSignups)
+        alertedSignups: Array.from(this.alertedSignups),
+        readNotificationIds: Array.from(this.readNotificationIds),
+        dismissedNotificationIds: Array.from(this.dismissedNotificationIds)
       });
       const { data: existing } = await supabaseAdmin
         .from('site_pages')
@@ -134,7 +156,12 @@ class NotificationService {
         const raw = fs.readFileSync(NOTIFICATIONS_FILE, 'utf-8');
         const list = JSON.parse(raw);
         if (Array.isArray(list)) {
-          this.notifications = list;
+          this.notifications = list
+            .filter(n => !this.dismissedNotificationIds.has(n.id))
+            .map(n => ({
+              ...n,
+              read: Boolean(n.read || this.readNotificationIds.has(n.id))
+            }));
           return;
         }
       }
@@ -188,17 +215,32 @@ class NotificationService {
   }
 
   getNotifications(): AdminNotification[] {
-    return this.notifications;
+    return this.notifications.map(n => ({
+      ...n,
+      read: Boolean(n.read || this.readNotificationIds.has(n.id))
+    }));
+  }
+
+  markNotificationAsRead(id: string): AdminNotification[] {
+    this.readNotificationIds.add(id);
+    this.notifications = this.notifications.map(n => n.id === id ? { ...n, read: true } : n);
+    this.saveNotifications();
+    this.syncToSupabase().catch(() => {});
+    return this.getNotifications();
   }
 
   markAllAsRead(): AdminNotification[] {
+    for (const n of this.notifications) {
+      this.readNotificationIds.add(n.id);
+    }
     this.notifications = this.notifications.map(n => ({ ...n, read: true }));
     this.saveNotifications();
     this.syncToSupabase().catch(() => {});
-    return this.notifications;
+    return this.getNotifications();
   }
 
   deleteNotification(id: string): boolean {
+    this.dismissedNotificationIds.add(id);
     const prevLen = this.notifications.length;
     this.notifications = this.notifications.filter(n => n.id !== id);
     this.saveNotifications();
@@ -207,6 +249,9 @@ class NotificationService {
   }
 
   clearNotifications(): boolean {
+    for (const n of this.notifications) {
+      this.dismissedNotificationIds.add(n.id);
+    }
     this.notifications = [];
     this.saveNotifications();
     this.syncToSupabase().catch(() => {});
@@ -277,7 +322,12 @@ class NotificationService {
       const emailLower = (u.email || '').toLowerCase().trim();
       if (!emailLower) return;
 
-      const isAdmin = emailLower === 'visioreach@gmail.com' || emailLower === 'ojalogs@gmail.com' || u.user_metadata?.role === 'administrator' || u.user_metadata?.role === 'admin';
+      // Strict Administrator Access: Only Visio Reach & Ojalogs
+      const isAdmin = emailLower === 'visioreach@gmail.com' || emailLower === 'ojalogs@gmail.com';
+      const role: UserRole = isAdmin
+        ? (emailLower === 'visioreach@gmail.com' ? 'super_administrator' : 'administrator')
+        : 'customer';
+
       const name = u.user_metadata?.full_name || u.email?.split('@')[0] || 'Customer';
       const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
 
@@ -286,6 +336,7 @@ class NotificationService {
 
       if (existingIndex >= 0) {
         this.managedUsers[existingIndex].id = u.id || this.managedUsers[existingIndex].id;
+        this.managedUsers[existingIndex].role = role;
         this.managedUsers[existingIndex].isVerified = Boolean(u.email_confirmed_at);
         this.managedUsers[existingIndex].createdAt = u.created_at || this.managedUsers[existingIndex].createdAt;
         this.managedUsers[existingIndex].lastActiveAt = u.last_sign_in_at || this.managedUsers[existingIndex].lastActiveAt;
@@ -297,7 +348,7 @@ class NotificationService {
           id: u.id,
           name: formattedName,
           email: u.email,
-          role: isAdmin ? 'administrator' : 'customer',
+          role,
           status: 'active',
           balanceNgn: currentBal,
           isVerified: Boolean(u.email_confirmed_at),
@@ -307,20 +358,27 @@ class NotificationService {
         });
       }
 
-      // Automatically queue notification if not already present
-      if (!isAdmin && !this.alertedSignups.has(emailLower) && !this.notifications.some(n => n.userEmail?.toLowerCase() === emailLower)) {
+      // Automatically queue notification only if genuinely new signup within 2 hours
+      const createdTime = u.created_at ? new Date(u.created_at).getTime() : 0;
+      const isRecentSignup = createdTime > 0 && Date.now() - createdTime < 2 * 60 * 60 * 1000;
+
+      if (!isAdmin && !this.alertedSignups.has(emailLower)) {
         this.alertedSignups.add(emailLower);
         this.saveAlertedSignups();
-        this.notifications.unshift({
-          id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-          type: 'NEW_USER_SIGNUP',
-          title: 'New Customer Registered',
-          message: `${formattedName} (${u.email}) joined Ojalogs marketplace.`,
-          userEmail: u.email,
-          timestamp: u.created_at || new Date().toISOString(),
-          read: false
-        });
-        this.saveNotifications();
+
+        if (isRecentSignup && !this.notifications.some(n => n.userEmail?.toLowerCase() === emailLower)) {
+          this.notifications.unshift({
+            id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            type: 'NEW_USER_SIGNUP',
+            title: 'New Customer Registered',
+            message: `${formattedName} (${u.email}) joined Ojalogs marketplace.`,
+            userEmail: u.email,
+            timestamp: u.created_at || new Date().toISOString(),
+            read: false
+          });
+          this.saveNotifications();
+          this.syncToSupabase().catch(() => {});
+        }
       }
     });
   }
@@ -337,7 +395,7 @@ class NotificationService {
         id: `usr_${Date.now()}`,
         name: formattedName,
         email,
-        role: isAdmin ? 'administrator' : 'customer',
+        role: isAdmin ? (emailLower === 'visioreach@gmail.com' ? 'super_administrator' : 'administrator') : 'customer',
         status: 'active',
         balanceNgn: 0.00,
         isVerified: true,
@@ -362,6 +420,7 @@ class NotificationService {
         read: false
       });
       this.saveNotifications();
+      this.syncToSupabase().catch(() => {});
     }
 
     // STRICT FIRST-SIGNUP-ONLY EMAIL DEDUPLICATION:

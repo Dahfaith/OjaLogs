@@ -307,8 +307,8 @@ export class LogsPollAdapter {
     const cleanProductId = productId.replace(/^lp_/, '');
 
     try {
-      // 1. Initiate checkout on LogsPoll REST API
-      const resp = await fetch(`${this.baseUrl}/checkout`, {
+      // 1. Initiate purchase on LogsPoll official orders endpoint using reseller wallet balance
+      const resp = await fetch(`${this.baseUrl}/orders`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
@@ -322,52 +322,85 @@ export class LogsPollAdapter {
               product_id: cleanProductId,
               quantity
             }
-          ],
-          redirect_url: 'https://ojalogs.com.ng/dashboard?order=delivered'
+          ]
         })
       });
 
-      if (resp.ok) {
+      if (resp.ok || resp.status === 201) {
         const data = await resp.json() as any;
-        const orderId = data.order_id || data.id || data.reference;
+        const orderId = data.orderId || data.order_id || data.id || data.reference;
+        const reference = data.reference || `LP-${orderId}`;
 
-        // Try to fetch delivered credentials
+        console.log(`[LOGSPOLL_ORDER_SUCCESS] Upstream order created: ${orderId} (${reference}). Balance after: ${data.balanceAfter ?? data.balanceAfterMinor}`);
+
+        // 2. Retrieve delivered credentials from LogsPoll purchases vault
         let credentials = data.secretKey || data.credentials || data.key;
-        let instructions = data.instructions || 'Redeem credentials and secure with 2FA.';
+        let deliveryFormat = 'Credentials / 2FA Token';
+        let instructions = 'Delivered via LogsPoll automated upstream API.';
 
         try {
-          const ordResp = await fetch(`${this.baseUrl}/orders?purchases=true`, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${this.apiKey}`,
-              'Accept': 'application/json'
+          // Allow upstream vault up to 2 attempts to register entitlement
+          for (let attempt = 0; attempt < 2; attempt++) {
+            if (attempt > 0) {
+              await new Promise(r => setTimeout(r, 600));
             }
-          });
-          if (ordResp.ok) {
-            const ordData = await ordResp.json() as any;
-            const records = ordData.records || [];
-            const match = records.find((r: any) => r.id === orderId || r.reference === data.reference);
-            if (match?.order_items?.[0]?.product_entitlements?.instructions) {
-              credentials = match.order_items[0].product_entitlements.instructions;
-              instructions = 'Delivered via LogsPoll upstream API.';
+
+            const ordResp = await fetch(`${this.baseUrl}/orders?purchases=true`, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Accept': 'application/json'
+              }
+            });
+
+            if (ordResp.ok) {
+              const ordData = await ordResp.json() as any;
+              const records = ordData.records || [];
+              const match = records.find((r: any) =>
+                r.id === orderId ||
+                r.reference === reference ||
+                (r.order_items && r.order_items.some((i: any) => i.product_id === cleanProductId))
+              );
+
+              const itemWithEntitlement = match?.order_items?.find((i: any) =>
+                i.product_id === cleanProductId || i.product_entitlements
+              ) || match?.order_items?.[0];
+
+              const ent = itemWithEntitlement?.product_entitlements;
+              if (ent) {
+                credentials = ent.instructions || ent.raw || ent.structured?.accounts?.[0]?.raw || ent.structured?.raw || credentials;
+                if (Array.isArray(ent.structured?.instructions) && ent.structured.instructions.length > 0) {
+                  instructions = ent.structured.instructions.join('\n');
+                } else if (typeof ent.instructions === 'string' && ent.instructions.length > 0) {
+                  instructions = ent.instructions;
+                }
+                if (ent.structured?.productType === 'social') {
+                  deliveryFormat = 'Username:Password:2FA Key / Session Cookies';
+                }
+                break;
+              }
             }
           }
-        } catch {}
+        } catch (vaultErr: any) {
+          console.warn(`[LOGSPOLL_VAULT_FETCH_NOTICE] ${vaultErr.message}`);
+        }
 
         return {
           success: true,
           orderId,
-          reference: data.reference || `lp_ord_${Date.now()}`,
-          status: data.status || 'completed',
+          reference,
+          status: 'completed',
           secretKey: credentials || `AUTH:LP_SUCCESS:${orderId}`,
-          deliveryFormat: 'Encrypted Account Credentials & 2FA Token',
+          deliveryFormat,
           instructions
         };
       } else {
         const text = await resp.text();
-        return { success: false, status: 'rejected', error: `LogsPoll order rejected: ${text}` };
+        console.warn(`[LOGSPOLL_ORDER_REJECTED] HTTP ${resp.status}: ${text}`);
+        return { success: false, status: 'rejected', error: `LogsPoll order rejected (${resp.status}): ${text}` };
       }
     } catch (err: any) {
+      console.error(`[LOGSPOLL_ORDER_ERROR] ${err.message}`);
       return { success: false, status: 'network_error', error: err.message };
     }
   }
