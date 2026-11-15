@@ -19,8 +19,6 @@ declare global {
 }
 
 export const PLATFORM_ADMIN_EMAILS = [
-  'info.masontyler@gmail.com',
-  'info.masontyler1@gmail.com',
   'visioreach@gmail.com',
   'ojalogs@gmail.com',
   'dahfaith@gmail.com',

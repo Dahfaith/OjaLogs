@@ -198,8 +198,6 @@ router.post('/verify-otp', authLimiter, validateBody(VerifyOtpSchema), async (re
 
     // Check if authorized platform administrator
     const adminEmails = [
-      'info.masontyler@gmail.com',
-      'info.masontyler1@gmail.com',
       'visioreach@gmail.com',
       'ojalogs@gmail.com',
       'dahfaith@gmail.com',

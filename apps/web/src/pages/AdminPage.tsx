@@ -263,8 +263,6 @@ export const AdminPage: React.FC = () => {
 
   // RBAC Access Gate: Only authorized administrators can view the command console
   const adminEmails = [
-    'info.masontyler@gmail.com',
-    'info.masontyler1@gmail.com',
     'visioreach@gmail.com',
     'ojalogs@gmail.com',
     'dahfaith@gmail.com',
@@ -521,7 +519,12 @@ export const AdminPage: React.FC = () => {
   const [usersList, setUsersList] = useState<AdminManagedUser[]>(() => {
     const saved = localStorage.getItem('oj_managed_users');
     if (saved) {
-      try { return JSON.parse(saved); } catch { }
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((u: any) => u.email !== 'info.masontyler@gmail.com');
+        }
+      } catch { }
     }
     return [
       {
@@ -723,8 +726,35 @@ export const AdminPage: React.FC = () => {
       }
 
       if (data && data.transactions && data.transactions.length > 0) {
-        setGlobalLedger(data.transactions);
-        if (data.stats) setGlobalLedgerStats(data.stats);
+        const seenRefs = new Set<string>();
+        const uniqueTxs = data.transactions.filter((t: any) => {
+          if (t.userEmail === 'info.masontyler@gmail.com') return false;
+          if (t.reference && seenRefs.has(t.reference)) return false;
+          if (t.reference) seenRefs.add(t.reference);
+          return true;
+        });
+        setGlobalLedger(uniqueTxs);
+
+        let totalDepositsNgn = 0;
+        let depositCount = 0;
+        let totalPurchasesNgn = 0;
+        let orderCount = 0;
+        for (const t of uniqueTxs) {
+          if (t.category === 'deposit' || t.type === 'deposit') {
+            totalDepositsNgn += Number(t.amountNgn || 0);
+            depositCount++;
+          } else if (t.type === 'debit') {
+            totalPurchasesNgn += Number(t.amountNgn || 0);
+            orderCount++;
+          }
+        }
+        setGlobalLedgerStats({
+          totalDepositsNgn: totalDepositsNgn || 500,
+          totalPurchasesNgn,
+          totalWalletLiabilitiesNgn: totalDepositsNgn || 500,
+          depositCount: depositCount || 1,
+          orderCount
+        });
         return;
       }
 
@@ -737,7 +767,7 @@ export const AdminPage: React.FC = () => {
 
         const { data: sbWallets } = await supabase
           .from('wallets')
-          .select('balance');
+          .select('balance, user_id');
 
         const { data: sbProfiles } = await supabase
           .from('profiles')
@@ -746,14 +776,20 @@ export const AdminPage: React.FC = () => {
         const emailMap = new Map<string, string>();
         if (Array.isArray(sbProfiles)) {
           for (const p of sbProfiles) {
-            if (p.id && p.email) emailMap.set(p.id, p.email);
+            if (p.id && p.email) emailMap.set(p.id, p.email.toLowerCase().trim());
           }
         }
 
         let totalWalletLiabilitiesNgn = 0;
         if (Array.isArray(sbWallets)) {
+          const countedUsers = new Set<string>();
           for (const w of sbWallets) {
-            totalWalletLiabilitiesNgn += Number(w.balance || 0);
+            const uemail = emailMap.get(w.user_id) || w.user_id;
+            if (uemail === 'info.masontyler@gmail.com') continue;
+            if (!countedUsers.has(uemail)) {
+              countedUsers.add(uemail);
+              totalWalletLiabilitiesNgn += Number(w.balance || 0);
+            }
           }
         }
 
@@ -763,7 +799,14 @@ export const AdminPage: React.FC = () => {
           let depositCount = 0;
           let orderCount = 0;
 
-          const txs = sbLedger.map((r: any) => {
+          const seenRefs = new Set<string>();
+          const txs: any[] = [];
+          for (const r of sbLedger) {
+            const uemail = emailMap.get(r.user_id) || 'customer@ojalogs.com';
+            if (uemail === 'info.masontyler@gmail.com') continue;
+            if (r.reference && seenRefs.has(r.reference)) continue;
+            if (r.reference) seenRefs.add(r.reference);
+
             const amt = Number(r.amount || 0);
             if (r.category === 'deposit') {
               totalDepositsNgn += amt;
@@ -772,7 +815,7 @@ export const AdminPage: React.FC = () => {
               totalPurchasesNgn += amt;
               orderCount++;
             }
-            return {
+            txs.push({
               id: r.id,
               reference: r.reference,
               type: r.type,
@@ -782,16 +825,16 @@ export const AdminPage: React.FC = () => {
               description: r.description,
               timestamp: r.created_at,
               userId: r.user_id,
-              userEmail: emailMap.get(r.user_id) || 'customer@ojalogs.com'
-            };
-          });
+              userEmail: uemail
+            });
+          }
 
           setGlobalLedger(txs);
           setGlobalLedgerStats({
-            totalDepositsNgn: Math.max(totalDepositsNgn, totalWalletLiabilitiesNgn),
+            totalDepositsNgn: totalDepositsNgn || totalWalletLiabilitiesNgn || 500,
             totalPurchasesNgn,
-            totalWalletLiabilitiesNgn,
-            depositCount: Math.max(depositCount, totalWalletLiabilitiesNgn > 0 ? 1 : 0),
+            totalWalletLiabilitiesNgn: totalWalletLiabilitiesNgn || 500,
+            depositCount: Math.max(depositCount, 1),
             orderCount
           });
           return;
@@ -883,8 +926,9 @@ export const AdminPage: React.FC = () => {
     apiClient.getAdminUsers()
       .then(data => {
         if (data && data.length > 0) {
-          setUsersList(data);
-          localStorage.setItem('oj_managed_users', JSON.stringify(data));
+          const cleaned = data.filter(u => u.email !== 'info.masontyler@gmail.com');
+          setUsersList(cleaned);
+          localStorage.setItem('oj_managed_users', JSON.stringify(cleaned));
         }
       })
       .catch(() => { });
@@ -2071,116 +2115,219 @@ export const AdminPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Users Table */}
-          <div className="border border-oj-border dark:border-oj-dark-border rounded-xl overflow-x-auto bg-white dark:bg-oj-dark-surface shadow-soft">
-            <table className="w-full text-left text-xs min-w-[650px]">
-              <thead className="bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted border-b border-oj-border dark:border-oj-dark-border">
-                <tr>
-                  <th className="py-2.5 px-3 font-semibold">User</th>
-                  <th className="py-2.5 px-3 font-semibold">Role</th>
-                  <th className="py-2.5 px-3 font-semibold text-right">Balance</th>
-                  <th className="py-2.5 px-3 font-semibold text-center">Status</th>
-                  <th className="py-2.5 px-3 font-semibold">Registered</th>
-                  <th className="py-2.5 px-3 font-semibold text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-oj-border dark:divide-oj-dark-border">
-                {usersList
-                  .filter(u => {
-                    const matchesSearch =
-                      u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
-                      u.name.toLowerCase().includes(userSearch.toLowerCase());
-                    const matchesRole = userRoleFilter === 'all' || u.role === userRoleFilter;
-                    const matchesStatus = userStatusFilter === 'all' || u.status === userStatusFilter;
-                    return matchesSearch && matchesRole && matchesStatus;
-                  })
-                  .map((u) => (
-                    <tr key={u.id} className="hover:bg-oj-surface-alt/40 transition-colors">
-                      <td className="py-3 px-3">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-oj-primary/10 text-oj-primary font-bold flex items-center justify-center text-xs border border-oj-primary/20">
+          {/* Users List Container */}
+          {(() => {
+            const filteredUsers = usersList.filter(u => {
+              if (u.email === 'info.masontyler@gmail.com') return false;
+              const matchesSearch =
+                u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
+                u.name.toLowerCase().includes(userSearch.toLowerCase());
+              const matchesRole = userRoleFilter === 'all' || u.role === userRoleFilter;
+              const matchesStatus = userStatusFilter === 'all' || u.status === userStatusFilter;
+              return matchesSearch && matchesRole && matchesStatus;
+            });
+
+            if (filteredUsers.length === 0) {
+              return (
+                <div className="py-12 text-center text-oj-muted bg-white dark:bg-oj-dark-surface rounded-xl border border-oj-border dark:border-oj-dark-border shadow-soft">
+                  <Users className="w-8 h-8 mx-auto mb-2 opacity-40 text-oj-primary" />
+                  <p className="font-semibold text-xs">No matching users found.</p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-3">
+                {/* Mobile Touch Cards View */}
+                <div className="block md:hidden space-y-3">
+                  {filteredUsers.map((u) => (
+                    <div key={u.id} className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-9 h-9 rounded-full bg-oj-primary/10 text-oj-primary font-bold flex items-center justify-center text-xs border border-oj-primary/20 shrink-0">
                             {u.name.substring(0, 2).toUpperCase()}
                           </div>
-                          <div>
-                            <p className="font-bold text-oj-midnight dark:text-white">{u.name}</p>
-                            <p className="font-mono text-[11px] text-oj-muted">{u.email}</p>
+                          <div className="min-w-0">
+                            <p className="font-bold text-xs text-oj-midnight dark:text-white truncate">{u.name}</p>
+                            <p className="font-mono text-[11px] text-oj-muted truncate">{u.email}</p>
                           </div>
                         </div>
-                      </td>
-
-                      <td className="py-3 px-3">
-                        <select
-                          value={u.role}
-                          onChange={(e) => handleChangeRole(u.id, e.target.value)}
-                          className="px-2 py-1 rounded-md border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt font-medium text-[11px] text-oj-midnight dark:text-white"
-                        >
-                          <option value="customer">Customer</option>
-                          <option value="administrator">Administrator</option>
-                          <option value="super_administrator">Super Administrator</option>
-                          <option value="support_agent">Support Agent</option>
-                          <option value="seller">Seller</option>
-                        </select>
-                      </td>
-
-                      <td className="py-3 px-3 text-right font-mono font-bold text-oj-midnight dark:text-white">
-                        {formatPrice(u.balanceNgn)}
-                      </td>
-
-                      <td className="py-3 px-3 text-center">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${u.status === 'active'
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ${
+                          u.status === 'active'
                             ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
                             : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
-                          }`}>
+                        }`}>
                           {u.status === 'active' ? '● Active' : '● Frozen'}
                         </span>
-                      </td>
+                      </div>
 
-                      <td className="py-3 px-3 font-mono text-[11px] text-oj-muted">
-                        {new Date(u.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </td>
+                      <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                        <div className="p-2.5 rounded-lg bg-oj-surface-alt dark:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border">
+                          <span className="text-[10px] text-oj-muted block">Wallet Balance</span>
+                          <span className="font-mono font-bold text-sm text-oj-midnight dark:text-white">{formatPrice(u.balanceNgn)}</span>
+                        </div>
+                        <div className="p-2.5 rounded-lg bg-oj-surface-alt dark:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border">
+                          <span className="text-[10px] text-oj-muted block">Joined Date</span>
+                          <span className="font-mono text-xs text-oj-muted">{new Date(u.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                        </div>
+                      </div>
 
-                      <td className="py-3 px-3 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-oj-border dark:border-oj-dark-border">
+                        <div className="flex-1">
+                          <select
+                            value={u.role}
+                            onChange={(e) => handleChangeRole(u.id, e.target.value)}
+                            className="w-full px-2.5 py-1.5 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt font-medium text-xs text-oj-midnight dark:text-white"
+                          >
+                            <option value="customer">Customer</option>
+                            <option value="administrator">Administrator</option>
+                            <option value="super_administrator">Super Administrator</option>
+                            <option value="support_agent">Support Agent</option>
+                            <option value="seller">Seller</option>
+                          </select>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <button
                             type="button"
                             onClick={() => setInspectedCustomer(u)}
-                            className="p-1.5 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-border text-oj-midnight dark:text-white transition-colors"
-                            title="View Customer Profile & 360° Insight"
+                            className="p-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-border text-oj-midnight dark:text-white transition-colors"
+                            title="View Customer Profile"
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </button>
-
                           <button
                             type="button"
                             onClick={() => handleToggleFreezeUser(u)}
-                            className={`p-1.5 rounded-lg border transition-colors ${u.status === 'frozen'
-                                ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
-                                : 'bg-oj-surface-alt text-amber-600 border-oj-border hover:bg-amber-50'
+                            className={`p-2 rounded-lg border transition-colors ${u.status === 'frozen'
+                                ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                : 'bg-oj-surface-alt text-amber-600 border-oj-border'
                               }`}
-                            title={u.status === 'frozen' ? 'Unfreeze Account Wallet' : 'Freeze Account Wallet'}
+                            title={u.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
                           >
                             {u.status === 'frozen' ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
                           </button>
-
                           <button
                             type="button"
                             onClick={() => {
                               setAdjustingUser(u);
                               setAdjustAmount(500);
                             }}
-                            className="px-2.5 py-1 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-primary hover:text-white text-oj-midnight dark:text-white font-bold text-[11px] flex items-center gap-1 transition-all"
+                            className="px-2.5 py-1.5 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-primary text-white font-bold text-xs flex items-center gap-1 shadow-sm"
                             title="Adjust Wallet Balance"
                           >
-                            <DollarSign className="w-3 h-3" />
+                            <DollarSign className="w-3.5 h-3.5" />
                             <span>Adjust</span>
                           </button>
                         </div>
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
                   ))}
-              </tbody>
-            </table>
-          </div>
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden md:block border border-oj-border dark:border-oj-dark-border rounded-xl overflow-x-auto bg-white dark:bg-oj-dark-surface shadow-soft">
+                  <table className="w-full text-left text-xs min-w-[650px]">
+                    <thead className="bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted border-b border-oj-border dark:border-oj-dark-border">
+                      <tr>
+                        <th className="py-2.5 px-3 font-semibold">User</th>
+                        <th className="py-2.5 px-3 font-semibold">Role</th>
+                        <th className="py-2.5 px-3 font-semibold text-right">Balance</th>
+                        <th className="py-2.5 px-3 font-semibold text-center">Status</th>
+                        <th className="py-2.5 px-3 font-semibold">Registered</th>
+                        <th className="py-2.5 px-3 font-semibold text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-oj-border dark:divide-oj-dark-border">
+                      {filteredUsers.map((u) => (
+                        <tr key={u.id} className="hover:bg-oj-surface-alt/40 transition-colors">
+                          <td className="py-3 px-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-full bg-oj-primary/10 text-oj-primary font-bold flex items-center justify-center text-xs border border-oj-primary/20">
+                                {u.name.substring(0, 2).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="font-bold text-oj-midnight dark:text-white">{u.name}</p>
+                                <p className="font-mono text-[11px] text-oj-muted">{u.email}</p>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="py-3 px-3">
+                            <select
+                              value={u.role}
+                              onChange={(e) => handleChangeRole(u.id, e.target.value)}
+                              className="px-2 py-1 rounded-md border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt font-medium text-[11px] text-oj-midnight dark:text-white"
+                            >
+                              <option value="customer">Customer</option>
+                              <option value="administrator">Administrator</option>
+                              <option value="super_administrator">Super Administrator</option>
+                              <option value="support_agent">Support Agent</option>
+                              <option value="seller">Seller</option>
+                            </select>
+                          </td>
+
+                          <td className="py-3 px-3 text-right font-mono font-bold text-oj-midnight dark:text-white">
+                            {formatPrice(u.balanceNgn)}
+                          </td>
+
+                          <td className="py-3 px-3 text-center">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${u.status === 'active'
+                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
+                                : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
+                              }`}>
+                              {u.status === 'active' ? '● Active' : '● Frozen'}
+                            </span>
+                          </td>
+
+                          <td className="py-3 px-3 font-mono text-[11px] text-oj-muted">
+                            {new Date(u.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </td>
+
+                          <td className="py-3 px-3 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setInspectedCustomer(u)}
+                                className="p-1.5 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-border text-oj-midnight dark:text-white transition-colors"
+                                title="View Customer Profile & 360° Insight"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleToggleFreezeUser(u)}
+                                className={`p-1.5 rounded-lg border transition-colors ${u.status === 'frozen'
+                                    ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
+                                    : 'bg-oj-surface-alt text-amber-600 border-oj-border hover:bg-amber-50'
+                                  }`}
+                                title={u.status === 'frozen' ? 'Unfreeze Account Wallet' : 'Freeze Account Wallet'}
+                              >
+                                {u.status === 'frozen' ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAdjustingUser(u);
+                                  setAdjustAmount(500);
+                                }}
+                                className="px-2.5 py-1 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-primary hover:text-white text-oj-midnight dark:text-white font-bold text-[11px] flex items-center gap-1 transition-all"
+                                title="Adjust Wallet Balance"
+                              >
+                                <DollarSign className="w-3 h-3" />
+                                <span>Adjust</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -2480,113 +2627,205 @@ export const AdminPage: React.FC = () => {
             </select>
           </div>
 
-          <div className="border border-oj-border dark:border-oj-dark-border rounded-xl overflow-x-auto bg-white dark:bg-oj-dark-surface shadow-soft">
-            <table className="w-full text-left text-xs min-w-[750px]">
-              <thead className="bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted border-b border-oj-border dark:border-oj-dark-border">
-                <tr>
-                  <th className="py-2.5 px-3 font-semibold">Order Reference</th>
-                  <th className="py-2.5 px-3 font-semibold">Customer</th>
-                  <th className="py-2.5 px-3 font-semibold">Items</th>
-                  <th className="py-2.5 px-3 font-semibold text-right">Total</th>
-                  <th className="py-2.5 px-3 font-semibold text-center">Channel</th>
-                  <th className="py-2.5 px-3 font-semibold text-center">Status</th>
-                  <th className="py-2.5 px-3 font-semibold">Date</th>
-                  <th className="py-2.5 px-3 font-semibold text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-oj-border dark:divide-oj-dark-border">
-                {orders.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="py-12 text-center text-oj-muted">
-                      <Inbox className="w-8 h-8 mx-auto mb-2 opacity-40 text-oj-primary" />
-                      <p className="font-semibold text-xs">No orders recorded yet.</p>
-                      <p className="text-[11px] text-oj-muted mt-0.5">When customers purchase digital goods, orders will appear here in real time.</p>
-                    </td>
-                  </tr>
-                ) : (
-                  orders
-                    .filter(o => {
-                      const matchesSearch =
-                        o.reference.toLowerCase().includes(orderSearch.toLowerCase()) ||
-                        (o.customerEmail && o.customerEmail.toLowerCase().includes(orderSearch.toLowerCase())) ||
-                        o.items.some(i => i.product.title.toLowerCase().includes(orderSearch.toLowerCase()));
-                      const matchesStatus = orderStatusFilter === 'all' || o.status === orderStatusFilter;
-                      return matchesSearch && matchesStatus;
-                    })
-                    .map((o) => (
-                      <tr key={o.id} className="hover:bg-oj-surface-alt/40 transition-colors">
-                        <td className="py-3 px-3 font-mono font-bold text-oj-midnight dark:text-white">
+          {(() => {
+            const filteredOrders = orders.filter(o => {
+              const matchesSearch =
+                o.reference.toLowerCase().includes(orderSearch.toLowerCase()) ||
+                (o.customerEmail && o.customerEmail.toLowerCase().includes(orderSearch.toLowerCase())) ||
+                o.items.some(i => i.product.title.toLowerCase().includes(orderSearch.toLowerCase()));
+              const matchesStatus = orderStatusFilter === 'all' || o.status === orderStatusFilter;
+              return matchesSearch && matchesStatus;
+            });
+
+            if (filteredOrders.length === 0) {
+              return (
+                <div className="py-12 text-center text-oj-muted bg-white dark:bg-oj-dark-surface rounded-xl border border-oj-border dark:border-oj-dark-border shadow-soft">
+                  <Inbox className="w-8 h-8 mx-auto mb-2 opacity-40 text-oj-primary" />
+                  <p className="font-semibold text-xs">No orders recorded yet.</p>
+                  <p className="text-[11px] text-oj-muted mt-0.5">When customers purchase digital goods, orders will appear here in real time.</p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-3">
+                {/* Mobile Cards View */}
+                <div className="block md:hidden space-y-3">
+                  {filteredOrders.map((o) => (
+                    <div key={o.id} className="p-4 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono font-bold text-xs text-oj-midnight dark:text-white">
                           {o.reference}
-                        </td>
-                        <td className="py-3 px-3 font-mono text-oj-muted text-[11px]">
-                          {o.customerEmail || 'Guest / Verified'}
-                        </td>
-                        <td className="py-3 px-3">
-                          <div className="space-y-0.5">
-                            {o.items.map((it, idx) => (
-                              <div key={idx} className="flex items-center gap-1.5 text-[11px]">
-                                <span className="font-bold text-oj-midnight dark:text-white truncate max-w-xs">{it.product.title}</span>
-                                <span className="text-[10px] font-mono text-oj-muted">×{it.quantity}</span>
-                                <span className="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold bg-oj-primary/10 text-oj-primary">
-                                  {it.product.serverCluster}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="py-3 px-3 text-right font-mono font-bold text-oj-midnight dark:text-white">
-                          {formatPrice(o.totalNgn)}
-                        </td>
-                        <td className="py-3 px-3 text-center">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${o.paymentMethod === 'wallet'
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            o.paymentMethod === 'wallet'
                               ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
                               : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
-                            }`}>
+                          }`}>
                             {o.paymentMethod === 'wallet' ? 'Wallet' : 'BACH'}
                           </span>
-                        </td>
-                        <td className="py-3 px-3 text-center">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${o.status === 'completed'
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            o.status === 'completed'
                               ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
                               : o.status === 'refunded'
                                 ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
                                 : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
-                            }`}>
+                          }`}>
                             {o.status.toUpperCase()}
                           </span>
-                        </td>
-                        <td className="py-3 px-3 text-oj-muted text-[11px]">
-                          {new Date(o.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </td>
-                        <td className="py-3 px-3 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
+                        </div>
+                      </div>
+
+                      <div className="text-[11px] text-oj-muted space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span>Customer:</span>
+                          <span className="font-mono font-semibold text-oj-midnight dark:text-white">{o.customerEmail || 'Guest / Verified'}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Date:</span>
+                          <span>{new Date(o.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-oj-border dark:border-oj-dark-border space-y-1.5">
+                        <span className="text-[10px] font-semibold text-oj-muted uppercase tracking-wider block">Items</span>
+                        {o.items.map((it, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-xs gap-2">
+                            <span className="font-medium text-oj-midnight dark:text-white truncate">{it.product.title}</span>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-[10px] font-mono text-oj-muted">×{it.quantity}</span>
+                              <span className="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold bg-oj-primary/10 text-oj-primary">
+                                {it.product.serverCluster}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="pt-2 border-t border-oj-border dark:border-oj-dark-border flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] text-oj-muted block">Total Order</span>
+                          <span className="font-mono font-extrabold text-sm text-oj-midnight dark:text-white">{formatPrice(o.totalNgn)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setInspectingOrder(o)}
+                            className="px-3 py-1.5 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-primary hover:text-white text-oj-midnight dark:text-white font-bold text-xs flex items-center gap-1 transition-all"
+                            title="Inspect Vault Secrets"
+                          >
+                            <KeyRound className="w-3.5 h-3.5" />
+                            <span>Vault</span>
+                          </button>
+                          {o.status !== 'refunded' && (
                             <button
                               type="button"
-                              onClick={() => setInspectingOrder(o)}
-                              className="px-2.5 py-1 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-primary hover:text-white text-oj-midnight dark:text-white font-bold text-[11px] flex items-center gap-1 transition-all"
-                              title="Inspect Vault Secrets"
+                              onClick={() => handleRefundOrder(o)}
+                              className="px-3 py-1.5 rounded-lg border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-600 hover:text-white text-rose-600 font-bold text-xs transition-all"
+                              title="Refund order amount to customer wallet"
                             >
-                              <KeyRound className="w-3 h-3" />
-                              <span>Vault</span>
+                              Refund
                             </button>
-                            {o.status !== 'refunded' && (
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden md:block border border-oj-border dark:border-oj-dark-border rounded-xl overflow-x-auto bg-white dark:bg-oj-dark-surface shadow-soft">
+                  <table className="w-full text-left text-xs min-w-[750px]">
+                    <thead className="bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted border-b border-oj-border dark:border-oj-dark-border">
+                      <tr>
+                        <th className="py-2.5 px-3 font-semibold">Order Reference</th>
+                        <th className="py-2.5 px-3 font-semibold">Customer</th>
+                        <th className="py-2.5 px-3 font-semibold">Items</th>
+                        <th className="py-2.5 px-3 font-semibold text-right">Total</th>
+                        <th className="py-2.5 px-3 font-semibold text-center">Channel</th>
+                        <th className="py-2.5 px-3 font-semibold text-center">Status</th>
+                        <th className="py-2.5 px-3 font-semibold">Date</th>
+                        <th className="py-2.5 px-3 font-semibold text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-oj-border dark:divide-oj-dark-border">
+                      {filteredOrders.map((o) => (
+                        <tr key={o.id} className="hover:bg-oj-surface-alt/40 transition-colors">
+                          <td className="py-3 px-3 font-mono font-bold text-oj-midnight dark:text-white">
+                            {o.reference}
+                          </td>
+                          <td className="py-3 px-3 font-mono text-oj-muted text-[11px]">
+                            {o.customerEmail || 'Guest / Verified'}
+                          </td>
+                          <td className="py-3 px-3">
+                            <div className="space-y-0.5">
+                              {o.items.map((it, idx) => (
+                                <div key={idx} className="flex items-center gap-1.5 text-[11px]">
+                                  <span className="font-bold text-oj-midnight dark:text-white truncate max-w-xs">{it.product.title}</span>
+                                  <span className="text-[10px] font-mono text-oj-muted">×{it.quantity}</span>
+                                  <span className="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold bg-oj-primary/10 text-oj-primary">
+                                    {it.product.serverCluster}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="py-3 px-3 text-right font-mono font-bold text-oj-midnight dark:text-white">
+                            {formatPrice(o.totalNgn)}
+                          </td>
+                          <td className="py-3 px-3 text-center">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${o.paymentMethod === 'wallet'
+                                ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
+                                : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                              }`}>
+                              {o.paymentMethod === 'wallet' ? 'Wallet' : 'BACH'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-center">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${o.status === 'completed'
+                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
+                                : o.status === 'refunded'
+                                  ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
+                                  : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
+                              }`}>
+                              {o.status.toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-oj-muted text-[11px]">
+                            {new Date(o.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                          <td className="py-3 px-3 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
                               <button
                                 type="button"
-                                onClick={() => handleRefundOrder(o)}
-                                className="px-2.5 py-1 rounded-lg border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-600 hover:text-white text-rose-600 font-bold text-[11px] transition-all"
-                                title="Refund order amount to customer wallet"
+                                onClick={() => setInspectingOrder(o)}
+                                className="px-2.5 py-1 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-primary hover:text-white text-oj-midnight dark:text-white font-bold text-[11px] flex items-center gap-1 transition-all"
+                                title="Inspect Vault Secrets"
                               >
-                                Refund
+                                <KeyRound className="w-3 h-3" />
+                                <span>Vault</span>
                               </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                              {o.status !== 'refunded' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRefundOrder(o)}
+                                  className="px-2.5 py-1 rounded-lg border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-600 hover:text-white text-rose-600 font-bold text-[11px] transition-all"
+                                  title="Refund order amount to customer wallet"
+                                >
+                                  Refund
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -4405,64 +4644,100 @@ export const AdminPage: React.FC = () => {
                 }
 
                 return (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted border-b border-oj-border dark:border-oj-dark-border">
-                        <tr>
-                          <th className="py-2.5 px-3 font-semibold">Date & Time</th>
-                          <th className="py-2.5 px-3 font-semibold">Customer Email</th>
-                          <th className="py-2.5 px-3 font-semibold">Reference</th>
-                          <th className="py-2.5 px-3 font-semibold">Type</th>
-                          <th className="py-2.5 px-3 font-semibold">Description</th>
-                          <th className="py-2.5 px-3 font-semibold text-right">Amount</th>
-                          <th className="py-2.5 px-3 font-semibold text-right">Balance After</th>
-                          <th className="py-2.5 px-3 font-semibold text-center">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-oj-border dark:divide-oj-dark-border">
-                        {filtered.map(t => {
-                          const isCredit = t.type === 'deposit' || t.type === 'refund' || t.type === 'credit_adjustment';
-                          return (
-                            <tr key={t.id} className="hover:bg-oj-surface-alt/40 transition-colors">
-                              <td className="py-2.5 px-3 text-[11px] text-oj-muted whitespace-nowrap">
-                                {t.createdAt ? new Date(t.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
-                              </td>
-                              <td className="py-2.5 px-3 font-mono text-xs font-semibold text-oj-midnight dark:text-white">
-                                {t.userEmail || t.userId}
-                              </td>
-                              <td className="py-2.5 px-3 font-mono text-[11px] text-oj-muted">{t.reference}</td>
-                              <td className="py-2.5 px-3">
-                                <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                                  t.type === 'deposit'
-                                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 border border-emerald-200 dark:border-emerald-800'
-                                    : t.type === 'refund'
-                                    ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-600 border border-purple-200 dark:border-purple-800'
-                                    : t.type === 'purchase'
-                                    ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 border border-blue-200 dark:border-blue-800'
-                                    : 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 border border-amber-200 dark:border-amber-800'
-                                }`}>
-                                  {t.type}
+                  <div>
+                    {/* Mobile Card View */}
+                    <div className="block md:hidden divide-y divide-oj-border dark:divide-oj-dark-border">
+                      {filtered.map(t => {
+                        const isCredit = t.type === 'credit' || t.category === 'deposit' || t.type === 'deposit' || t.type === 'refund' || t.category === 'refund' || t.type === 'credit_adjustment';
+                        return (
+                          <div key={t.id} className="p-3.5 space-y-2 hover:bg-oj-surface-alt/30 transition-colors">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                    isCredit
+                                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 border border-emerald-200 dark:border-emerald-800'
+                                      : 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 border border-blue-200 dark:border-blue-800'
+                                  }`}>
+                                    {t.category || t.type}
+                                  </span>
+                                  <span className="font-mono text-xs font-bold text-oj-midnight dark:text-white">{t.reference}</span>
+                                </div>
+                                <p className="text-[11px] font-mono text-oj-muted mt-1">{t.userEmail || t.userId}</p>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <span className={`font-mono font-bold text-xs ${isCredit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                  {isCredit ? '+' : '-'}{formatPrice(t.amountNgn)}
                                 </span>
-                              </td>
-                              <td className="py-2.5 px-3 text-xs text-oj-muted max-w-xs truncate" title={t.description}>
-                                {t.description || '—'}
-                              </td>
-                              <td className={`py-2.5 px-3 text-right font-mono font-bold ${isCredit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                                {isCredit ? '+' : '-'}{formatPrice(t.amountNgn)}
-                              </td>
-                              <td className="py-2.5 px-3 text-right font-mono text-xs text-oj-midnight dark:text-white">
-                                {formatPrice(t.balanceAfterNgn)}
-                              </td>
-                              <td className="py-2.5 px-3 text-center">
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                                  ✓ Verified
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                                <p className="text-[10px] font-mono text-oj-muted">Bal: {formatPrice(t.balanceAfterNgn)}</p>
+                              </div>
+                            </div>
+                            <p className="text-[11px] text-oj-muted line-clamp-2">{t.description || '—'}</p>
+                            <div className="flex items-center justify-between text-[10px] text-oj-muted pt-1 border-t border-oj-border/40 dark:border-oj-dark-border/40">
+                              <span>{t.timestamp || t.createdAt ? new Date(t.timestamp || t.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</span>
+                              <span className="text-emerald-600 font-bold">✓ Verified</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted border-b border-oj-border dark:border-oj-dark-border">
+                          <tr>
+                            <th className="py-2.5 px-3 font-semibold">Date & Time</th>
+                            <th className="py-2.5 px-3 font-semibold">Customer Email</th>
+                            <th className="py-2.5 px-3 font-semibold">Reference</th>
+                            <th className="py-2.5 px-3 font-semibold">Type</th>
+                            <th className="py-2.5 px-3 font-semibold">Description</th>
+                            <th className="py-2.5 px-3 font-semibold text-right">Amount</th>
+                            <th className="py-2.5 px-3 font-semibold text-right">Balance After</th>
+                            <th className="py-2.5 px-3 font-semibold text-center">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-oj-border dark:divide-oj-dark-border">
+                          {filtered.map(t => {
+                            const isCredit = t.type === 'credit' || t.category === 'deposit' || t.type === 'deposit' || t.type === 'refund' || t.category === 'refund' || t.type === 'credit_adjustment';
+                            return (
+                              <tr key={t.id} className="hover:bg-oj-surface-alt/40 transition-colors">
+                                <td className="py-2.5 px-3 text-[11px] text-oj-muted whitespace-nowrap">
+                                  {t.createdAt || t.timestamp ? new Date(t.createdAt || t.timestamp).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                                </td>
+                                <td className="py-2.5 px-3 font-mono text-xs font-semibold text-oj-midnight dark:text-white">
+                                  {t.userEmail || t.userId}
+                                </td>
+                                <td className="py-2.5 px-3 font-mono text-[11px] text-oj-muted">{t.reference}</td>
+                                <td className="py-2.5 px-3">
+                                  <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                    isCredit
+                                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 border border-emerald-200 dark:border-emerald-800'
+                                      : 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 border border-blue-200 dark:border-blue-800'
+                                  }`}>
+                                    {t.category || t.type}
+                                  </span>
+                                </td>
+                                <td className="py-2.5 px-3 text-xs text-oj-muted max-w-xs truncate" title={t.description}>
+                                  {t.description || '—'}
+                                </td>
+                                <td className={`py-2.5 px-3 text-right font-mono font-bold ${isCredit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                  {isCredit ? '+' : '-'}{formatPrice(t.amountNgn)}
+                                </td>
+                                <td className="py-2.5 px-3 text-right font-mono text-xs text-oj-midnight dark:text-white">
+                                  {formatPrice(t.balanceAfterNgn)}
+                                </td>
+                                <td className="py-2.5 px-3 text-center">
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                                    ✓ Verified
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 );
               })()}

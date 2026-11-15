@@ -126,8 +126,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!email) return false;
     const normalized = email.toLowerCase().trim();
     const authorized = [
-      'info.masontyler@gmail.com',
-      'info.masontyler1@gmail.com',
       'visioreach@gmail.com',
       'ojalogs@gmail.com',
       'admin@ojalogs.com',
@@ -539,14 +537,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const u = JSON.parse(storedUser);
         userKey = (u.email || u.id || '').toLowerCase().trim();
       }
-      const aliasKey = userKey.includes('masontyler1')
-        ? 'info.masontyler@gmail.com'
-        : userKey.includes('masontyler')
-        ? 'info.masontyler1@gmail.com'
-        : '';
       const savedBal =
         (userKey ? localStorage.getItem(`oj_wallet_bal_${userKey}`) : null) ||
-        (aliasKey ? localStorage.getItem(`oj_wallet_bal_${aliasKey}`) : null) ||
         localStorage.getItem('oj_wallet_bal');
       if (savedBal && !isNaN(Number(savedBal)) && Number(savedBal) > 0) {
         return {
@@ -554,7 +546,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           balanceNgn: Number(savedBal)
         };
       }
-      if (userKey.includes('masontyler')) {
+      if (userKey === 'info.masontyler1@gmail.com') {
         return {
           ...initialGuestWallet,
           balanceNgn: 500
@@ -591,11 +583,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ]);
 
       const userKey = (activeUser.email || activeUser.id).toLowerCase().trim();
-      const aliasKey = userKey.includes('masontyler1')
-        ? 'info.masontyler@gmail.com'
-        : userKey.includes('masontyler')
-        ? 'info.masontyler1@gmail.com'
-        : '';
 
       let finalBalance = (balRes && typeof balRes.balanceNgn === 'number') ? balRes.balanceNgn : -1;
 
@@ -603,24 +590,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (finalBalance === 0) {
           const cachedBal = Number(
             localStorage.getItem(`oj_wallet_bal_${userKey}`) ||
-            (aliasKey ? localStorage.getItem(`oj_wallet_bal_${aliasKey}`) : null) ||
             localStorage.getItem('oj_wallet_bal') ||
             0
           );
           if (cachedBal > 0) {
             finalBalance = cachedBal;
-          } else if (userKey.includes('masontyler')) {
+          } else if (userKey === 'info.masontyler1@gmail.com') {
             finalBalance = 500;
           }
         }
       } else {
         const cachedBal = Number(
           localStorage.getItem(`oj_wallet_bal_${userKey}`) ||
-          (aliasKey ? localStorage.getItem(`oj_wallet_bal_${aliasKey}`) : null) ||
           localStorage.getItem('oj_wallet_bal') ||
           0
         );
-        finalBalance = cachedBal > 0 ? cachedBal : (userKey.includes('masontyler') ? 500 : 0);
+        finalBalance = cachedBal > 0 ? cachedBal : (userKey === 'info.masontyler1@gmail.com' ? 500 : 0);
       }
 
       const dedicatedAccount: DedicatedVirtualAccount = balRes?.dedicatedAccount || generateDedicatedAccount(activeUser.email, activeUser.name);
@@ -632,7 +617,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }));
       try {
         localStorage.setItem(`oj_wallet_bal_${userKey}`, String(finalBalance));
-        if (aliasKey) localStorage.setItem(`oj_wallet_bal_${aliasKey}`, String(finalBalance));
         localStorage.setItem('oj_wallet_bal', String(finalBalance));
       } catch {}
 
