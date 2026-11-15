@@ -28,8 +28,6 @@ export class WalletService {
   constructor() {
     this.userEmails.set('usr_oj_1794735707216', 'realolamikesh@gmail.com');
     this.emailToUserMap.set('realolamikesh@gmail.com', 'usr_oj_1794735707216');
-    this.balances.set('usr_oj_1794735707216', 500);
-    this.balances.set('realolamikesh@gmail.com', 500);
 
     this.loadPersistedStore();
     this.loadFromSupabase().catch(() => {});
@@ -285,8 +283,50 @@ export class WalletService {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
   }
 
+  /**
+   * Recalculates exact balance strictly from verified ledger credits minus debits.
+   * Guarantees mathematical ledger integrity and eliminates phantom balances or double credits.
+   */
+  recalculateBalanceFromLedger(userId: string, email?: string): number {
+    const key = this.resolveAccountKey(userId, email);
+    const ledger = this.getLedger(userId, 'all', email);
+    if (!ledger || ledger.length === 0) {
+      return this.balances.get(key) || this.balances.get(userId) || 0;
+    }
+
+    let calculated = 0;
+    const seenRefs = new Set<string>();
+
+    for (const tx of ledger) {
+      if (tx.status === 'successful') {
+        const refKey = tx.reference || tx.id;
+        if (seenRefs.has(refKey)) continue;
+        seenRefs.add(refKey);
+
+        if (tx.type === 'credit') {
+          calculated += tx.amountNgn;
+        } else if (tx.type === 'debit') {
+          calculated -= tx.amountNgn;
+        }
+      }
+    }
+
+    const finalBalance = Math.max(0, calculated);
+    this.balances.set(userId, finalBalance);
+    this.balances.set(key, finalBalance);
+    if (email) {
+      const cleanEmail = email.toLowerCase().trim();
+      this.balances.set(cleanEmail, finalBalance);
+    }
+    return finalBalance;
+  }
+
   getBalance(userId: string, email?: string): number {
     const key = this.resolveAccountKey(userId, email);
+    const ledger = this.ledgerRecords.get(key) || this.ledgerRecords.get(userId) || (email ? this.ledgerRecords.get(email.toLowerCase().trim()) : undefined);
+    if (ledger && ledger.length > 0) {
+      return this.recalculateBalanceFromLedger(userId, email);
+    }
     const bal = this.balances.get(key);
     if (typeof bal === 'number' && bal > 0) return bal;
     const directBal = this.balances.get(userId);
