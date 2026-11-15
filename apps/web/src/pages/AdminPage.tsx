@@ -2919,15 +2919,16 @@ export const AdminPage: React.FC = () => {
                           <span className="text-[10px] text-oj-muted font-bold">Encrypted Payload Status:</span>
                           <span className="text-[10px] text-emerald-600 font-bold">AES-256-GCM Sealed</span>
                         </div>
-                        <div className="p-2.5 rounded-lg bg-black text-emerald-400 font-mono text-xs break-all flex items-center justify-between">
-                          <span>{sec.value || '••••••••••••••••••••••••'}</span>
+                        <div className="p-2.5 rounded-lg bg-black text-emerald-400 font-mono text-xs break-all flex items-center justify-between gap-2 overflow-hidden">
+                          <span className="min-w-0 flex-1 break-all select-all">{sec.value || '••••••••••••••••••••••••'}</span>
                           <button
                             type="button"
                             onClick={() => {
                               navigator.clipboard.writeText(sec.value || '');
                               showToast('Copied delivered secret to clipboard');
                             }}
-                            className="text-xs text-oj-muted hover:text-white ml-2"
+                            className="p-1.5 rounded-md text-xs text-oj-muted hover:text-white hover:bg-white/10 shrink-0 transition-colors"
+                            title="Copy Secret"
                           >
                             <Copy className="w-3.5 h-3.5" />
                           </button>
