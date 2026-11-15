@@ -41,7 +41,7 @@ export const LandingPage: React.FC = () => {
       productsCount: 908,
       inStockCount: 907,
       icon: InstagramIcon,
-      slug: 'social-media',
+      slug: 'instagram',
       description: 'Aged creator accounts, 2FA profiles & business pages'
     },
     {
@@ -49,7 +49,7 @@ export const LandingPage: React.FC = () => {
       productsCount: 633,
       inStockCount: 625,
       icon: FacebookIcon,
-      slug: 'social-media',
+      slug: 'facebook',
       description: 'Agency Business Managers (BM50/BM250) & aged accounts'
     },
     {
@@ -57,7 +57,7 @@ export const LandingPage: React.FC = () => {
       productsCount: 164,
       inStockCount: 158,
       icon: TwitterXIcon,
-      slug: 'social-media',
+      slug: 'twitter',
       description: 'Phone-verified profiles with organic history'
     },
     {
@@ -65,7 +65,7 @@ export const LandingPage: React.FC = () => {
       productsCount: 232,
       inStockCount: 231,
       icon: TikTokIcon,
-      slug: 'social-media',
+      slug: 'tiktok',
       description: 'Creator marketplace & live-streaming enabled accounts'
     },
     {
@@ -73,7 +73,7 @@ export const LandingPage: React.FC = () => {
       productsCount: 284,
       inStockCount: 284,
       icon: GmailIcon,
-      slug: 'social-media',
+      slug: 'gmail',
       description: 'Verified recovery email accounts & Google Workspace'
     },
     {
@@ -249,7 +249,7 @@ export const LandingPage: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Card 1: VPN Services */}
           <Link
-            to="/shop"
+            to="/shop?category=vpn"
             className="p-6 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft hover:shadow-elevated hover:border-oj-primary transition-all text-center flex flex-col items-center group"
           >
             <div className="w-14 h-14 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
@@ -300,7 +300,7 @@ export const LandingPage: React.FC = () => {
 
           {/* Card 4: US Emails */}
           <Link
-            to="/shop"
+            to="/shop?category=gmail"
             className="p-6 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft hover:shadow-elevated hover:border-oj-primary transition-all text-center flex flex-col items-center group"
           >
             <div className="w-14 h-14 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
@@ -354,7 +354,11 @@ export const LandingPage: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {directoryCategories.map((cat, idx) => {
             const IconComponent = cat.icon as any;
-            const targetUrl = cat.isSocialBoost ? '/social-boost' : cat.isDivisionB ? '/virtual-numbers' : '/shop';
+            const targetUrl = cat.isSocialBoost
+              ? '/social-boost'
+              : cat.isDivisionB
+              ? '/virtual-numbers'
+              : `/shop?category=${cat.slug || encodeURIComponent(cat.name.toLowerCase())}`;
             return (
               <Link
                 key={idx}
@@ -532,7 +536,7 @@ export const LandingPage: React.FC = () => {
             <p className="text-xs text-oj-muted leading-relaxed">
               Direct API integrations for high-speed residential proxies, global travel eSIM profiles, and NordVPN/Surfshark enterprise keys.
             </p>
-            <Link to="/shop" className="text-xs font-bold text-oj-primary hover:underline flex items-center gap-1">
+            <Link to="/shop?server=Server 1" className="text-xs font-bold text-oj-primary hover:underline flex items-center gap-1">
               <span>View Server 1 Products</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
@@ -548,7 +552,7 @@ export const LandingPage: React.FC = () => {
             <p className="text-xs text-oj-muted leading-relaxed">
               Automated provisioning of aged Instagram profiles, Facebook BMs with 2FA, Twitter/X accounts, and AWS/DigitalOcean cloud credits.
             </p>
-            <Link to="/shop" className="text-xs font-bold text-oj-primary hover:underline flex items-center gap-1">
+            <Link to="/shop?server=Server 2" className="text-xs font-bold text-oj-primary hover:underline flex items-center gap-1">
               <span>View Server 2 Products</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
@@ -564,7 +568,7 @@ export const LandingPage: React.FC = () => {
             <p className="text-xs text-oj-muted leading-relaxed">
               Direct distributor server connection for Windows 11 Pro retail keys and JetBrains suite licenses bound to your accounts.
             </p>
-            <Link to="/shop" className="text-xs font-bold text-oj-primary hover:underline flex items-center gap-1">
+            <Link to="/shop?server=Server 3" className="text-xs font-bold text-oj-primary hover:underline flex items-center gap-1">
               <span>View Server 3 Products</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
@@ -580,7 +584,7 @@ export const LandingPage: React.FC = () => {
             <p className="text-xs text-oj-muted leading-relaxed">
               API vouchers for ChatGPT Plus, Claude Pro, and Midjourney Fast GPU hours with zero credentials shared.
             </p>
-            <Link to="/shop" className="text-xs font-bold text-oj-primary hover:underline flex items-center gap-1">
+            <Link to="/shop?server=Server 4" className="text-xs font-bold text-oj-primary hover:underline flex items-center gap-1">
               <span>View Server 4 Products</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>

@@ -14,7 +14,9 @@ import {
   Check,
   Shield,
   Layers,
-  CreditCard
+  CreditCard,
+  Network,
+  QrCode
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -46,8 +48,10 @@ const PLATFORM_PILLS = [
   { id: 'facebook', label: 'Facebook', icon: () => <FacebookIcon className="w-3.5 h-3.5 shrink-0 text-[#1877f2]" /> },
   { id: 'twitter', label: 'Twitter (X)', icon: () => <TwitterXIcon className="w-3.5 h-3.5 shrink-0 text-slate-900 dark:text-white" /> },
   { id: 'tiktok', label: 'TikTok', icon: () => <TikTokIcon className="w-3.5 h-3.5 shrink-0 text-black dark:text-white" /> },
-  { id: 'gmail', label: 'Gmail', icon: () => <GmailIcon className="w-3.5 h-3.5 shrink-0" /> },
+  { id: 'gmail', label: 'Gmail & US Emails', icon: () => <GmailIcon className="w-3.5 h-3.5 shrink-0" /> },
   { id: 'vpn', label: 'VPN & Security', icon: () => <Shield className="w-3.5 h-3.5 shrink-0 text-emerald-500" /> },
+  { id: 'proxies', label: 'Proxies & Network IPs', icon: () => <Network className="w-3.5 h-3.5 shrink-0 text-indigo-500" /> },
+  { id: 'esim', label: 'eSIM Profiles', icon: () => <QrCode className="w-3.5 h-3.5 shrink-0 text-emerald-500" /> },
   { id: 'ai', label: 'AI Subscriptions', icon: () => <Zap className="w-3.5 h-3.5 shrink-0 text-amber-500" /> }
 ];
 
@@ -68,9 +72,15 @@ export const ShopPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Search & Filter State
-  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '');
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || searchParams.get('search') || '');
   const [selectedServer, setSelectedServer] = useState<string>(() => searchParams.get('server') || 'All');
-  const [selectedPlatform, setSelectedPlatform] = useState<string>(() => searchParams.get('platform') || 'All');
+  const [selectedPlatform, setSelectedPlatform] = useState<string>(() => {
+    const raw = searchParams.get('platform') || searchParams.get('category');
+    if (!raw) return 'All';
+    const lower = raw.toLowerCase();
+    if (lower === 'us emails' || lower === 'email' || lower === 'emails') return 'gmail';
+    return lower;
+  });
   const [availabilityFilter, setAvailabilityFilter] = useState<'All' | 'in_stock' | 'out_of_stock'>('All');
   const [pageSize, setPageSize] = useState<number>(20);
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -92,14 +102,26 @@ export const ShopPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Sync category param if user navigates via footer / deep link
+  // Sync category, server, and search query params if user navigates via homepage / footer / deep link
   useEffect(() => {
-    const cat = searchParams.get('category');
+    const cat = searchParams.get('category') || searchParams.get('platform');
     if (cat) {
       const lower = cat.toLowerCase();
-      if (['instagram', 'facebook', 'twitter', 'tiktok', 'gmail', 'vpn', 'ai', 'cards'].includes(lower)) {
+      if (['instagram', 'facebook', 'twitter', 'tiktok', 'threads', 'gmail', 'vpn', 'proxies', 'esim', 'ai', 'cards', 'social-media', 'gift-cards', 'email', 'ai-tools', 'streaming', 'software', 'cloud-hosting'].includes(lower)) {
+        setSelectedPlatform(lower);
+      } else if (lower === 'us emails' || lower === 'email' || lower === 'emails') {
+        setSelectedPlatform('gmail');
+      } else {
         setSelectedPlatform(lower);
       }
+    }
+    const srv = searchParams.get('server');
+    if (srv) {
+      setSelectedServer(srv);
+    }
+    const q = searchParams.get('q') || searchParams.get('search');
+    if (q) {
+      setSearchQuery(q);
     }
   }, [searchParams]);
 
@@ -158,8 +180,14 @@ export const ShopPage: React.FC = () => {
           if (p.categoryId === lowerCat || p.category.toLowerCase() === lowerCat) return true;
           const t = p.title.toLowerCase();
           if (lowerCat === 'cards' || lowerCat === 'gift-cards') return p.categoryId === 'gift-cards' || /\b(mastercard|visa|card|gift)\b/i.test(t);
-          if (lowerCat === 'gmail' || lowerCat === 'email') return p.categoryId === 'email' || /\b(gmail|google\s*mail)\b/i.test(t);
+          if (lowerCat === 'gmail' || lowerCat === 'email' || lowerCat === 'us emails') return p.categoryId === 'email' || /\b(gmail|google\s*mail)\b/i.test(t);
           if (lowerCat === 'ai' || lowerCat === 'ai-tools') return p.categoryId === 'ai-tools' || /\b(ai|chatgpt|openai)\b/i.test(t);
+          if (lowerCat === 'vpn') return p.categoryId === 'vpn' || /\b(vpn|nordvpn|surfshark)\b/i.test(t);
+          if (lowerCat === 'proxies') return p.categoryId === 'proxies' || /\b(proxy|proxies|residential)\b/i.test(t);
+          if (lowerCat === 'esim') return p.categoryId === 'esim' || /\b(esim|e-sim|qr)\b/i.test(t);
+          if (['instagram', 'facebook', 'twitter', 'tiktok', 'threads', 'telegram', 'snapchat', 'reddit'].includes(lowerCat)) {
+            return t.includes(lowerCat) || p.category.toLowerCase().includes(lowerCat);
+          }
           return t.includes(lowerCat);
         });
       }
@@ -209,10 +237,12 @@ export const ShopPage: React.FC = () => {
 
   const isPillActive = (pillId: string) => {
     if (pillId === selectedPlatform) return true;
-    if (pillId === 'cards' && selectedPlatform === 'gift-cards') return true;
-    if (pillId === 'gmail' && selectedPlatform === 'email') return true;
-    if (pillId === 'ai' && selectedPlatform === 'ai-tools') return true;
+    if (pillId === 'cards' && (selectedPlatform === 'gift-cards' || selectedPlatform === 'cards')) return true;
+    if (pillId === 'gmail' && (selectedPlatform === 'email' || selectedPlatform === 'gmail')) return true;
+    if (pillId === 'ai' && (selectedPlatform === 'ai-tools' || selectedPlatform === 'ai')) return true;
     if (pillId === 'vpn' && selectedPlatform === 'vpn') return true;
+    if (pillId === 'proxies' && selectedPlatform === 'proxies') return true;
+    if (pillId === 'esim' && selectedPlatform === 'esim') return true;
     if (pillId === 'All' && selectedPlatform === 'All') return true;
     return false;
   };

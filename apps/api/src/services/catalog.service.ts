@@ -393,22 +393,32 @@ export class CatalogService {
           let finalProducts = products;
           if (category && category !== 'All') {
             finalProducts = products.filter(p => {
+              const t = p.title.toLowerCase();
               if (lowerCat === 'social-media') {
                 return p.categoryId === 'social-media' || ['threads', 'instagram', 'facebook', 'twitter', 'tiktok', 'telegram', 'snapchat', 'reddit'].includes(p.categoryId as string);
               }
               if (lowerCat === 'gift-cards' || lowerCat === 'cards') {
-                return p.categoryId === 'gift-cards';
+                return p.categoryId === 'gift-cards' || /\b(mastercard|visa|card|gift\s*card)\b/i.test(t);
               }
-              if (lowerCat === 'email' || lowerCat === 'gmail') {
-                return p.categoryId === 'email';
+              if (lowerCat === 'email' || lowerCat === 'gmail' || lowerCat === 'us emails') {
+                return p.categoryId === 'email' || /\b(gmail|google\s*mail)\b/i.test(t);
               }
               if (lowerCat === 'ai-tools' || lowerCat === 'ai') {
-                return p.categoryId === 'ai-tools';
+                return p.categoryId === 'ai-tools' || /\b(ai|chatgpt|openai)\b/i.test(t);
               }
               if (lowerCat === 'vpn') {
-                return p.categoryId === 'vpn';
+                return p.categoryId === 'vpn' || /\b(vpn|nordvpn|surfshark)\b/i.test(t);
               }
-              return p.categoryId === lowerCat || p.category.toLowerCase().includes(lowerCat);
+              if (lowerCat === 'proxies') {
+                return p.categoryId === 'proxies' || /\b(proxy|proxies|residential)\b/i.test(t);
+              }
+              if (lowerCat === 'esim') {
+                return p.categoryId === 'esim' || /\b(esim|e-sim|qr)\b/i.test(t);
+              }
+              if (['instagram', 'facebook', 'twitter', 'tiktok', 'threads', 'telegram', 'snapchat', 'reddit'].includes(lowerCat)) {
+                return t.includes(lowerCat) || p.category.toLowerCase().includes(lowerCat);
+              }
+              return p.categoryId === lowerCat || p.category.toLowerCase().includes(lowerCat) || t.includes(lowerCat);
             });
           }
 
@@ -492,8 +502,20 @@ export class CatalogService {
         if (catLower === 'ai' || catLower === 'ai-tools') {
           return resolved.categoryId === 'ai-tools' || /\b(ai|chatgpt|openai)\b/i.test(t);
         }
-        if (catLower === 'gmail' || catLower === 'email') {
+        if (catLower === 'gmail' || catLower === 'email' || catLower === 'us emails') {
           return resolved.categoryId === 'email' || /\b(gmail|google\s*mail)\b/i.test(t);
+        }
+        if (catLower === 'vpn') {
+          return resolved.categoryId === 'vpn' || /\b(vpn|nordvpn|surfshark)\b/i.test(t);
+        }
+        if (catLower === 'proxies') {
+          return resolved.categoryId === 'proxies' || /\b(proxy|proxies|residential)\b/i.test(t);
+        }
+        if (catLower === 'esim') {
+          return resolved.categoryId === 'esim' || /\b(esim|e-sim|qr)\b/i.test(t);
+        }
+        if (['instagram', 'facebook', 'twitter', 'tiktok', 'threads', 'telegram', 'snapchat', 'reddit'].includes(catLower)) {
+          return t.includes(catLower) || resolved.category.toLowerCase().includes(catLower);
         }
         return t.includes(catLower);
       });
