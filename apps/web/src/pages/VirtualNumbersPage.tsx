@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { SEO } from '../components/common/SEO';
 import { apiClient } from '../lib/apiClient';
 import { CountryOption, ServiceOption, getServicePriceForCountry } from '@ojalogs/shared';
 import {
@@ -117,6 +118,22 @@ export const VirtualNumbersPage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-28 md:pb-12">
+      <SEO
+        title="Virtual Phone Numbers for SMS Verification & OTPs"
+        description="Get private temporary virtual phone numbers across 50+ countries (USA, UK, Nigeria, Canada) for instant SMS OTP verification on WhatsApp, Telegram, Google, TikTok, PayPal, and banking apps. Automated 100% refund if SMS is not received."
+        keywords="virtual phone number nigeria, buy sms otp number, temporary whatsapp number, usa virtual number nigeria, telegram otp verification, receive sms online, ojalogs numbers"
+        canonical="/virtual-numbers"
+        schema={{
+          '@type': 'Service',
+          name: 'Ojalogs Virtual Phone Numbers & SMS Verification',
+          serviceType: 'Telecommunications Service',
+          description: 'Instant private virtual phone numbers for receiving SMS activation codes and verification OTPs with automated refund guarantee.',
+          provider: {
+            '@type': 'Organization',
+            name: 'Ojalogs'
+          }
+        }}
+      />
       {/* Page Header */}
       <div>
         <div className="flex items-center gap-2 mb-1">

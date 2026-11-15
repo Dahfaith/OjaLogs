@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ShieldCheck, FileText, Lock, ArrowLeft, RefreshCw, CheckCircle2, AlertTriangle, Scale } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { SEO } from '../components/common/SEO';
 
 export const LegalPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -16,8 +17,16 @@ export const LegalPage: React.FC = () => {
     { id: 'refund', label: 'Refund & Guarantee Policy', icon: RefreshCw },
   ];
 
+  const activeTabObj = tabs.find(t => t.id === currentTab);
+  const tabTitle = activeTabObj ? activeTabObj.label : 'Legal & Compliance';
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-8 pb-24 md:pb-12 text-oj-midnight dark:text-white">
+      <SEO
+        title={`${tabTitle} | Legal & Compliance`}
+        description={`Read the official Ojalogs ${tabTitle}. Transparent platform policies, customer safety, and service level agreements.`}
+        canonical={`/legal/${currentTab}`}
+      />
       {/* Header Breadcrumb */}
       <div className="flex items-center gap-2 text-xs text-oj-muted dark:text-oj-dark-muted">
         <Link to="/" className="hover:text-oj-primary transition-colors">Home</Link>

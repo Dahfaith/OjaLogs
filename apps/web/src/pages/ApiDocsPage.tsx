@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Server, Copy, Check, Terminal, Sparkles, Shield, Code, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { SEO } from '../components/common/SEO';
 
 export const ApiDocsPage: React.FC = () => {
   const { showToast } = useApp();
@@ -80,6 +81,12 @@ export const ApiDocsPage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-8 pb-24 md:pb-12 text-oj-midnight dark:text-white">
+      <SEO
+        title="Reseller API Documentation | SMM & Digital Goods Automation"
+        description="Integrate Ojalogs directly into your business with our high-speed REST API and standard SMM reseller protocol. Automate account provisioning, numbers, and balance checks."
+        keywords="ojalogs api, smm reseller api, digital products api documentation, smm panel v2 api"
+        canonical="/docs/api"
+      />
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-xs text-oj-muted dark:text-oj-dark-muted">
         <Link to="/" className="hover:text-oj-primary transition-colors">Home</Link>

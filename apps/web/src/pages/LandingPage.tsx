@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { SEO } from '../components/common/SEO';
 import {
   Sparkles,
   ShieldCheck,
@@ -155,6 +156,18 @@ export const LandingPage: React.FC = () => {
 
   return (
     <div className="space-y-16 pb-16">
+      <SEO
+        title="Buy Aged Social Accounts, Virtual Numbers & SMM Services"
+        description="Nigeria's premier digital marketplace. Buy verified aged Facebook accounts, 2FA Instagram profiles, temporary SMS virtual numbers for OTPs, and high-quality SMM panel growth with instant delivery."
+        keywords="buy facebook accounts nigeria, aged facebook logs, 2fa facebook accounts, buy instagram logs, buy twitter accounts, temporary phone numbers nigeria, buy sms virtual number, smm panel nigeria, ojalogs"
+        canonical="/"
+        schema={{
+          '@type': 'WebSite',
+          'name': 'Ojalogs',
+          'url': 'https://ojalogs.com.ng',
+          'description': "Nigeria's verified digital accounts, virtual numbers, and social boost marketplace."
+        }}
+      />
       {/* Hero Section */}
       <section className="relative overflow-hidden pt-12 pb-16 px-4 sm:px-6">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-tr from-oj-primary/10 via-oj-cyan/15 to-transparent blur-3xl rounded-full pointer-events-none" />

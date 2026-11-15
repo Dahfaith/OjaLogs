@@ -28,6 +28,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrandCoverBanner } from '../components/common/BrandCoverBanner';
 import { WhatsAppSupportModal } from '../components/support/WhatsAppSupportModal';
+import { SEO } from '../components/common/SEO';
 
 interface ParsedField {
   label: string;
@@ -239,6 +240,7 @@ export const OrdersPage: React.FC = () => {
   if (!user) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-16 pb-24 md:pb-12 text-center space-y-6">
+        <SEO title="Customer Orders & Vault" noindex={true} />
         <div className="w-16 h-16 rounded-2xl bg-oj-primary/10 text-oj-primary dark:bg-oj-primary/20 dark:text-oj-cyan mx-auto flex items-center justify-center border border-oj-primary/20 shadow-soft">
           <PackageCheck className="w-8 h-8" />
         </div>
@@ -270,6 +272,7 @@ export const OrdersPage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-3 sm:px-4 py-5 sm:py-6 space-y-6 pb-28 md:pb-12 overflow-x-hidden">
+      <SEO title="Customer Orders & Vault" noindex={true} />
       {/* Page Header */}
       <div>
         <div className="flex items-center gap-2.5 mb-1">

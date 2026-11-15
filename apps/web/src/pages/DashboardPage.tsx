@@ -26,6 +26,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { FundWalletModal } from '../components/wallet/FundWalletModal';
 import { apiClient } from '../lib/apiClient';
 import { generateDedicatedAccount } from '@ojalogs/shared';
+import { SEO } from '../components/common/SEO';
 
 export const DashboardPage: React.FC = () => {
   const {
@@ -183,6 +184,7 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-24 md:pb-12">
+      <SEO title="Client Dashboard" noindex={true} />
       {/* Payment Success Celebration Banner */}
       {paymentNotice && (
         <motion.div

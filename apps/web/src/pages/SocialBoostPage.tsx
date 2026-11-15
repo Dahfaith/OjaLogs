@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../context/AppContext';
+import { SEO } from '../components/common/SEO';
 import { apiClient } from '../lib/apiClient';
 import { SMMService, SMMOrder, SMMPlatform } from '@ojalogs/shared';
 import {
@@ -429,6 +430,22 @@ export const SocialBoostPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 sm:py-8 space-y-6 sm:space-y-8 pb-28 md:pb-12">
+      <SEO
+        title="SMM Panel Nigeria | Buy Instagram Followers, Likes, Views & Growth"
+        description="Fast and reliable SMM panel in Nigeria. Boost your social media presence with non-drop Instagram followers, TikTok likes, YouTube views, Twitter/X retweets, and Telegram channel members at wholesale reseller rates."
+        keywords="smm panel nigeria, buy instagram followers nigeria, cheap smm panel, buy twitter followers, buy tiktok views nigeria, social boost ojalogs, buy youtube subscribers nigeria"
+        canonical="/social-boost"
+        schema={{
+          '@type': 'Service',
+          name: 'Ojalogs Social Boost & SMM Panel',
+          serviceType: 'Social Media Marketing',
+          description: 'Instant social media growth panel for Instagram, TikTok, Twitter/X, YouTube, and Telegram with wholesale pricing and automated dispatch.',
+          provider: {
+            '@type': 'Organization',
+            name: 'Ojalogs'
+          }
+        }}
+      />
       {/* Hero Header */}
       <div className="relative rounded-3xl p-6 sm:p-10 bg-gradient-to-r from-oj-midnight via-oj-navy to-oj-midnight border border-oj-border dark:border-oj-dark-border shadow-2xl overflow-hidden text-white">
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />

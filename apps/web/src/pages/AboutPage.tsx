@@ -1,11 +1,24 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { SEO } from '../components/common/SEO';
 import { Shield, Sparkles, Server, PhoneCall, CheckCircle2, Lock, ArrowRight, Globe2, Cpu, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export const AboutPage: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-12 pb-24 md:pb-12 text-oj-midnight dark:text-white">
+      <SEO
+        title="About Us | Secure Digital Infrastructure & Verified Accounts"
+        description="Learn about Ojalogs platform, our enterprise multi-server cluster architecture, AES-256 encrypted digital delivery vaults, and our commitment to transparent digital commerce."
+        keywords="about ojalogs, digital marketplace nigeria, ojalogs technologies"
+        canonical="/about"
+        schema={{
+          '@type': 'AboutPage',
+          name: 'About Ojalogs Technologies',
+          url: 'https://ojalogs.com.ng/about',
+          description: 'Overview of Ojalogs platform mission, architecture, and security foundations.'
+        }}
+      />
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-xs text-oj-muted dark:text-oj-dark-muted">
         <Link to="/" className="hover:text-oj-primary transition-colors">Home</Link>

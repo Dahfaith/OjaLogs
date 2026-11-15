@@ -22,6 +22,7 @@ import { motion } from 'framer-motion';
 import { generateDedicatedAccount } from '@ojalogs/shared';
 import { FundWalletModal } from '../components/wallet/FundWalletModal';
 import { StatementModal } from '../components/wallet/StatementModal';
+import { SEO } from '../components/common/SEO';
 
 export const WalletPage: React.FC = () => {
   const { user, isAuthLoading, wallet, ledger, orders, hideBalance, toggleHideBalance, formatPrice, currency, setIsAuthModalOpen, refreshWallet, showToast } = useApp();
@@ -98,6 +99,7 @@ export const WalletPage: React.FC = () => {
   if (!user) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-16 pb-24 md:pb-12 text-center space-y-6">
+        <SEO title="My Wallet" noindex={true} />
         <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 mx-auto flex items-center justify-center shadow-soft">
           <Wallet className="w-8 h-8" />
         </div>
@@ -129,6 +131,7 @@ export const WalletPage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-28 md:pb-12">
+      <SEO title="My Wallet & Double-Entry Ledger" noindex={true} />
       {/* Top Header */}
       <div className="flex items-center justify-between">
         <div>

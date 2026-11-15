@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { SEO } from '../components/common/SEO';
 import { resolveProductCover } from './ShopPage';
 import { BrandCoverBanner, getBrandConfig } from '../components/common/BrandCoverBanner';
 import { apiClient } from '../lib/apiClient';
@@ -75,6 +76,29 @@ export const ProductDetailPage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-24 md:pb-12">
+      <SEO
+        title={`${product.title} - Buy Online`}
+        description={product.summary || `Buy verified ${product.title} on Ojalogs. Instant delivery via encrypted digital vault with 2FA instructions.`}
+        keywords={`buy ${product.title}, ${brand.platformName} accounts, ojalogs ${brand.platformName}, buy ${product.category}`}
+        canonical={`/product/${product.slug || product.id}`}
+        ogType="product"
+        schema={{
+          '@type': 'Product',
+          name: product.title,
+          description: product.summary || `Verified ${product.title} available on Ojalogs.`,
+          category: product.category,
+          offers: {
+            '@type': 'Offer',
+            price: product.priceNgn,
+            priceCurrency: 'NGN',
+            availability: product.stockCount > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+            seller: {
+              '@type': 'Organization',
+              name: 'Ojalogs'
+            }
+          }
+        }}
+      />
       {/* Back Link & Breadcrumb */}
       <div className="flex items-center gap-2 text-xs text-oj-muted dark:text-oj-dark-muted">
         <button

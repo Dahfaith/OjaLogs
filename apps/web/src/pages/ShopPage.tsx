@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
+import { SEO } from '../components/common/SEO';
 import {
   RotateCw,
   Search,
@@ -303,6 +304,12 @@ export const ShopPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 pb-28 md:pb-12">
+      <SEO
+        title="Storefront & Digital Products | Aged Social Accounts, VPNs & Keys"
+        description="Browse verified aged Facebook accounts (2012-2023), Instagram PVA accounts, NordVPN licenses, residential proxies, and developer software. Guaranteed 2FA security and instant encrypted vault delivery."
+        keywords="buy aged facebook accounts, aged instagram accounts, buy nordvpn nigeria, buy pva twitter accounts, buy gmail logs, ojalogs shop, digital logs marketplace"
+        canonical="/shop"
+      />
       {/* Page Title & Real-time Upstream Counters */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>

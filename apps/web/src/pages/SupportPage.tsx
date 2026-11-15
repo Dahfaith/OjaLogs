@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { SEO } from '../components/common/SEO';
 import {
   MessageCircle,
   Send,
@@ -83,6 +84,24 @@ export const SupportPage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 pb-28 md:pb-16 space-y-8">
+      <SEO
+        title="Help Center & WhatsApp Support (+234 706 965 9752)"
+        description="Need help with an order, virtual numbers, or social boost? Contact our 24/7 dedicated support desk on WhatsApp at +234 706 965 9752 or submit a ticket for priority resolution."
+        keywords="ojalogs support, ojalogs customer care whatsapp, ojalogs help desk, contact ojalogs, ojalogs whatsapp number"
+        canonical="/support"
+        schema={{
+          '@type': 'ContactPage',
+          name: 'Ojalogs Support Desk',
+          description: 'Official 24/7 customer support and inquiry desk for Ojalogs marketplace.',
+          url: 'https://ojalogs.com.ng/support',
+          mainEntity: {
+            '@type': 'ContactPoint',
+            telephone: '+2347069659752',
+            contactType: 'customer service',
+            availableLanguage: ['English']
+          }
+        }}
+      />
       {/* Hero Banner */}
       <div className="text-center space-y-3">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-oj-primary/10 text-oj-primary dark:text-oj-cyan text-xs font-bold border border-oj-primary/20">

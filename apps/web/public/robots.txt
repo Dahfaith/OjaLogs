@@ -1,0 +1,28 @@
+# https://ojalogs.com.ng robots.txt
+User-agent: *
+Allow: /
+Allow: /shop
+Allow: /product/
+Allow: /virtual-numbers
+Allow: /social-boost
+Allow: /smm
+Allow: /support
+Allow: /about
+Allow: /docs/api
+Allow: /legal/
+Allow: /sitemap.xml
+
+# Protect authenticated and admin pages from indexing
+Disallow: /admin
+Disallow: /admin/
+Disallow: /wallet
+Disallow: /wallet/
+Disallow: /orders
+Disallow: /orders/
+Disallow: /profile
+Disallow: /profile/
+Disallow: /api/
+
+# Host & Sitemap
+Host: https://ojalogs.com.ng
+Sitemap: https://ojalogs.com.ng/sitemap.xml

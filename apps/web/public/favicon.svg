@@ -1,34 +1,71 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
   <defs>
+    <!-- Background Gradient -->
     <linearGradient id="ojaBg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#080c16" />
-      <stop offset="50%" stop-color="#0f265c" />
-      <stop offset="100%" stop-color="#1d4ed8" />
+      <stop offset="0%" stop-color="#070B14" />
+      <stop offset="40%" stop-color="#0B1528" />
+      <stop offset="80%" stop-color="#0F2A66" />
+      <stop offset="100%" stop-color="#1E40AF" />
     </linearGradient>
-    <linearGradient id="ojaCyan" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#38bdf8" />
-      <stop offset="100%" stop-color="#06b6d4" />
+
+    <!-- Glowing Rim Gradient -->
+    <linearGradient id="ojaRim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.8" />
+      <stop offset="50%" stop-color="#06B6D4" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#2563EB" stop-opacity="0.2" />
     </linearGradient>
-    <linearGradient id="ojaGold" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#fbbf24" />
-      <stop offset="100%" stop-color="#f59e0b" />
+
+    <!-- Cyan Aperture Ring Gradient -->
+    <linearGradient id="ojaCyanRing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#67E8F9" />
+      <stop offset="45%" stop-color="#06B6D4" />
+      <stop offset="85%" stop-color="#0284C7" />
+      <stop offset="100%" stop-color="#2563EB" />
     </linearGradient>
+
+    <!-- Golden Sparkle Gradient -->
+    <linearGradient id="ojaGoldSparkle" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FEF08A" />
+      <stop offset="35%" stop-color="#FACC15" />
+      <stop offset="80%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+
+    <!-- Radial Glow Filter -->
+    <radialGradient id="centerAura" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#06B6D4" stop-opacity="0.35" />
+      <stop offset="60%" stop-color="#2563EB" stop-opacity="0.15" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+
     <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="1.5" result="blur" />
+      <feGaussianBlur stdDeviation="10" result="blur" />
       <feComposite in="SourceGraphic" in2="blur" operator="over" />
     </filter>
   </defs>
 
-  <!-- Squircle rounded background -->
-  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#ojaBg)" stroke="#38bdf8" stroke-width="1.5" stroke-opacity="0.35" />
+  <!-- Squircle Rounded Background -->
+  <rect x="16" y="16" width="480" height="480" rx="128" fill="url(#ojaBg)" stroke="url(#ojaRim)" stroke-width="8" />
 
-  <!-- Outer Cyan Aperture Ring (Letter O) -->
-  <circle cx="32" cy="32" r="18" stroke="url(#ojaCyan)" stroke-width="5" stroke-linecap="round" fill="none" filter="url(#softGlow)" />
+  <!-- Center Ambient Glow -->
+  <circle cx="256" cy="256" r="170" fill="url(#centerAura)" />
 
-  <!-- Center Golden Fintech Sparkle -->
-  <path d="M32 19 L34.8 29.2 L45 32 L34.8 34.8 L32 45 L29.2 34.8 L19 32 L29.2 29.2 Z" fill="url(#ojaGold)" />
+  <!-- Outer Cyber Tech Ring / Aperture (Letter "O") -->
+  <circle cx="256" cy="256" r="142" stroke="url(#ojaCyanRing)" stroke-width="36" stroke-linecap="round" fill="none" filter="url(#softGlow)" />
 
-  <!-- Center White Star Core -->
-  <circle cx="32" cy="32" r="2.5" fill="#ffffff" />
+  <!-- Inner Cyan Precision Ring -->
+  <circle cx="256" cy="256" r="102" stroke="#38BDF8" stroke-width="4" stroke-opacity="0.45" stroke-dasharray="16 10" fill="none" />
+
+  <!-- 4 Cardinal Fintech Nodes -->
+  <circle cx="256" cy="114" r="8" fill="#67E8F9" />
+  <circle cx="256" cy="398" r="8" fill="#67E8F9" />
+  <circle cx="114" cy="256" r="8" fill="#67E8F9" />
+  <circle cx="398" cy="256" r="8" fill="#67E8F9" />
+
+  <!-- Center Golden 4-Point Star Sparkle -->
+  <path d="M256 160 L276 236 L352 256 L276 276 L256 352 L236 276 L160 256 L236 236 Z" fill="url(#ojaGoldSparkle)" filter="url(#softGlow)" />
+
+  <!-- Core White Star Nucleus -->
+  <circle cx="256" cy="256" r="18" fill="#FFFFFF" />
+  <circle cx="256" cy="256" r="8" fill="#FEF08A" />
 </svg>
-

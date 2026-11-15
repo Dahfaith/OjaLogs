@@ -1,0 +1,30 @@
+{
+  "name": "Ojalogs - Premium Digital Products & Virtual Numbers",
+  "short_name": "Ojalogs",
+  "description": "Nigeria's premier marketplace for aged social media accounts, instant OTP virtual numbers, and social boost services.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#070B14",
+  "theme_color": "#0B1528",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

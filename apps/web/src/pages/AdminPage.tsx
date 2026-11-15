@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
+import { SEO } from '../components/common/SEO';
 import {
   Shield,
   TrendingUp,
@@ -296,6 +297,7 @@ export const AdminPage: React.FC = () => {
   if (!isAdmin) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center p-4">
+        <SEO title="Admin Console Access" noindex={true} />
         <div className="max-w-md w-full p-8 rounded-2xl bg-white dark:bg-oj-dark-surface border border-rose-200 dark:border-rose-900 shadow-xl text-center space-y-4">
           <div className="w-16 h-16 mx-auto rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-600 flex items-center justify-center border border-rose-200 dark:border-rose-800">
             <Shield className="w-8 h-8 text-rose-600" />
@@ -1886,6 +1888,7 @@ export const AdminPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 pb-24 md:pb-12">
+      <SEO title="Super Admin Console" noindex={true} />
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-oj-midnight text-white border border-oj-navy">
         <div className="flex items-center gap-3">

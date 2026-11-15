@@ -17,6 +17,7 @@ import {
   ShieldAlert
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { SEO } from '../components/common/SEO';
 
 export const ProfilePage: React.FC = () => {
   const { user, setUser, theme, toggleTheme, hideBalance, toggleHideBalance, showToast, setIsSupportOpen, setIsAuthModalOpen } = useApp();
@@ -27,6 +28,7 @@ export const ProfilePage: React.FC = () => {
   if (!user) {
     return (
       <div className="max-w-md mx-auto px-4 py-16 text-center space-y-4">
+        <SEO title="Account Profile" noindex={true} />
         <div className="w-16 h-16 rounded-2xl bg-oj-primary/10 text-oj-primary flex items-center justify-center mx-auto">
           <User className="w-8 h-8" />
         </div>
@@ -69,6 +71,7 @@ export const ProfilePage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-24 md:pb-12">
+      <SEO title="Account Profile & Settings" noindex={true} />
       {/* Header */}
       <div>
         <p className="text-[11px] font-bold tracking-wider text-oj-muted dark:text-oj-dark-muted">
