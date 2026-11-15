@@ -103,10 +103,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultEm
       const cleanEmail = email.toLowerCase().trim();
       const isAdminEmail = (
         cleanEmail === 'visioreach@gmail.com' ||
-        cleanEmail === 'ojalogs@gmail.com' ||
-        cleanEmail === 'dahfaith@gmail.com' ||
-        cleanEmail === 'iamdahfaith@gmail.com' ||
-        cleanEmail === 'admin@ojalogs.com'
+        cleanEmail === 'ojalogs@gmail.com'
       );
 
       // 1. Try Supabase verification

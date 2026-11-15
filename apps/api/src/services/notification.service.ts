@@ -277,7 +277,7 @@ class NotificationService {
       const emailLower = (u.email || '').toLowerCase().trim();
       if (!emailLower) return;
 
-      const isAdmin = emailLower === 'visioreach@gmail.com' || emailLower === 'ojalogs@gmail.com' || emailLower === 'dahfaith@gmail.com' || u.user_metadata?.role === 'administrator' || u.user_metadata?.role === 'admin';
+      const isAdmin = emailLower === 'visioreach@gmail.com' || emailLower === 'ojalogs@gmail.com' || u.user_metadata?.role === 'administrator' || u.user_metadata?.role === 'admin';
       const name = u.user_metadata?.full_name || u.email?.split('@')[0] || 'Customer';
       const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
 

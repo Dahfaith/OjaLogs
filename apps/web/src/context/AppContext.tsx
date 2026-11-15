@@ -121,10 +121,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const normalized = email.toLowerCase().trim();
     const authorized = [
       'visioreach@gmail.com',
-      'ojalogs@gmail.com',
-      'admin@ojalogs.com',
-      'dahfaith@gmail.com',
-      'iamdahfaith@gmail.com'
+      'ojalogs@gmail.com'
     ];
     const envAdmins = ((import.meta as any).env?.VITE_ADMIN_EMAILS || '')
       .split(',')

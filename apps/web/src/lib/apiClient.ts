@@ -48,10 +48,7 @@ class ApiClient {
           userId = parsed.id || '';
           const adminWhitelist = [
             'visioreach@gmail.com',
-            'ojalogs@gmail.com',
-            'dahfaith@gmail.com',
-            'iamdahfaith@gmail.com',
-            'admin@ojalogs.com'
+            'ojalogs@gmail.com'
           ];
           if (adminWhitelist.includes(emailLower)) {
             adminEmail = emailLower;

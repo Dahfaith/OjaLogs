@@ -264,10 +264,7 @@ export const AdminPage: React.FC = () => {
   // RBAC Access Gate: Only authorized administrators can view the command console
   const adminEmails = [
     'visioreach@gmail.com',
-    'ojalogs@gmail.com',
-    'dahfaith@gmail.com',
-    'iamdahfaith@gmail.com',
-    'admin@ojalogs.com'
+    'ojalogs@gmail.com'
   ];
   const userEmailLower = user?.email?.toLowerCase().trim() || '';
   const isAuthorizedEmail = adminEmails.includes(userEmailLower);
