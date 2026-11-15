@@ -21,10 +21,13 @@ import {
   HelpCircle,
   ChevronDown,
   ChevronUp,
-  Info
+  Info,
+  MessageCircle,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrandCoverBanner } from '../components/common/BrandCoverBanner';
+import { WhatsAppSupportModal } from '../components/support/WhatsAppSupportModal';
 
 interface ParsedField {
   label: string;
@@ -120,6 +123,8 @@ export const OrdersPage: React.FC = () => {
   const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({});
   const [guidesOpen, setGuidesOpen] = useState<Record<string, boolean>>({});
   const [rawOpen, setRawOpen] = useState<Record<string, boolean>>({});
+  const [selectedHelpOrder, setSelectedHelpOrder] = useState<any | null>(null);
+  const [orderComplaintMessage, setOrderComplaintMessage] = useState('');
 
   const completedOrders = orders.filter(o => o.status === 'completed');
   const pendingOrders = orders.filter(o => o.status === 'pending' || o.status === 'processing');
@@ -234,7 +239,7 @@ export const OrdersPage: React.FC = () => {
   if (!user) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-16 pb-24 md:pb-12 text-center space-y-6">
-        <div className="w-16 h-16 rounded-2xl bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400 mx-auto flex items-center justify-center shadow-soft">
+        <div className="w-16 h-16 rounded-2xl bg-oj-primary/10 text-oj-primary dark:bg-oj-primary/20 dark:text-oj-cyan mx-auto flex items-center justify-center border border-oj-primary/20 shadow-soft">
           <PackageCheck className="w-8 h-8" />
         </div>
         <div className="space-y-2">
@@ -254,7 +259,7 @@ export const OrdersPage: React.FC = () => {
 
           <button
             onClick={() => setIsAuthModalOpen(true)}
-            className="w-full py-3 rounded-btn bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-orange-500 text-white text-xs font-bold shadow-lg transition-all flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-btn bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white text-xs font-bold shadow-glow-primary transition-all flex items-center justify-center gap-2"
           >
             <span>Sign In or Register with Email</span>
           </button>
@@ -268,7 +273,7 @@ export const OrdersPage: React.FC = () => {
       {/* Page Header */}
       <div>
         <div className="flex items-center gap-2.5 mb-1">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 text-white flex items-center justify-center shadow-md shadow-orange-500/20">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-oj-primary to-blue-600 text-white flex items-center justify-center shadow-md shadow-oj-primary/20">
             <PackageCheck className="w-5 h-5" />
           </div>
           <div>
@@ -290,7 +295,7 @@ export const OrdersPage: React.FC = () => {
             onClick={() => setActiveTab('all')}
             className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === 'all'
-                ? 'bg-white dark:bg-oj-dark-surface text-orange-600 dark:text-orange-400 shadow-sm'
+                ? 'bg-white dark:bg-oj-dark-surface text-oj-primary dark:text-oj-cyan shadow-sm font-extrabold'
                 : 'text-oj-muted hover:text-oj-midnight dark:hover:text-white'
             }`}
           >
@@ -300,7 +305,7 @@ export const OrdersPage: React.FC = () => {
             onClick={() => setActiveTab('completed')}
             className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === 'completed'
-                ? 'bg-white dark:bg-oj-dark-surface text-emerald-600 dark:text-emerald-400 shadow-sm'
+                ? 'bg-white dark:bg-oj-dark-surface text-emerald-600 dark:text-emerald-400 shadow-sm font-extrabold'
                 : 'text-oj-muted hover:text-oj-midnight dark:hover:text-white'
             }`}
           >
@@ -310,7 +315,7 @@ export const OrdersPage: React.FC = () => {
             onClick={() => setActiveTab('pending')}
             className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === 'pending'
-                ? 'bg-white dark:bg-oj-dark-surface text-amber-600 dark:text-amber-400 shadow-sm'
+                ? 'bg-white dark:bg-oj-dark-surface text-amber-600 dark:text-amber-400 shadow-sm font-extrabold'
                 : 'text-oj-muted hover:text-oj-midnight dark:hover:text-white'
             }`}
           >
@@ -326,7 +331,7 @@ export const OrdersPage: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by order ref or product..."
-            className="w-full text-xs pl-8 pr-3 py-2 rounded-xl bg-oj-surface-alt dark:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border text-oj-midnight dark:text-white focus:outline-none focus:border-orange-500 transition-all"
+            className="w-full text-xs pl-8 pr-3 py-2 rounded-xl bg-oj-surface-alt dark:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary transition-all"
           />
         </div>
       </div>
@@ -372,7 +377,7 @@ export const OrdersPage: React.FC = () => {
                   </span>
                   <button
                     onClick={() => window.print()}
-                    className="p-2 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border hover:border-orange-500 text-oj-muted hover:text-oj-midnight dark:hover:text-white transition-all shadow-sm"
+                    className="p-2 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border hover:border-oj-primary text-oj-muted hover:text-oj-midnight dark:hover:text-white transition-all shadow-sm"
                     title="Print / Save Invoice"
                   >
                     <Printer className="w-4 h-4" />
@@ -441,7 +446,7 @@ export const OrdersPage: React.FC = () => {
                               >
                                 {/* Vault Header */}
                                 <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 rounded-xl bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/20 flex items-center justify-center shrink-0">
+                                  <div className="w-10 h-10 rounded-xl bg-oj-primary/10 dark:bg-oj-cyan/10 text-oj-primary dark:text-oj-cyan border border-oj-primary/20 flex items-center justify-center shrink-0">
                                     <Shield className="w-5 h-5" />
                                   </div>
                                   <div>
@@ -459,9 +464,9 @@ export const OrdersPage: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={() => toggleGuide(itemKey)}
-                                    className="py-2 px-3.5 rounded-xl bg-orange-50 dark:bg-orange-950/30 hover:bg-orange-100 dark:hover:bg-orange-950/50 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-900/60 text-xs font-bold flex items-center gap-1.5 transition-all"
+                                    className="py-2 px-3.5 rounded-xl bg-oj-primary/10 dark:bg-oj-primary/20 hover:bg-oj-primary/15 dark:hover:bg-oj-primary/30 text-oj-primary dark:text-oj-cyan border border-oj-primary/20 text-xs font-bold flex items-center gap-1.5 transition-all"
                                   >
-                                    <Info className="w-3.5 h-3.5 text-orange-600" />
+                                    <Info className="w-3.5 h-3.5 text-oj-primary dark:text-oj-cyan" />
                                     <span>{isGuideOpen ? 'Hide Guide' : 'Usage Guide'}</span>
                                   </button>
 
@@ -477,7 +482,7 @@ export const OrdersPage: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={() => handleCopy(getCopyAllText(order, item, secretVal), `all_${itemKey}`, 'All credentials')}
-                                    className="py-2 px-4 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-orange-500 text-white text-xs font-extrabold shadow-md shadow-orange-500/20 flex items-center gap-1.5 transition-all active:scale-[0.98]"
+                                    className="py-2 px-4 rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-oj-cyan hover:from-blue-700 hover:to-blue-600 text-white text-xs font-extrabold shadow-md shadow-blue-500/20 flex items-center gap-1.5 transition-all active:scale-[0.98]"
                                   >
                                     {copiedId === `all_${itemKey}` ? (
                                       <>
@@ -493,7 +498,7 @@ export const OrdersPage: React.FC = () => {
                                   </button>
                                 </div>
 
-                                {/* How to Use Guide Box (Expandable / Collapsible with orange accent) */}
+                                {/* How to Use Guide Box (Expandable / Collapsible with Ojalogs brand blue theme) */}
                                 <AnimatePresence>
                                   {isGuideOpen && (
                                     <motion.div
@@ -501,29 +506,29 @@ export const OrdersPage: React.FC = () => {
                                       animate={{ opacity: 1, height: 'auto' }}
                                       exit={{ opacity: 0, height: 0 }}
                                       transition={{ duration: 0.2 }}
-                                      className="border-l-4 border-orange-500 bg-orange-50/60 dark:bg-orange-950/20 rounded-r-2xl p-4 sm:p-5 border-y border-r border-orange-200/80 dark:border-orange-900/40 space-y-3"
+                                      className="border-l-4 border-oj-primary bg-blue-50/60 dark:bg-oj-midnight/50 rounded-r-2xl p-4 sm:p-5 border-y border-r border-blue-200/60 dark:border-blue-900/40 space-y-3"
                                     >
                                       <div className="flex items-center gap-2">
-                                        <div className="w-4 h-4 rounded-full bg-orange-500 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+                                        <div className="w-4 h-4 rounded-full bg-oj-primary text-white flex items-center justify-center text-[10px] font-bold shrink-0">
                                           !
                                         </div>
-                                        <h4 className="font-heading font-black text-xs sm:text-sm text-orange-950 dark:text-orange-200 uppercase tracking-tight">
+                                        <h4 className="font-heading font-black text-xs sm:text-sm text-oj-midnight dark:text-white uppercase tracking-tight">
                                           HOW TO USE YOUR PURCHASED {platformName} ACCOUNT
                                         </h4>
                                       </div>
 
-                                      <div className="space-y-2.5 text-xs text-orange-950 dark:text-orange-200">
+                                      <div className="space-y-2.5 text-xs text-oj-midnight/90 dark:text-slate-200">
                                         <div className="flex items-start gap-2.5">
-                                          <span className="w-5 h-5 rounded-full bg-orange-500 text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                                          <span className="w-5 h-5 rounded-full bg-oj-primary text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
                                             1
                                           </span>
                                           <p className="leading-relaxed">
-                                            Navigate to <a href={portalUrl} target="_blank" rel="noopener noreferrer" className="font-bold underline text-orange-700 dark:text-orange-300">{portalUrl}</a> using a dedicated browser profile or anti-detect browser with residential proxy.
+                                            Navigate to <a href={portalUrl} target="_blank" rel="noopener noreferrer" className="font-bold underline text-oj-primary dark:text-oj-cyan">{portalUrl}</a> using a dedicated browser profile or anti-detect browser with residential proxy.
                                           </p>
                                         </div>
 
                                         <div className="flex items-start gap-2.5">
-                                          <span className="w-5 h-5 rounded-full bg-orange-500 text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                                          <span className="w-5 h-5 rounded-full bg-oj-primary text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
                                             2
                                           </span>
                                           <p className="leading-relaxed">
@@ -532,16 +537,16 @@ export const OrdersPage: React.FC = () => {
                                         </div>
 
                                         <div className="flex items-start gap-2.5">
-                                          <span className="w-5 h-5 rounded-full bg-orange-500 text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                                          <span className="w-5 h-5 rounded-full bg-oj-primary text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
                                             3
                                           </span>
                                           <p className="leading-relaxed">
-                                            When 2FA is prompted, generate the 6-digit code via <a href="https://2fa.live" target="_blank" rel="noopener noreferrer" className="font-bold underline text-orange-700 dark:text-orange-300">https://2fa.live</a> using the <strong>2FA Secret Key</strong>.
+                                            When 2FA is prompted, generate the 6-digit code via <a href="https://2fa.live" target="_blank" rel="noopener noreferrer" className="font-bold underline text-oj-primary dark:text-oj-cyan">https://2fa.live</a> using the <strong>2FA Secret Key</strong>.
                                           </p>
                                         </div>
 
                                         <div className="flex items-start gap-2.5">
-                                          <span className="w-5 h-5 rounded-full bg-orange-500 text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                                          <span className="w-5 h-5 rounded-full bg-oj-primary text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
                                             4
                                           </span>
                                           <p className="leading-relaxed">
@@ -550,7 +555,7 @@ export const OrdersPage: React.FC = () => {
                                         </div>
 
                                         <div className="flex items-start gap-2.5">
-                                          <span className="w-5 h-5 rounded-full bg-orange-500 text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                                          <span className="w-5 h-5 rounded-full bg-oj-primary text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
                                             5
                                           </span>
                                           <p className="leading-relaxed">
@@ -559,7 +564,7 @@ export const OrdersPage: React.FC = () => {
                                         </div>
                                       </div>
 
-                                      <div className="pt-2 border-t border-orange-200 dark:border-orange-900/50 text-[11px] text-orange-800 dark:text-orange-300/90 flex items-center gap-1.5">
+                                      <div className="pt-2 border-t border-blue-200/60 dark:border-blue-900/50 text-[11px] text-oj-muted dark:text-slate-400 flex items-center gap-1.5">
                                         <span>🔒</span>
                                         <span>For maximum security, always access accounts from clean browser profiles or residential proxies. Never share credentials.</span>
                                       </div>
@@ -572,7 +577,7 @@ export const OrdersPage: React.FC = () => {
                                   {/* Sub-Header */}
                                   <div className="flex items-center justify-between gap-2 pb-2 border-b border-oj-border dark:border-oj-dark-border">
                                     <div className="flex items-center gap-2">
-                                      <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
+                                      <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider bg-oj-primary/10 text-oj-primary dark:text-oj-cyan border border-oj-primary/20">
                                         CREDENTIALS & ACCESS
                                       </span>
                                       <span className="text-xs font-bold text-oj-midnight dark:text-white hidden sm:inline">
@@ -583,7 +588,7 @@ export const OrdersPage: React.FC = () => {
                                     <button
                                       type="button"
                                       onClick={() => handleCopy(getCopyAllText(order, item, secretVal), `sub_all_${itemKey}`, 'Account credentials')}
-                                      className="py-1.5 px-3 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border hover:border-orange-500 text-xs font-bold text-oj-midnight dark:text-white flex items-center gap-1.5 transition-all shadow-sm"
+                                      className="py-1.5 px-3 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border hover:border-oj-primary text-xs font-bold text-oj-midnight dark:text-white flex items-center gap-1.5 transition-all shadow-sm"
                                     >
                                       {copiedId === `sub_all_${itemKey}` ? (
                                         <>
@@ -608,26 +613,30 @@ export const OrdersPage: React.FC = () => {
                                       const isCopied = copiedId === fieldKey;
 
                                       return (
-                                        <div key={fIdx} className="space-y-1">
+                                        <div key={fIdx} className="space-y-1.5">
                                           <div className="flex items-center gap-1.5 px-1">
-                                            {field.type === 'uid' && <User className="w-3 h-3 text-orange-500" />}
-                                            {field.type === 'password' && <Lock className="w-3 h-3 text-rose-500" />}
-                                            {field.type === '2fa' && <Shield className="w-3 h-3 text-amber-500" />}
-                                            {field.type === 'email' && <Mail className="w-3 h-3 text-blue-500" />}
-                                            {field.type === 'key' && <KeyRound className="w-3 h-3 text-emerald-500" />}
-                                            {field.type === 'token' && <FileText className="w-3 h-3 text-purple-500" />}
-                                            <label className="text-[10px] font-extrabold uppercase tracking-wider text-oj-muted">
+                                            {field.type === 'uid' && <User className="w-3.5 h-3.5 text-oj-primary" />}
+                                            {field.type === 'password' && <Lock className="w-3.5 h-3.5 text-blue-500" />}
+                                            {field.type === '2fa' && <Shield className="w-3.5 h-3.5 text-oj-cyan" />}
+                                            {field.type === 'email' && <Mail className="w-3.5 h-3.5 text-sky-500" />}
+                                            {field.type === 'key' && <KeyRound className="w-3.5 h-3.5 text-emerald-500" />}
+                                            {field.type === 'token' && <FileText className="w-3.5 h-3.5 text-indigo-500" />}
+                                            <label className="text-[10px] font-extrabold uppercase tracking-wider text-oj-muted dark:text-slate-400">
                                               {field.label}
                                             </label>
                                           </div>
 
-                                          <div className="p-2.5 sm:p-3 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border flex items-center justify-between gap-2 shadow-sm">
-                                            <div className="min-w-0 flex-1 px-1">
-                                              <span className="font-mono text-xs sm:text-sm font-bold text-oj-midnight dark:text-white break-all select-all block">
-                                                {isPassword && !isRevealedPw
-                                                  ? '••••••••••••••••••••••••'
-                                                  : field.value}
-                                              </span>
+                                          <div className="p-2 sm:p-2.5 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border flex items-center justify-between gap-2 shadow-sm">
+                                            <div className="min-w-0 flex-1 px-1.5 overflow-hidden">
+                                              {isPassword && !isRevealedPw ? (
+                                                <span className="font-mono text-sm tracking-widest text-oj-muted dark:text-slate-400 select-none block truncate">
+                                                  ••••••••••••
+                                                </span>
+                                              ) : (
+                                                <span className="font-mono text-xs sm:text-sm font-bold text-oj-midnight dark:text-white break-all select-all block">
+                                                  {field.value}
+                                                </span>
+                                              )}
                                             </div>
 
                                             <div className="flex items-center gap-1.5 shrink-0">
@@ -635,34 +644,21 @@ export const OrdersPage: React.FC = () => {
                                                 <button
                                                   type="button"
                                                   onClick={() => togglePasswordVisibility(fieldKey)}
-                                                  className="p-1.5 rounded-lg text-oj-muted hover:text-oj-midnight dark:hover:text-white hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt transition-colors"
+                                                  className="w-8 h-8 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt/70 dark:bg-oj-dark-surface-alt/70 hover:bg-oj-border dark:hover:bg-oj-dark-border text-oj-muted hover:text-oj-midnight dark:hover:text-white flex items-center justify-center shrink-0 transition-colors"
                                                   title={isRevealedPw ? 'Mask details' : 'Reveal details'}
+                                                  aria-label={isRevealedPw ? 'Mask details' : 'Reveal details'}
                                                 >
                                                   {isRevealedPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                                 </button>
                                               )}
 
-                                              {field.type === '2fa' && (
-                                                <a
-                                                  href="https://2fa.live"
-                                                  target="_blank"
-                                                  rel="noopener noreferrer"
-                                                  onClick={() => handleCopy(field.value, fieldKey, '2FA Secret')}
-                                                  className="py-1 px-2.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[11px] font-bold flex items-center gap-1 transition-all"
-                                                  title="Copy 2FA key and open 2fa.live"
-                                                >
-                                                  <Smartphone className="w-3 h-3 text-amber-500" />
-                                                  <span>Get Code</span>
-                                                </a>
-                                              )}
-
                                               <button
                                                 type="button"
                                                 onClick={() => handleCopy(field.value, fieldKey, field.label)}
-                                                className={`py-1.5 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+                                                className={`h-8 px-2.5 sm:px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 shrink-0 transition-all ${
                                                   isCopied
                                                     ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700'
-                                                    : 'bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-border dark:hover:bg-oj-dark-border text-oj-midnight dark:text-white'
+                                                    : 'bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-border dark:hover:bg-oj-dark-border text-oj-midnight dark:text-white border border-oj-border/80 dark:border-oj-dark-border/80'
                                                 }`}
                                               >
                                                 {isCopied ? (
@@ -679,6 +675,27 @@ export const OrdersPage: React.FC = () => {
                                               </button>
                                             </div>
                                           </div>
+
+                                          {/* 2FA Helper Banner (Rendered cleanly below the row, preventing mobile button crowding) */}
+                                          {field.type === '2fa' && (
+                                            <div className="flex items-center justify-between px-1.5 text-[11px] text-oj-muted dark:text-slate-400 pt-0.5">
+                                              <span className="flex items-center gap-1 text-[11px]">
+                                                <Smartphone className="w-3 h-3 text-oj-cyan shrink-0" />
+                                                <span>Need 6-digit TOTP code?</span>
+                                              </span>
+                                              <a
+                                                href="https://2fa.live"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                onClick={() => handleCopy(field.value, `${fieldKey}_totp`, '2FA Secret')}
+                                                className="inline-flex items-center gap-1 font-bold text-oj-primary dark:text-oj-cyan hover:underline shrink-0"
+                                                title="Copy secret & open 2fa.live"
+                                              >
+                                                <span>Copy & 2fa.live</span>
+                                                <ExternalLink className="w-3 h-3" />
+                                              </a>
+                                            </div>
+                                          )}
                                         </div>
                                       );
                                     })}
@@ -710,7 +727,7 @@ export const OrdersPage: React.FC = () => {
                                             <button
                                               type="button"
                                               onClick={() => handleCopy(parsed.raw, `raw_box_${itemKey}`, 'Raw key')}
-                                              className="text-xs text-orange-400 hover:text-orange-300 flex items-center gap-1 font-bold"
+                                              className="text-xs text-oj-cyan hover:text-blue-400 flex items-center gap-1 font-bold"
                                             >
                                               <Copy className="w-3 h-3" />
                                               <span>Copy Raw</span>
@@ -724,15 +741,26 @@ export const OrdersPage: React.FC = () => {
                                 </div>
 
                                 {/* Bottom Help & Status Bar */}
-                                <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
-                                  <button
-                                    type="button"
-                                    onClick={() => setIsSupportOpen(true)}
-                                    className="py-2 px-3.5 rounded-xl border border-orange-500/30 hover:border-orange-500 text-orange-600 dark:text-orange-400 text-xs font-bold flex items-center gap-1.5 transition-all"
-                                  >
-                                    <HelpCircle className="w-3.5 h-3.5 text-orange-500" />
-                                    <span>Need Help With This Order?</span>
-                                  </button>
+                                <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-oj-border/60 dark:border-oj-dark-border/60">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedHelpOrder(order)}
+                                      className="py-2 px-3.5 rounded-xl border border-oj-primary/30 hover:border-oj-primary bg-oj-primary/5 dark:bg-oj-primary/10 text-oj-primary dark:text-oj-cyan text-xs font-bold flex items-center gap-1.5 transition-all"
+                                    >
+                                      <HelpCircle className="w-3.5 h-3.5 text-oj-primary dark:text-oj-cyan" />
+                                      <span>Need Help With This Order?</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedHelpOrder(order)}
+                                      className="py-2 px-3.5 rounded-xl border border-emerald-500/30 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
+                                    >
+                                      <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                      <span>Chat on WhatsApp</span>
+                                    </button>
+                                  </div>
 
                                   <div className="flex items-center gap-2">
                                     <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
@@ -754,6 +782,13 @@ export const OrdersPage: React.FC = () => {
           ))
         )}
       </div>
+
+      {/* WhatsApp Official Support Modal */}
+      <WhatsAppSupportModal
+        isOpen={!!selectedHelpOrder}
+        onClose={() => setSelectedHelpOrder(null)}
+        orderReference={selectedHelpOrder?.reference}
+      />
     </div>
   );
 };

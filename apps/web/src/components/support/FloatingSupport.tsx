@@ -11,7 +11,7 @@ export const FloatingSupport: React.FC = () => {
       whileHover={{ scale: 1.08 }}
       whileTap={{ scale: 0.94 }}
       onClick={() => setIsSupportOpen(true)}
-      className="hidden md:flex fixed bottom-8 right-6 z-40 w-12 h-12 rounded-full bg-gradient-to-tr from-oj-primary to-oj-cyan text-white shadow-glow-primary items-center justify-center border border-white/20 focus:outline-none"
+      className="flex fixed bottom-20 right-4 sm:bottom-8 sm:right-6 z-40 w-12 h-12 rounded-full bg-gradient-to-tr from-oj-primary to-oj-cyan text-white shadow-glow-primary items-center justify-center border border-white/20 focus:outline-none"
       aria-label="Contact Customer Support"
     >
       <MessageSquare className="w-5 h-5" />

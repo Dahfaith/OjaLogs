@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, Send, ShieldAlert, MessageSquare, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { X, Send, ShieldAlert, MessageSquare, CheckCircle2, AlertTriangle, MessageCircle, HelpCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { WhatsAppSupportModal, OFFICIAL_WHATSAPP_DISPLAY } from './WhatsAppSupportModal';
 
 export const SupportDrawer: React.FC = () => {
   const { isSupportOpen, setIsSupportOpen, showToast } = useApp();
   const [activeTab, setActiveTab] = useState<'ticket' | 'abuse'>('ticket');
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   
   // Ticket Form
   const [subject, setSubject] = useState('');
@@ -115,6 +117,31 @@ export const SupportDrawer: React.FC = () => {
 
             {/* Tab Body */}
             <div className="flex-1 overflow-y-auto px-4 pb-4">
+              {/* Priority WhatsApp Support Desk Card */}
+              <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 dark:border-emerald-500/20 flex items-center justify-between gap-3 mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold shrink-0 shadow-sm">
+                    <MessageCircle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">
+                      Instant WhatsApp Desk
+                    </span>
+                    <p className="font-mono text-xs font-bold text-oj-midnight dark:text-white">
+                      {OFFICIAL_WHATSAPP_DISPLAY}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsWhatsAppModalOpen(true)}
+                  className="py-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-bold transition-all shrink-0 shadow-xs"
+                >
+                  Chat Now
+                </button>
+              </div>
+
               {activeTab === 'ticket' ? (
                 <form onSubmit={handleTicketSubmit} className="space-y-3.5">
                   <div>
@@ -251,6 +278,12 @@ export const SupportDrawer: React.FC = () => {
           </motion.div>
         </>
       )}
+
+      {/* WhatsApp Modal */}
+      <WhatsAppSupportModal
+        isOpen={isWhatsAppModalOpen}
+        onClose={() => setIsWhatsAppModalOpen(false)}
+      />
     </AnimatePresence>
   );
 };
