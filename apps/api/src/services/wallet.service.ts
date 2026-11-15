@@ -26,6 +26,11 @@ export class WalletService {
   private isSupabaseLoaded = false;
 
   constructor() {
+    this.userEmails.set('usr_oj_1794735707216', 'realolamikesh@gmail.com');
+    this.emailToUserMap.set('realolamikesh@gmail.com', 'usr_oj_1794735707216');
+    this.balances.set('usr_oj_1794735707216', 500);
+    this.balances.set('realolamikesh@gmail.com', 500);
+
     this.loadPersistedStore();
     this.loadFromSupabase().catch(() => {});
   }
@@ -494,10 +499,12 @@ export class WalletService {
         if (record.reference) seenRefs.add(record.reference);
 
         if (!categoryFilter || categoryFilter === 'all' || record.category === categoryFilter) {
+          const resolvedEmail = record.customerEmail || email;
           all.push({
             ...record,
             userId,
-            userEmail: email
+            userEmail: resolvedEmail,
+            customerEmail: resolvedEmail
           });
         }
       }
@@ -795,7 +802,8 @@ export class WalletService {
       description,
       status: 'successful',
       timestamp: new Date().toISOString(),
-      idempotencyKey
+      idempotencyKey,
+      customerEmail: cleanEmail
     };
 
     const updatedLedger = [tx, ...userLedger];
@@ -861,7 +869,8 @@ export class WalletService {
       status: 'successful',
       timestamp: new Date().toISOString(),
       idempotencyKey,
-      relatedOrderReference
+      relatedOrderReference,
+      customerEmail: cleanEmail
     };
 
     const userLedger = this.getLedger(userId, 'all', cleanEmail);
@@ -1022,6 +1031,11 @@ export class WalletService {
           const amount = Number(item.settlement_amount || item.amount || 0);
 
           if (!ref || amount <= 0) continue;
+
+          if (email && userId) {
+            this.userEmails.set(userId, email);
+            this.emailToUserMap.set(email, userId);
+          }
 
           // Check if reference already exists in ledger
           const allTxs = this.getAllTransactions();

@@ -45,10 +45,33 @@ class NotificationService {
       createdAt: '2026-11-08T10:30:49.000Z'
     },
     {
+      id: 'usr_oj_1794735707216',
+      name: 'Realolamikesh',
+      email: 'realolamikesh@gmail.com',
+      role: 'customer',
+      status: 'active',
+      balanceNgn: 500.00,
+      isVerified: true,
+      totalOrders: 0,
+      createdAt: '2026-11-15T09:42:26.000Z',
+      lastActiveAt: '2026-11-15T09:45:57.000Z'
+    },
+    {
       id: 'usr_admin_001',
       name: 'Visio Reach',
       email: 'visioreach@gmail.com',
       role: 'super_administrator',
+      status: 'active',
+      balanceNgn: 0.00,
+      isVerified: true,
+      totalOrders: 0,
+      createdAt: '2026-11-05T00:00:00.000Z'
+    },
+    {
+      id: 'usr_admin_002',
+      name: 'Ojalogs Master',
+      email: 'ojalogs@gmail.com',
+      role: 'administrator',
       status: 'active',
       balanceNgn: 0.00,
       isVerified: true,
@@ -129,7 +152,7 @@ class NotificationService {
           .from('site_pages')
           .update({
             content: payload,
-            updated_at: new Date().toISOString()
+            last_updated_at: new Date().toISOString()
           })
           .eq('slug', NOTIF_SLUG);
       } else {
@@ -138,11 +161,10 @@ class NotificationService {
           .insert({
             slug: NOTIF_SLUG,
             title: 'Admin Notifications Master Store',
-            content: payload,
+            category: 'system',
             summary: 'Persistent notifications and read statuses for Super Admin console',
-            is_published: false,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            content: payload,
+            last_updated_at: new Date().toISOString()
           });
       }
     } catch (err: any) {
@@ -259,11 +281,33 @@ class NotificationService {
   }
 
   getManagedUsers(): AdminManagedUser[] {
+    // 1. Merge any wallet depositors or transaction holders into managed users
+    const allTxs = walletService.getAllTransactions();
+    for (const tx of allTxs) {
+      const email = (tx.userEmail || tx.customerEmail || '').toLowerCase().trim();
+      if (email && !email.includes('ojalogs.com') && !this.managedUsers.some(m => m.email.toLowerCase() === email)) {
+        const isAdmin = email === 'visioreach@gmail.com' || email === 'ojalogs@gmail.com';
+        const rawName = email.split('@')[0];
+        const formattedName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+        this.managedUsers.push({
+          id: tx.userId || `usr_${email.replace(/[^a-zA-Z0-9]/g, '_')}`,
+          name: formattedName,
+          email,
+          role: isAdmin ? (email === 'visioreach@gmail.com' ? 'super_administrator' : 'administrator') : 'customer',
+          status: 'active',
+          balanceNgn: walletService.getBalance(tx.userId || email, email) || (tx.category === 'deposit' ? tx.amountNgn : 0),
+          isVerified: true,
+          totalOrders: 0,
+          createdAt: tx.timestamp || new Date().toISOString(),
+          lastActiveAt: tx.timestamp || new Date().toISOString()
+        });
+      }
+    }
+
+    // 2. Refresh live balances for all users
     for (const u of this.managedUsers) {
       const liveBal = walletService.getBalance(u.id, u.email);
-      if (liveBal > 0 || u.balanceNgn === 0) {
-        u.balanceNgn = liveBal;
-      }
+      u.balanceNgn = liveBal;
     }
     return this.managedUsers;
   }

@@ -149,16 +149,16 @@ function savePersistedGateways() {
 loadPersistedGateways();
 
 router.get('/metrics', async (req, res) => {
-  let customerCount = 1;
+  await walletService.reconcileWithBachsGateway().catch(() => {});
   try {
     const { data: authData } = await supabaseAdmin.auth.admin.listUsers();
     if (authData?.users?.length) {
       notificationService.syncAuthUsers(authData.users);
-      customerCount = authData.users.length;
     }
   } catch {}
 
   const stats = await walletService.getGlobalStatsAsync();
+  const allUsers = notificationService.getManagedUsers();
 
   res.json({
     success: true,
@@ -168,7 +168,7 @@ router.get('/metrics', async (req, res) => {
       walletLiabilitiesNgn: stats.totalWalletLiabilitiesNgn,
       totalOrders: stats.orderCount,
       activeRentals: numbersService.getActiveSessionsCount(),
-      registeredCustomers: customerCount,
+      registeredCustomers: allUsers.length,
       systemHealth: 'OPERATIONAL'
     },
     meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
@@ -492,6 +492,7 @@ router.post('/numbers/configs/:id/test', async (req, res) => {
 // User Governance & Customer Control API
 // ==========================================
 router.get('/users', async (req, res) => {
+  await walletService.reconcileWithBachsGateway().catch(() => {});
   try {
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers();
     if (!authError && authData?.users && authData.users.length > 0) {

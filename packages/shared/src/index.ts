@@ -484,6 +484,7 @@ export interface LedgerTransaction {
   timestamp: string;
   idempotencyKey?: string;
   relatedOrderReference?: string;
+  customerEmail?: string;
 }
 
 // Cart & Orders
