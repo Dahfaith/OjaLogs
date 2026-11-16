@@ -492,9 +492,17 @@ router.post('/numbers/configs/:id/test', async (req, res) => {
 // User Governance & Customer Control API
 // ==========================================
 router.get('/users', async (req, res) => {
-  await walletService.reconcileWithBachsGateway().catch(() => {});
+  // Non-blocking background reconciliation with Bachs payment gateway
+  void walletService.reconcileWithBachsGateway().catch(err => {
+    console.warn('[ADMIN_USERS] Bachs reconciliation background notice:', err);
+  });
+
   try {
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+    // 1. Fetch all Supabase Auth registered users
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000
+    });
     if (!authError && authData?.users && authData.users.length > 0) {
       notificationService.syncAuthUsers(authData.users);
     }
@@ -502,13 +510,29 @@ router.get('/users', async (req, res) => {
     console.warn('[ADMIN_USERS] Notice listing Supabase auth users:', err);
   }
 
-  const users = notificationService.getManagedUsers();
-  for (const u of users) {
-    try {
-      const bal = await walletService.getBalanceAsync(u.id, u.email);
-      u.balanceNgn = bal;
-    } catch {}
+  // 2. Fetch all profiles from PostgreSQL to guarantee zero user omissions
+  try {
+    const { data: profiles, error: profError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, email, first_name, last_name, role, is_verified, created_at, updated_at');
+    if (!profError && Array.isArray(profiles) && profiles.length > 0) {
+      notificationService.syncProfiles(profiles);
+    }
+  } catch (err) {
+    console.warn('[ADMIN_USERS] Notice listing Supabase profiles:', err);
   }
+
+  const users = notificationService.getManagedUsers();
+
+  // 3. Concurrently fetch and attach live balances in parallel
+  await Promise.all(
+    users.map(async (u) => {
+      try {
+        const bal = await walletService.getBalanceAsync(u.id, u.email);
+        u.balanceNgn = bal;
+      } catch {}
+    })
+  );
 
   res.json({
     success: true,

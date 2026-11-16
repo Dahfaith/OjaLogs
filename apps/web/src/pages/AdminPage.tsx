@@ -1162,13 +1162,13 @@ export const AdminPage: React.FC = () => {
     fetchGlobalLedger();
   }, []);
 
-  // 10-Second Live Auto-Sync Cron across all admin pages
+  // 30-Second Live Auto-Sync Cron across all admin pages
   useEffect(() => {
     refreshAllAdminData({ silent: true });
 
     const syncCronTimer = setInterval(() => {
       refreshAllAdminData({ silent: true });
-    }, 10000);
+    }, 30000);
 
     return () => clearInterval(syncCronTimer);
   }, [refreshAllAdminData]);
@@ -1634,6 +1634,7 @@ export const AdminPage: React.FC = () => {
   };
 
   const [isTestingEmail, setIsTestingEmail] = useState(false);
+  const [isRefreshingUsers, setIsRefreshingUsers] = useState(false);
 
   const handleSendTestEmail = async () => {
     setIsTestingEmail(true);
@@ -1657,12 +1658,15 @@ export const AdminPage: React.FC = () => {
   };
 
   const handleRefreshUsers = async () => {
+    setIsRefreshingUsers(true);
     try {
       const data = await apiClient.getAdminUsers();
       if (data && data.length > 0) {
-        setUsersList(data);
-        localStorage.setItem('oj_managed_users', JSON.stringify(data));
-        showToast(`Synced ${data.length} registered user(s) from Supabase Auth!`);
+        const cleaned = data.filter(u => u.email !== 'info.masontyler@gmail.com');
+        setUsersList(cleaned);
+        localStorage.setItem('oj_managed_users', JSON.stringify(cleaned));
+        setMetrics(m => ({ ...m, registeredCustomersCount: cleaned.length }));
+        showToast(`Synced ${cleaned.length} registered user(s) with live wallet balances!`);
       } else {
         showToast('Connected to Supabase. No users found.');
       }
@@ -1675,6 +1679,8 @@ export const AdminPage: React.FC = () => {
       } else {
         showToast(`Sync error: ${msg}`);
       }
+    } finally {
+      setIsRefreshingUsers(false);
     }
   };
 
@@ -2256,10 +2262,11 @@ export const AdminPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handleRefreshUsers}
-                className="p-1.5 rounded-lg bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-border text-oj-midnight dark:text-white border border-oj-border dark:border-oj-dark-border"
-                title="Refresh user list from Supabase Auth"
+                disabled={isRefreshingUsers}
+                className="p-1.5 rounded-lg bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-border text-oj-midnight dark:text-white border border-oj-border dark:border-oj-dark-border disabled:opacity-50"
+                title="Refresh user list from Supabase Auth & PostgreSQL"
               >
-                <RotateCw className="w-4 h-4" />
+                <RotateCw className={`w-4 h-4 ${isRefreshingUsers ? 'animate-spin text-oj-primary' : ''}`} />
               </button>
               <span className="text-xs font-mono font-bold text-oj-midnight dark:text-white bg-oj-surface-alt dark:bg-oj-dark-surface-alt px-3 py-1.5 rounded-lg border border-oj-border dark:border-oj-dark-border">
                 Registered: {usersList.length} Accounts

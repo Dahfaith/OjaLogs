@@ -315,10 +315,7 @@ export class OrderService {
           },
           quantity: item.quantity,
           unitPriceNgn: item.unitPriceNgn,
-          totalPriceNgn: item.unitPriceNgn * item.quantity,
-          deliveredSecret: encryptedSecret,
-          deliveryFormat: provisioned.deliveryFormat,
-          instructions: provisioned.instructions,
+          totalNgn: item.unitPriceNgn * item.quantity,
           deliveredSecrets: [
             {
               type: 'license_key',

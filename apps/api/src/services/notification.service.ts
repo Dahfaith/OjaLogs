@@ -196,6 +196,25 @@ class NotificationService {
             }));
         }
       }
+
+      // Automatically bootstrap live users from Supabase Auth and Profiles on boot
+      if (!this.isTestRuntime()) {
+        try {
+          const { data: authData } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+          if (authData?.users && authData.users.length > 0) {
+            this.syncAuthUsers(authData.users);
+          }
+        } catch {}
+
+        try {
+          const { data: profiles } = await supabaseAdmin
+            .from('profiles')
+            .select('id, email, first_name, last_name, role, is_verified, created_at, updated_at');
+          if (Array.isArray(profiles) && profiles.length > 0) {
+            this.syncProfiles(profiles);
+          }
+        } catch {}
+      }
     } catch (err: any) {
       console.warn(`[NOTIF_SUPABASE] Notice loading from Supabase: ${err.message}`);
     }
@@ -509,6 +528,49 @@ class NotificationService {
         }
       }
     });
+    this.saveManagedUsers();
+  }
+
+  syncProfiles(profiles: any[]) {
+    profiles.forEach(p => {
+      const emailLower = (p.email || '').toLowerCase().trim();
+      if (!emailLower) return;
+
+      const isAdmin = emailLower === 'visioreach@gmail.com' || emailLower === 'ojalogs@gmail.com';
+      const role: UserRole = isAdmin
+        ? (emailLower === 'visioreach@gmail.com' ? 'super_administrator' : 'administrator')
+        : (p.role === 'administrator' || p.role === 'super_administrator' ? p.role : 'customer');
+
+      const fullName = [p.first_name, p.last_name].filter(Boolean).join(' ') || emailLower.split('@')[0];
+      const formattedName = fullName.charAt(0).toUpperCase() + fullName.slice(1);
+
+      const existingIndex = this.managedUsers.findIndex(m => m.id === p.id || m.email.toLowerCase() === emailLower);
+      const currentBal = walletService.getBalance(p.id, p.email);
+
+      if (existingIndex >= 0) {
+        this.managedUsers[existingIndex].id = p.id || this.managedUsers[existingIndex].id;
+        this.managedUsers[existingIndex].role = role;
+        this.managedUsers[existingIndex].isVerified = p.is_verified ?? this.managedUsers[existingIndex].isVerified;
+        this.managedUsers[existingIndex].createdAt = p.created_at || this.managedUsers[existingIndex].createdAt;
+        if (currentBal > 0 || this.managedUsers[existingIndex].balanceNgn === 0) {
+          this.managedUsers[existingIndex].balanceNgn = currentBal;
+        }
+      } else {
+        this.managedUsers.push({
+          id: p.id,
+          name: formattedName,
+          email: p.email,
+          role,
+          status: 'active',
+          balanceNgn: currentBal,
+          isVerified: Boolean(p.is_verified),
+          totalOrders: 0,
+          createdAt: p.created_at || new Date().toISOString(),
+          lastActiveAt: p.updated_at || p.created_at || new Date().toISOString()
+        });
+      }
+    });
+    this.saveManagedUsers();
   }
 
   recordAdminNotification(notif: AdminNotification) {
@@ -540,43 +602,40 @@ class NotificationService {
       this.saveManagedUsers();
     }
 
-    // In-App Notification (Admin Command Console only)
-    const alreadyNotified = this.alertedSignups.has(emailLower) || this.notifications.some(n => n.userEmail?.toLowerCase() === emailLower);
-    if (!alreadyNotified && !isAdmin) {
-      this.alertedSignups.add(emailLower);
-      this.saveAlertedSignups();
-      this.notifications.unshift({
-        id: `notif_${Date.now()}`,
-        type: 'NEW_USER_SIGNUP',
-        title: 'New Customer Registered',
-        message: `${formattedName} (${email}) registered on Ojalogs.`,
-        userEmail: email,
-        timestamp,
-        read: false
-      });
-      this.saveNotifications();
-      this.syncToSupabase().catch(() => {});
-    }
-
-    // STRICT FIRST-SIGNUP-ONLY EMAIL DEDUPLICATION:
-    // 1. Never email for administrators
+    // STRICT FIRST-SIGNUP-ONLY DEDUPLICATION:
+    // Never email for administrators
     if (isAdmin) {
       return false;
     }
 
-    // 2. If this user has ALREADY been emailed previously, DO NOT send again!
-    if (this.alertedSignups.has(emailLower)) {
-      console.log(`[SIGNUP_ALERT] User ${emailLower} already notified on initial signup. Suppressing routine login email alert.`);
-      return false;
+    const alreadyNotified = this.alertedSignups.has(emailLower);
+    if (!alreadyNotified) {
+      this.alertedSignups.add(emailLower);
+      this.saveAlertedSignups();
+
+      // 1. In-App Notification (Admin Command Console only)
+      if (!this.notifications.some(n => n.userEmail?.toLowerCase() === emailLower)) {
+        this.notifications.unshift({
+          id: `notif_${Date.now()}`,
+          type: 'NEW_USER_SIGNUP',
+          title: 'New Customer Registered',
+          message: `${formattedName} (${email}) registered on Ojalogs.`,
+          userEmail: email,
+          timestamp,
+          read: false
+        });
+        this.saveNotifications();
+        this.syncToSupabase().catch(() => {});
+      }
+
+      // 2. Dispatch single, verified first-time welcome email to admin via Brevo
+      await this.dispatchEmailAlert(email, formattedName, timestamp).catch(err => {
+        console.warn('[SIGNUP_ALERT] Email dispatch notice:', err);
+      });
+      return true;
     }
 
-    // 3. Mark as alerted in persistent storage so all future logins are completely silent
-    this.alertedSignups.add(emailLower);
-    this.saveAlertedSignups();
-
-    // 4. Dispatch single, verified first-time welcome email to admin
-    await this.dispatchEmailAlert(email, formattedName, timestamp);
-    return true;
+    return false;
   }
 
   async dispatchEmailAlert(userEmail: string, userName: string, registeredAt: string) {

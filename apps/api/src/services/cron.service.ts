@@ -126,7 +126,7 @@ export class CronService {
 
         case 'ledger_audit': {
           const stats = await walletService.getGlobalStatsAsync();
-          itemsProcessed = stats.totalDepositsCount + stats.totalPurchasesCount;
+          itemsProcessed = stats.depositCount + stats.orderCount;
           break;
         }
       }

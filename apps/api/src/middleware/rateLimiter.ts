@@ -16,7 +16,18 @@ export function createRateLimiter(options: {
   rateLimiters[options.name] = store;
 
   return (req: Request, res: Response, next: NextFunction) => {
-    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+    // Never throttle admin console routes or administrative requests
+    const path = req.originalUrl || req.path || '';
+    const adminHeader = ((req.headers['x-admin-email'] || req.headers['x-user-email']) as string || '').toLowerCase().trim();
+    const isKnownAdmin = adminHeader === 'visioreach@gmail.com' || adminHeader === 'ojalogs@gmail.com';
+    const isAdminRoute = path.includes('/admin') || (req.baseUrl && req.baseUrl.includes('/admin'));
+
+    if (isAdminRoute || isKnownAdmin) {
+      return next();
+    }
+
+    const rawIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+    const ip = rawIp.split(',')[0].trim() || '127.0.0.1';
     const now = Date.now();
 
     if (!store[ip] || now > store[ip].resetTime) {
@@ -47,8 +58,7 @@ export function createRateLimiter(options: {
 }
 
 // Pre-configured rate limits
-export const generalLimiter = createRateLimiter({ name: 'api', maxRequests: 120, windowMs: 60 * 1000 });
-export const authLimiter = createRateLimiter({ name: 'auth', maxRequests: 15, windowMs: 60 * 1000 });
-export const moneyLimiter = createRateLimiter({ name: 'finance', maxRequests: 20, windowMs: 60 * 1000 });
-export const numberRequestLimiter = createRateLimiter({ name: 'numbers', maxRequests: 30, windowMs: 60 * 1000 });
-
+export const generalLimiter = createRateLimiter({ name: 'api', maxRequests: 300, windowMs: 60 * 1000 });
+export const authLimiter = createRateLimiter({ name: 'auth', maxRequests: 60, windowMs: 60 * 1000 });
+export const moneyLimiter = createRateLimiter({ name: 'finance', maxRequests: 60, windowMs: 60 * 1000 });
+export const numberRequestLimiter = createRateLimiter({ name: 'numbers', maxRequests: 60, windowMs: 60 * 1000 });
