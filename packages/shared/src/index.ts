@@ -542,6 +542,7 @@ export interface ServerClusterConfig {
   status: 'connected' | 'testing' | 'offline';
   latencyMs: number;
   lastChecked: string;
+  markupPercent?: number;
 }
 
 export interface PaymentGatewayConfig {

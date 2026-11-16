@@ -3,6 +3,17 @@ import { AppError } from '../middleware/errorHandler.js';
 import { encryptPayload, hashFingerprint } from '../utils/crypto.js';
 import { INITIAL_PRODUCTS } from '../data/products.js';
 import { logspollAdapter } from '../adapters/logspoll/logspoll.adapter.js';
+import { serverApiRegistry } from '../adapters/server/server.registry.js';
+
+function getLogsPollMargin(): number {
+  try {
+    const srv2 = serverApiRegistry.getConfig('Server 2');
+    if (srv2 && typeof srv2.markupPercent === 'number' && srv2.markupPercent >= 0) {
+      return 1 + (srv2.markupPercent / 100);
+    }
+  } catch {}
+  return 1.20; // Default 20%
+}
 
 function resolveProductImage(title: string, category: string = '', description: string = ''): string {
   const t = title.toLowerCase();
@@ -244,7 +255,7 @@ export class CatalogService {
         for (const u of upstream) {
           const lpId = `lp_${u.id}`;
           if (!existingIds.has(lpId)) {
-            const retailNgn = Math.ceil(u.priceNgn * 1.15); // 15% standard margin
+            const retailNgn = Math.ceil(u.priceNgn * getLogsPollMargin());
             const { category: resolvedCat, categoryId: resolvedCatId } = resolveProductCategory(u.title, u.category, u.description);
             const prodObj: Product = {
               id: lpId,
@@ -379,7 +390,7 @@ export class CatalogService {
         if (lpResult.records && lpResult.records.length > 0) {
           const products: Product[] = lpResult.records.map(u => {
             const lpId = `lp_${u.id}`;
-            const retailNgn = Math.ceil(u.priceNgn * 1.15); // 15% standard margin
+            const retailNgn = Math.ceil(u.priceNgn * getLogsPollMargin());
             const { category: resolvedCat, categoryId: resolvedCatId } = resolveProductCategory(u.title, u.category, u.description);
             const prodObj: Product = {
               id: lpId,
@@ -588,7 +599,7 @@ export class CatalogService {
       const u = await logspollAdapter.fetchProduct(cleanId);
       if (u) {
         const lpId = `lp_${u.id}`;
-        const retailNgn = Math.ceil(u.priceNgn * 1.15);
+        const retailNgn = Math.ceil(u.priceNgn * getLogsPollMargin());
         const { category: resolvedCat, categoryId: resolvedCatId } = resolveProductCategory(u.title, u.category, u.description);
         const prodObj: Product = {
           id: lpId,

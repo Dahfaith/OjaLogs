@@ -318,6 +318,7 @@ export class SMMManagerService {
     });
 
     this.savePersistedServices();
+    this.savePersistedConfig();
     return {
       updatedCount,
       defaultMarkupPercent: this.config.defaultMarkupPercent
@@ -366,6 +367,7 @@ export class SMMManagerService {
 
     this.config.lastSyncedAt = new Date().toISOString();
     this.savePersistedServices();
+    this.savePersistedConfig();
     return { syncedCount, newCount };
   }
 
@@ -597,6 +599,11 @@ export class SMMManagerService {
     }
     if (updates.defaultMarkupPercent !== undefined) {
       this.config.defaultMarkupPercent = updates.defaultMarkupPercent;
+      const multiplier = 1 + (this.config.defaultMarkupPercent / 100);
+      this.services.forEach(s => {
+        s.retailRateNgn = Math.round(s.sourceRateNgn * multiplier);
+      });
+      this.savePersistedServices();
     }
     if (updates.isActive !== undefined) {
       this.config.isActive = updates.isActive;

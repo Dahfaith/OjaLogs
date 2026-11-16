@@ -274,7 +274,8 @@ const UpdateServerConfigSchema = z.object({
   apiUrl: z.string().url().optional(),
   apiKey: z.string().min(1).optional(),
   fulfillmentMode: z.enum(['automated_api', 'vault_inventory', 'hybrid']).optional(),
-  webhookSecret: z.string().optional()
+  webhookSecret: z.string().optional(),
+  markupPercent: z.number().min(0).max(500).optional()
 });
 
 router.patch('/servers/:clusterName', validateBody(UpdateServerConfigSchema), (req, res, next) => {

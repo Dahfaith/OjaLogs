@@ -1016,7 +1016,8 @@ export const AdminPage: React.FC = () => {
                 ...remoteItem,
                 apiKey: remoteItem.apiKey?.trim() || local?.apiKey || '',
                 apiUrl: remoteItem.apiUrl?.trim() || local?.apiUrl || '',
-                webhookSecret: remoteItem.webhookSecret?.trim() || local?.webhookSecret || ''
+                webhookSecret: remoteItem.webhookSecret?.trim() || local?.webhookSecret || '',
+                markupPercent: typeof remoteItem.markupPercent === 'number' ? remoteItem.markupPercent : (local?.markupPercent ?? 20)
               };
             });
             localStorage.setItem('oj_server_configs', JSON.stringify(merged));
@@ -1057,7 +1058,8 @@ export const AdminPage: React.FC = () => {
                 ...remoteItem,
                 apiKey: remoteItem.apiKey?.trim() || local?.apiKey || '',
                 apiUrl: remoteItem.apiUrl?.trim() || local?.apiUrl || '',
-                webhookSecret: remoteItem.webhookSecret?.trim() || local?.webhookSecret || ''
+                webhookSecret: remoteItem.webhookSecret?.trim() || local?.webhookSecret || '',
+                markupPercent: typeof remoteItem.markupPercent === 'number' ? remoteItem.markupPercent : (local?.markupPercent ?? 25)
               };
             });
             localStorage.setItem('oj_telephony_configs', JSON.stringify(merged));
@@ -1823,7 +1825,7 @@ export const AdminPage: React.FC = () => {
         autoRefundTimeoutSeconds: provider.autoRefundTimeoutSeconds,
         status: provider.status
       });
-      showToast(`Saved and synced ${provider.name} settings to server!`);
+      showToast(`Saved and synced ${provider.name} settings! Profit Markup: ${provider.markupPercent}%`);
     } catch {
       showToast(`Saved ${provider.name} settings locally!`);
     }
@@ -1858,9 +1860,10 @@ export const AdminPage: React.FC = () => {
         apiUrl: server.apiUrl,
         apiKey: server.apiKey,
         fulfillmentMode: server.fulfillmentMode,
-        webhookSecret: server.webhookSecret
+        webhookSecret: server.webhookSecret,
+        markupPercent: Number(server.markupPercent ?? 20)
       });
-      showToast(`Saved and synced ${server.cluster} configuration! Target: ${server.apiUrl}`);
+      showToast(`Saved and synced ${server.cluster} configuration! Profit Markup: ${server.markupPercent ?? 20}%`);
     } catch {
       showToast(`Saved ${server.cluster} configuration locally!`);
     }
@@ -3532,11 +3535,11 @@ export const AdminPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Fulfillment Mode Engine */}
-                    <div className="grid grid-cols-2 gap-3">
+                    {/* Fulfillment Mode, Markup & Webhook Engine */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
                         <label className="block font-bold text-oj-midnight dark:text-white mb-1">
-                          Fulfillment Mode Engine
+                          Fulfillment Mode
                         </label>
                         <select
                           value={server.fulfillmentMode}
@@ -3551,7 +3554,26 @@ export const AdminPage: React.FC = () => {
 
                       <div>
                         <label className="block font-bold text-oj-midnight dark:text-white mb-1">
-                          Webhook Secret (Optional)
+                          Profit Markup (%)
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="0"
+                            max="500"
+                            value={server.markupPercent ?? 20}
+                            onChange={(e) => handleUpdateServerField(server.cluster, 'markupPercent', Number(e.target.value))}
+                            className="w-full pl-3 pr-8 py-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt dark:bg-oj-dark-surface-alt font-mono font-bold text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 font-bold text-oj-muted text-xs">
+                            %
+                          </span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-oj-midnight dark:text-white mb-1">
+                          Webhook Secret
                         </label>
                         <input
                           type="text"

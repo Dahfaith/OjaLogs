@@ -41,7 +41,8 @@ export class ServerApiRegistry {
         webhookSecret: 'whsec_srv1_prod_2026',
         status: 'connected',
         latencyMs: 48,
-        lastChecked: new Date().toISOString()
+        lastChecked: new Date().toISOString(),
+        markupPercent: 20
       },
       {
         id: 'server-2',
@@ -54,7 +55,8 @@ export class ServerApiRegistry {
         webhookSecret: 'whsec_srv2_prod_2026',
         status: 'connected',
         latencyMs: 64,
-        lastChecked: new Date().toISOString()
+        lastChecked: new Date().toISOString(),
+        markupPercent: 20
       },
       {
         id: 'server-3',
@@ -67,7 +69,8 @@ export class ServerApiRegistry {
         webhookSecret: 'whsec_srv3_prod_2026',
         status: 'connected',
         latencyMs: 38,
-        lastChecked: new Date().toISOString()
+        lastChecked: new Date().toISOString(),
+        markupPercent: 20
       },
       {
         id: 'server-4',
@@ -80,7 +83,8 @@ export class ServerApiRegistry {
         webhookSecret: 'whsec_srv4_prod_2026',
         status: 'connected',
         latencyMs: 72,
-        lastChecked: new Date().toISOString()
+        lastChecked: new Date().toISOString(),
+        markupPercent: 20
       }
     ];
 
