@@ -1,6 +1,7 @@
 import { IServerApiAdapter, ProvisionResult } from './server.interface.js';
 import { Product } from '@ojalogs/shared';
 import { logspollAdapter } from '../logspoll/logspoll.adapter.js';
+import { AppError } from '../../middleware/errorHandler.js';
 
 export class Server2ApiAdapter implements IServerApiAdapter {
   readonly serverCluster = 'Server 2';
@@ -26,8 +27,10 @@ export class Server2ApiAdapter implements IServerApiAdapter {
   }
 
   async provisionSecret(sku: string, orderRef: string, metadata?: any): Promise<ProvisionResult> {
-    // 1. If LogsPoll API is configured, attempt live upstream dispatch
-    if (sku.startsWith('lp_') || (logspollAdapter.getCredentials().isConfigured && !sku.startsWith('prod_') && !sku.includes('test') && process.env.NODE_ENV !== 'test')) {
+    const isTestMode = process.env.NODE_ENV === 'test' || sku.includes('test');
+
+    // 1. If LogsPoll API is configured, attempt live upstream dispatch in live mode
+    if (!isTestMode && (sku.startsWith('lp_') || (logspollAdapter.getCredentials().isConfigured && !sku.startsWith('prod_')))) {
       try {
         console.log(`[SERVER_2_LOGSPOLL] Ordering social account for SKU: ${sku} via LogsPoll API...`);
         const orderResult = await logspollAdapter.orderProduct(sku, metadata?.quantity || 1, orderRef);
@@ -42,18 +45,24 @@ export class Server2ApiAdapter implements IServerApiAdapter {
         } else {
           const errMsg = orderResult.error || 'LogsPoll upstream rejected order (insufficient provider balance or out of stock)';
           console.error(`[SERVER_2_LOGSPOLL] Upstream failure: ${errMsg}`);
-          if (process.env.NODE_ENV !== 'test' && !sku.includes('test')) {
-            throw new Error(errMsg);
-          }
+          throw new AppError(errMsg, 503, 'UPSTREAM_REJECTED');
         }
       } catch (err: any) {
         console.error(`[SERVER_2_LOGSPOLL] Live dispatch failed: ${err.message}`);
-        if (process.env.NODE_ENV !== 'test' && !sku.includes('test')) {
-          throw err;
-        }
+        throw err;
       }
     }
 
+    // In production, NEVER generate synthetic/mock account credentials!
+    if (process.env.NODE_ENV !== 'test' && !sku.includes('test')) {
+      throw new AppError(
+        'Server 2 automated provisioning is unavailable. Upstream provider connection or liquidity required.',
+        503,
+        'PROVISIONING_UNAVAILABLE'
+      );
+    }
+
+    // Test-environment simulation ONLY for verified unit test execution
     const titleLower = (metadata?.title || '').toLowerCase();
     const skuLower = sku.toLowerCase();
     const combined = `${titleLower} ${skuLower}`;
@@ -104,7 +113,7 @@ export class Server2ApiAdapter implements IServerApiAdapter {
       };
     }
 
-    // Default Instagram Aged Account
+    // Default Instagram Aged Account for test mode
     const igUser = `insta_user_${Math.floor(1000 + Math.random() * 9000)}`;
     return {
       secretKey: `${igUser}:IGPass${Math.random().toString(36).substring(2, 8)}!:${igUser}@secmail.net:2FA_${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
@@ -114,4 +123,5 @@ export class Server2ApiAdapter implements IServerApiAdapter {
     };
   }
 }
+
 

@@ -1,6 +1,7 @@
 import { IServerApiAdapter, ProvisionResult } from './server.interface.js';
 import { Product } from '@ojalogs/shared';
 import { logspollAdapter } from '../logspoll/logspoll.adapter.js';
+import { AppError } from '../../middleware/errorHandler.js';
 
 export class Server1ApiAdapter implements IServerApiAdapter {
   readonly serverCluster = 'Server 1';
@@ -26,8 +27,31 @@ export class Server1ApiAdapter implements IServerApiAdapter {
   }
 
   async provisionSecret(sku: string, orderRef: string, metadata?: any): Promise<ProvisionResult> {
-    // 1. If SKU is a LogsPoll product or LogsPoll API is configured, attempt live upstream dispatch
-    if (sku.startsWith('lp_') || (logspollAdapter.getCredentials().isConfigured && !sku.startsWith('prod_') && !sku.includes('test') && process.env.NODE_ENV !== 'test')) {
+    const titleLower = (metadata?.title || '').toLowerCase();
+    const skuLower = sku.toLowerCase();
+    const combined = `${titleLower} ${skuLower}`;
+
+    // Prevent misrouted social accounts / emails to Server 1
+    if (
+      combined.includes('facebook') ||
+      combined.includes('fb') ||
+      combined.includes('instagram') ||
+      combined.includes('twitter') ||
+      combined.includes('aged x') ||
+      combined.includes('tiktok') ||
+      combined.includes('gmail')
+    ) {
+      throw new AppError(
+        `Server 1 (Security & Proxies) cannot fulfill social account item "${metadata?.title || sku}". Route through Server 2.`,
+        400,
+        'SERVER_CLUSTER_MISMATCH'
+      );
+    }
+
+    const isTestMode = process.env.NODE_ENV === 'test' || sku.includes('test');
+
+    // 1. If SKU is a LogsPoll product or LogsPoll API is configured, attempt live upstream dispatch in live mode
+    if (!isTestMode && (sku.startsWith('lp_') || (logspollAdapter.getCredentials().isConfigured && !sku.startsWith('prod_')))) {
       try {
         console.log(`[SERVER_1_LOGSPOLL] Ordering product for SKU: ${sku} via LogsPoll API...`);
         const orderResult = await logspollAdapter.orderProduct(sku, metadata?.quantity || 1, orderRef);
@@ -42,65 +66,24 @@ export class Server1ApiAdapter implements IServerApiAdapter {
         } else {
           const errMsg = orderResult.error || 'LogsPoll upstream rejected order (insufficient provider balance or out of stock)';
           console.error(`[SERVER_1_LOGSPOLL] Upstream failure: ${errMsg}`);
-          if (process.env.NODE_ENV !== 'test' && !sku.includes('test')) {
-            throw new Error(errMsg);
-          }
+          throw new AppError(errMsg, 503, 'UPSTREAM_REJECTED');
         }
       } catch (err: any) {
         console.error(`[SERVER_1_LOGSPOLL] Upstream dispatch failed: ${err.message}`);
-        if (process.env.NODE_ENV !== 'test' && !sku.includes('test')) {
-          throw err;
-        }
+        throw err;
       }
     }
 
-    const titleLower = (metadata?.title || '').toLowerCase();
-    const skuLower = sku.toLowerCase();
-    const combined = `${titleLower} ${skuLower}`;
-
-    // Title/SKU-Aware Fallback Resolution (prevent wrong items e.g. NordVPN on Facebook)
-    if (combined.includes('facebook') || combined.includes('fb') || combined.includes('bm50')) {
-      const uid = `615${Math.floor(10000000000 + Math.random() * 90000000000)}`;
-      const pass = `FB${Math.random().toString(36).substring(2, 8)}!`;
-      const twoFa = Math.random().toString(36).substring(2, 18).toUpperCase();
-      return {
-        secretKey: `${uid}:${pass}:${twoFa}`,
-        deliveryFormat: 'Username:Password:2FA Key',
-        instructions: 'Log in to facebook.com with the UID & Password. Generate 2FA code at 2fa.live using the 2FA secret.',
-        externalTransactionId: `srv1_fb_${Date.now()}`
-      };
+    // In production, NEVER generate synthetic/mock secrets!
+    if (process.env.NODE_ENV !== 'test' && !sku.includes('test')) {
+      throw new AppError(
+        'Server 1 automated provisioning is unavailable for this SKU. Upstream liquidity or catalog sync required.',
+        503,
+        'PROVISIONING_UNAVAILABLE'
+      );
     }
 
-    if (combined.includes('instagram') || combined.includes('ig ')) {
-      const igUser = `insta_${Math.random().toString(36).substring(2, 8)}`;
-      return {
-        secretKey: `${igUser}:IGPass${Math.random().toString(36).substring(2, 8)}!:2FA_${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
-        deliveryFormat: 'Username:Password:2FA Key',
-        instructions: 'Log in on Instagram app or web. Input the 2FA key into 2fa.live to retrieve your verification code.',
-        externalTransactionId: `srv1_ig_${Date.now()}`
-      };
-    }
-
-    if (combined.includes('twitter') || combined.includes('x-') || combined.includes('aged x')) {
-      const twUser = `x_user_${Math.random().toString(36).substring(2, 8)}`;
-      return {
-        secretKey: `${twUser}:XPass${Math.random().toString(36).substring(2, 8)}!:2FA_${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
-        deliveryFormat: 'Username:Password:2FA Key',
-        instructions: 'Log in on x.com. Generate 2FA verification code using the provided secret key.',
-        externalTransactionId: `srv1_tw_${Date.now()}`
-      };
-    }
-
-    if (combined.includes('gmail') || combined.includes('email') || combined.includes('mail')) {
-      const gUser = `oj_mail_${Math.random().toString(36).substring(2, 8)}@gmail.com`;
-      return {
-        secretKey: `${gUser}:Pass${Math.random().toString(36).substring(2, 8)}!:recov_${Math.random().toString(36).substring(2, 8)}@mail.com`,
-        deliveryFormat: 'Email:Password:Recovery_Email',
-        instructions: 'Log in to accounts.google.com. Use the recovery email if prompted for second factor verification.',
-        externalTransactionId: `srv1_gmail_${Date.now()}`
-      };
-    }
-
+    // Test-environment simulation ONLY for verified test suites
     const isEsim = combined.includes('esim');
     const isProxy = combined.includes('proxy');
 
@@ -123,7 +106,7 @@ export class Server1ApiAdapter implements IServerApiAdapter {
       };
     }
 
-    // Default VPN Voucher ONLY when VPN or generic security
+    // Default VPN Voucher ONLY for explicit VPN test SKUs in test mode
     return {
       secretKey: `NORD-PRO-2026-${Math.random().toString(36).substring(2, 6).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
       deliveryFormat: 'Alphanumeric Activation Key',
@@ -132,4 +115,5 @@ export class Server1ApiAdapter implements IServerApiAdapter {
     };
   }
 }
+
 

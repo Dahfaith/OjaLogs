@@ -1,3 +1,5 @@
+process.env.NODE_ENV = 'test';
+
 import assert from 'assert';
 import { catalogService } from '../src/services/catalog.service.js';
 import { walletService } from '../src/services/wallet.service.js';

@@ -1,3 +1,4 @@
+process.env.NODE_ENV = 'test';
 import { smmService } from '../src/services/smm.service.js';
 import { walletService } from '../src/services/wallet.service.js';
 

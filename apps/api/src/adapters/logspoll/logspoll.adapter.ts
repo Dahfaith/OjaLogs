@@ -334,55 +334,91 @@ export class LogsPollAdapter {
         console.log(`[LOGSPOLL_ORDER_SUCCESS] Upstream order created: ${orderId} (${reference}). Balance after: ${data.balanceAfter ?? data.balanceAfterMinor}`);
 
         // 2. Retrieve delivered credentials from LogsPoll purchases vault
-        let credentials = data.secretKey || data.credentials || data.key;
+        let credentials = data.secretKey || data.credentials || data.key || data.account || data.code;
         let deliveryFormat = 'Credentials / 2FA Token';
         let instructions = 'Delivered via LogsPoll automated upstream API.';
 
-        try {
-          // Allow upstream vault up to 2 attempts to register entitlement
-          for (let attempt = 0; attempt < 2; attempt++) {
-            if (attempt > 0) {
-              await new Promise(r => setTimeout(r, 600));
-            }
-
-            const ordResp = await fetch(`${this.baseUrl}/orders?purchases=true`, {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Accept': 'application/json'
+        if (!credentials && orderId) {
+          try {
+            // Attempt targeted fetch of the specific order
+            for (let attempt = 0; attempt < 3; attempt++) {
+              if (attempt > 0) {
+                await new Promise(r => setTimeout(r, 800));
               }
-            });
 
-            if (ordResp.ok) {
-              const ordData = await ordResp.json() as any;
-              const records = ordData.records || [];
-              const match = records.find((r: any) =>
-                r.id === orderId ||
-                r.reference === reference ||
-                (r.order_items && r.order_items.some((i: any) => i.product_id === cleanProductId))
-              );
-
-              const itemWithEntitlement = match?.order_items?.find((i: any) =>
-                i.product_id === cleanProductId || i.product_entitlements
-              ) || match?.order_items?.[0];
-
-              const ent = itemWithEntitlement?.product_entitlements;
-              if (ent) {
-                credentials = ent.instructions || ent.raw || ent.structured?.accounts?.[0]?.raw || ent.structured?.raw || credentials;
-                if (Array.isArray(ent.structured?.instructions) && ent.structured.instructions.length > 0) {
-                  instructions = ent.structured.instructions.join('\n');
-                } else if (typeof ent.instructions === 'string' && ent.instructions.length > 0) {
-                  instructions = ent.instructions;
+              // First try direct single order lookup
+              let match: any = null;
+              try {
+                const singleResp = await fetch(`${this.baseUrl}/orders/${orderId}`, {
+                  method: 'GET',
+                  headers: {
+                    'Authorization': `Bearer ${this.apiKey}`,
+                    'Accept': 'application/json'
+                  }
+                });
+                if (singleResp.ok) {
+                  const sData = await singleResp.json() as any;
+                  match = sData.record || sData.order || sData;
                 }
-                if (ent.structured?.productType === 'social') {
-                  deliveryFormat = 'Username:Password:2FA Key / Session Cookies';
+              } catch {}
+
+              // If single lookup not supported, query purchases list and strictly match orderId/reference
+              if (!match) {
+                const ordResp = await fetch(`${this.baseUrl}/orders?purchases=true`, {
+                  method: 'GET',
+                  headers: {
+                    'Authorization': `Bearer ${this.apiKey}`,
+                    'Accept': 'application/json'
+                  }
+                });
+
+                if (ordResp.ok) {
+                  const ordData = await ordResp.json() as any;
+                  const records = ordData.records || ordData.data || ordData.orders || [];
+                  // STRICT order isolation: only match exact orderId or reference
+                  match = records.find((r: any) => String(r.id) === String(orderId) || String(r.reference) === String(reference));
                 }
-                break;
+              }
+
+              if (match) {
+                // STRICT item matching: must match cleanProductId
+                const itemWithEntitlement = match?.order_items?.find((i: any) =>
+                  String(i.product_id) === String(cleanProductId) || String(i.productId) === String(cleanProductId)
+                ) || (match?.order_items?.length === 1 ? match.order_items[0] : null);
+
+                const ent = itemWithEntitlement?.product_entitlements || itemWithEntitlement?.entitlement || match?.product_entitlements;
+                if (ent) {
+                  credentials = ent.raw || ent.instructions || ent.structured?.accounts?.[0]?.raw || ent.structured?.raw || (typeof ent === 'string' ? ent : credentials);
+                  if (Array.isArray(ent.structured?.instructions) && ent.structured.instructions.length > 0) {
+                    instructions = ent.structured.instructions.join('\n');
+                  } else if (typeof ent.instructions === 'string' && ent.instructions.length > 0) {
+                    instructions = ent.instructions;
+                  }
+                  if (ent.structured?.productType === 'social' || deliveryFormat.includes('Credentials')) {
+                    deliveryFormat = 'Username:Password:2FA Key / Session Cookies';
+                  }
+                  if (credentials) break;
+                } else if (itemWithEntitlement?.secretKey || itemWithEntitlement?.credentials) {
+                  credentials = itemWithEntitlement.secretKey || itemWithEntitlement.credentials;
+                  if (credentials) break;
+                }
               }
             }
+          } catch (vaultErr: any) {
+            console.warn(`[LOGSPOLL_VAULT_FETCH_NOTICE] ${vaultErr.message}`);
           }
-        } catch (vaultErr: any) {
-          console.warn(`[LOGSPOLL_VAULT_FETCH_NOTICE] ${vaultErr.message}`);
+        }
+
+        // If credentials are still missing, do NOT fabricate dummy secrets!
+        if (!credentials) {
+          console.warn(`[LOGSPOLL_FULFILLMENT_PENDING] Order ${orderId} created but credentials not yet delivered by upstream`);
+          return {
+            success: false,
+            orderId,
+            reference,
+            status: 'fulfillment_pending',
+            error: 'Upstream order accepted but digital credentials are pending extraction from provider vault'
+          };
         }
 
         return {
@@ -390,7 +426,7 @@ export class LogsPollAdapter {
           orderId,
           reference,
           status: 'completed',
-          secretKey: credentials || `AUTH:LP_SUCCESS:${orderId}`,
+          secretKey: credentials,
           deliveryFormat,
           instructions
         };

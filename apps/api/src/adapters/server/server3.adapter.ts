@@ -1,6 +1,7 @@
 import { IServerApiAdapter, ProvisionResult } from './server.interface.js';
 import { Product } from '@ojalogs/shared';
 import { logspollAdapter } from '../logspoll/logspoll.adapter.js';
+import { AppError } from '../../middleware/errorHandler.js';
 
 export class Server3ApiAdapter implements IServerApiAdapter {
   readonly serverCluster = 'Server 3';
@@ -26,8 +27,10 @@ export class Server3ApiAdapter implements IServerApiAdapter {
   }
 
   async provisionSecret(sku: string, orderRef: string, metadata?: any): Promise<ProvisionResult> {
-    // 1. If SKU is a LogsPoll product or LogsPoll API is configured, attempt live upstream dispatch
-    if (sku.startsWith('lp_') || (logspollAdapter.getCredentials().isConfigured && !sku.includes('test'))) {
+    const isTestMode = process.env.NODE_ENV === 'test' || sku.includes('test');
+
+    // 1. If SKU is a LogsPoll product or LogsPoll API is configured, attempt live upstream dispatch in live mode
+    if (!isTestMode && (sku.startsWith('lp_') || (logspollAdapter.getCredentials().isConfigured && !sku.startsWith('prod_')))) {
       try {
         console.log(`[SERVER_3_LOGSPOLL] Ordering product for SKU: ${sku} via LogsPoll API...`);
         const orderResult = await logspollAdapter.orderProduct(sku, metadata?.quantity || 1, orderRef);
@@ -39,10 +42,24 @@ export class Server3ApiAdapter implements IServerApiAdapter {
             instructions: orderResult.instructions || 'Redeem code according to platform instructions.',
             externalTransactionId: `lp_${orderResult.orderId || Date.now()}`
           };
+        } else {
+          const errMsg = orderResult.error || 'LogsPoll upstream rejected order for Server 3';
+          console.error(`[SERVER_3_LOGSPOLL] Upstream failure: ${errMsg}`);
+          throw new AppError(errMsg, 503, 'UPSTREAM_REJECTED');
         }
       } catch (err: any) {
-        console.warn(`[SERVER_3_LOGSPOLL] Upstream dispatch notice: ${err.message}`);
+        console.error(`[SERVER_3_LOGSPOLL] Upstream dispatch error: ${err.message}`);
+        throw err;
       }
+    }
+
+    // In production, NEVER generate synthetic/mock license keys!
+    if (process.env.NODE_ENV !== 'test' && !sku.includes('test')) {
+      throw new AppError(
+        'Server 3 automated provisioning is unavailable. Upstream provider connection required.',
+        503,
+        'PROVISIONING_UNAVAILABLE'
+      );
     }
 
     const titleLower = (metadata?.title || '').toLowerCase();
@@ -52,7 +69,7 @@ export class Server3ApiAdapter implements IServerApiAdapter {
     const isWindows = combined.includes('windows') || combined.includes('office') || combined.includes('microsoft');
     
     if (isWindows) {
-      // 25-character Microsoft Product Key
+      // 25-character Microsoft Product Key for test mode
       const seg = () => Math.random().toString(36).substring(2, 7).toUpperCase();
       return {
         secretKey: `${seg()}-${seg()}-${seg()}-${seg()}-${seg()}`,
@@ -62,7 +79,7 @@ export class Server3ApiAdapter implements IServerApiAdapter {
       };
     }
 
-    // JetBrains All Products Pack
+    // JetBrains All Products Pack for test mode
     return {
       secretKey: `JB-DEV-2026-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
       deliveryFormat: 'Official License Certificate Token',
@@ -71,4 +88,5 @@ export class Server3ApiAdapter implements IServerApiAdapter {
     };
   }
 }
+
 

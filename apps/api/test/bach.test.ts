@@ -1,3 +1,4 @@
+process.env.NODE_ENV = 'test';
 import { bachGateway } from '../src/gateways/bach.gateway.js';
 import { walletService } from '../src/services/wallet.service.js';
 

@@ -1,6 +1,7 @@
 import { IServerApiAdapter, ProvisionResult } from './server.interface.js';
 import { Product } from '@ojalogs/shared';
 import { logspollAdapter } from '../logspoll/logspoll.adapter.js';
+import { AppError } from '../../middleware/errorHandler.js';
 
 export class Server4ApiAdapter implements IServerApiAdapter {
   readonly serverCluster = 'Server 4';
@@ -26,8 +27,10 @@ export class Server4ApiAdapter implements IServerApiAdapter {
   }
 
   async provisionSecret(sku: string, orderRef: string, metadata?: any): Promise<ProvisionResult> {
-    // 1. If LogsPoll API is configured, attempt live upstream dispatch
-    if (sku.startsWith('lp_') || (logspollAdapter.getCredentials().isConfigured && !sku.includes('test'))) {
+    const isTestMode = process.env.NODE_ENV === 'test' || sku.includes('test');
+
+    // 1. If LogsPoll API is configured, attempt live upstream dispatch in live mode
+    if (!isTestMode && (sku.startsWith('lp_') || (logspollAdapter.getCredentials().isConfigured && !sku.startsWith('prod_')))) {
       try {
         console.log(`[SERVER_4_LOGSPOLL] Ordering AI tool voucher for SKU: ${sku} via LogsPoll API...`);
         const orderResult = await logspollAdapter.orderProduct(sku, metadata?.quantity || 1, orderRef);
@@ -39,10 +42,24 @@ export class Server4ApiAdapter implements IServerApiAdapter {
             instructions: orderResult.instructions || 'Redeem code according to platform instructions.',
             externalTransactionId: `lp_${orderResult.orderId || Date.now()}`
           };
+        } else {
+          const errMsg = orderResult.error || 'LogsPoll upstream rejected order for Server 4';
+          console.error(`[SERVER_4_LOGSPOLL] Upstream failure: ${errMsg}`);
+          throw new AppError(errMsg, 503, 'UPSTREAM_REJECTED');
         }
       } catch (err: any) {
-        console.warn(`[SERVER_4_LOGSPOLL] Live dispatch notice: ${err.message}`);
+        console.error(`[SERVER_4_LOGSPOLL] Live dispatch error: ${err.message}`);
+        throw err;
       }
+    }
+
+    // In production, NEVER generate synthetic AI subscription vouchers!
+    if (process.env.NODE_ENV !== 'test' && !sku.includes('test')) {
+      throw new AppError(
+        'Server 4 automated provisioning is unavailable. Upstream provider connection required.',
+        503,
+        'PROVISIONING_UNAVAILABLE'
+      );
     }
 
     const titleLower = (metadata?.title || '').toLowerCase();
@@ -70,7 +87,7 @@ export class Server4ApiAdapter implements IServerApiAdapter {
       };
     }
 
-    // Default ChatGPT Plus
+    // Default ChatGPT Plus for test mode
     return {
       secretKey: `OAI-GPT4O-PLUS-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
       deliveryFormat: 'Official 30-Day Subscription Voucher',
@@ -79,4 +96,5 @@ export class Server4ApiAdapter implements IServerApiAdapter {
     };
   }
 }
+
 

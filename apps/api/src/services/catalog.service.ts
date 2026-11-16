@@ -566,17 +566,25 @@ export class CatalogService {
   }
 
   async getProductByIdOrSlugAsync(idOrSlug: string): Promise<Product> {
-    // 1. Check local catalog
-    const local = this.products.find(p => p.id === idOrSlug || p.slug === idOrSlug);
+    const cleanId = idOrSlug.replace(/^lp_/, '').replace(/^lp-/, '');
+
+    // 1. Check local catalog with flexible ID resolution
+    const local = this.products.find(p =>
+      p.id === idOrSlug ||
+      p.slug === idOrSlug ||
+      p.id === `lp_${idOrSlug}` ||
+      p.id.replace(/^lp_/, '') === cleanId
+    );
     if (local) return local;
 
     // 2. Check details cache
-    const cached = this.productDetailsCache.get(idOrSlug);
+    const cached = this.productDetailsCache.get(idOrSlug) ||
+      this.productDetailsCache.get(`lp_${cleanId}`) ||
+      this.productDetailsCache.get(cleanId);
     if (cached) return cached;
 
     // 3. If upstream is configured, fetch live
     if (logspollAdapter.getCredentials().isConfigured) {
-      const cleanId = idOrSlug.replace(/^lp_/, '').replace(/^lp-/, '');
       const u = await logspollAdapter.fetchProduct(cleanId);
       if (u) {
         const lpId = `lp_${u.id}`;
@@ -589,7 +597,7 @@ export class CatalogService {
           category: resolvedCat,
           categoryId: resolvedCatId,
           division: 'A',
-          serverCluster: normalizeServerCluster(u.serverCluster),
+          serverCluster: resolveServerCluster(u.title, resolvedCatId, u.serverCluster),
           priceNgn: retailNgn,
           inStock: u.stockCount > 0,
           stockCount: u.stockCount,
@@ -616,6 +624,8 @@ export class CatalogService {
         };
         this.products.push(prodObj);
         this.productDetailsCache.set(lpId, prodObj);
+        this.productDetailsCache.set(u.id, prodObj);
+        this.productDetailsCache.set(cleanId, prodObj);
         this.productDetailsCache.set(prodObj.slug, prodObj);
         return prodObj;
       }
@@ -625,7 +635,17 @@ export class CatalogService {
   }
 
   getProductByIdOrSlug(idOrSlug: string): Product {
-    const product = this.products.find(p => p.id === idOrSlug || p.slug === idOrSlug) || this.productDetailsCache.get(idOrSlug);
+    const cleanId = idOrSlug.replace(/^lp_/, '').replace(/^lp-/, '');
+    const product = this.products.find(p =>
+      p.id === idOrSlug ||
+      p.slug === idOrSlug ||
+      p.id === `lp_${idOrSlug}` ||
+      p.id.replace(/^lp_/, '') === cleanId
+    ) ||
+    this.productDetailsCache.get(idOrSlug) ||
+    this.productDetailsCache.get(`lp_${cleanId}`) ||
+    this.productDetailsCache.get(cleanId);
+
     if (!product) {
       throw new AppError(`Product "${idOrSlug}" not found`, 404, 'PRODUCT_NOT_FOUND');
     }

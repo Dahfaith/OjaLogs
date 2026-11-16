@@ -109,6 +109,20 @@ function parseSecretValue(secret: string): { isStructured: boolean; fields: Pars
     }
   }
 
+  // Tab-separated credential parsing (common in bulk exports)
+  if (raw.includes('\t')) {
+    const parts = raw.split('\t').map(p => p.trim()).filter(Boolean);
+    if (parts.length >= 2) {
+      const fields: ParsedField[] = [
+        { label: 'USERNAME', value: parts[0], type: 'uid' },
+        { label: 'PASSWORD', value: parts[1], type: 'password', isSensitive: true }
+      ];
+      if (parts[2]) fields.push({ label: '2FA SECRET / RECOVERY', value: parts[2], type: '2fa', isSensitive: true });
+      if (parts[3]) fields.push({ label: 'RECOVERY EMAIL', value: parts[3], type: 'email' });
+      return { isStructured: true, fields, raw };
+    }
+  }
+
   return {
     isStructured: false,
     fields: [{ label: 'LICENSE / VAULT KEY', value: raw, type: 'key' }],
@@ -421,9 +435,19 @@ export const OrdersPage: React.FC = () => {
                           </div>
                         </div>
 
-                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800 shrink-0">
-                          ✓ Dispatched
-                        </span>
+                        {order.status === 'refunded' ? (
+                          <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2.5 py-1 rounded-lg border border-amber-200 dark:border-amber-800 shrink-0">
+                            ↩ Refunded to Wallet
+                          </span>
+                        ) : order.status === 'cancelled' ? (
+                          <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 shrink-0">
+                            ✕ Cancelled
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800 shrink-0">
+                            ✓ Dispatched
+                          </span>
+                        )}
                       </div>
 
                       {/* Digital Delivery Vault Container (Exact match to reference screenshots) */}
@@ -461,6 +485,18 @@ export const OrdersPage: React.FC = () => {
                                     </p>
                                   </div>
                                 </div>
+
+                                {order.status === 'refunded' && (
+                                  <div className="p-3.5 rounded-xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
+                                    <span className="text-base">↩</span>
+                                    <div>
+                                      <p className="font-bold">Order Refunded to NGN Wallet</p>
+                                      <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-0.5">
+                                        This order was refunded back to your account wallet. For inquiries, reach out to 24/7 WhatsApp Desk: <strong>07069659752</strong>.
+                                      </p>
+                                    </div>
+                                  </div>
+                                )}
 
                                 {/* Top Action Buttons (Usage Guide, Download .txt, Copy All) */}
                                 <div className="flex flex-wrap items-center gap-2 pt-1">

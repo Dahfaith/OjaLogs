@@ -780,37 +780,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unitPriceNgn: item.product.priceNgn
     }));
 
-    let newOrder: Order;
-    try {
-      newOrder = await apiClient.checkout(checkoutPayload, 'wallet');
-    } catch (e: any) {
-      console.warn('API checkout failed, executing local fallback order:', e.message);
-      const orderRef = `ord_oj_${Math.floor(1000 + Math.random() * 9000)}`;
-      newOrder = {
-        id: `ord_${Date.now()}`,
-        reference: orderRef,
-        createdAt: new Date().toISOString(),
-        status: 'completed',
-        paymentMethod: 'wallet',
-        totalNgn: cart.totalAmountNgn,
-        customerEmail: user?.email || 'guest@ojalogs.com',
-        items: cart.items.map((item, idx) => ({
-          id: `ord_item_${Date.now()}_${idx}`,
-          product: item.product,
-          quantity: item.quantity,
-          unitPriceNgn: item.product.priceNgn,
-          totalNgn: item.subtotalNgn,
-          deliveredSecrets: [
-            {
-              type: 'license_key',
-              revealed: false,
-              value: `OJ-${item.product.serverCluster.replace(/\s+/g, '').toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-              instruction: 'Instant authorized redemption key. Apply directly to your authorized service provider portal.'
-            }
-          ]
-        }))
-      };
-    }
+    const newOrder = await apiClient.checkout(checkoutPayload, 'wallet');
 
     const newBalance = wallet.balanceNgn - cart.totalAmountNgn;
     const debitTx: LedgerTransaction = {
@@ -865,36 +835,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unitPriceNgn: item.product.priceNgn
     }));
 
-    let newOrder: Order;
-    try {
-      newOrder = await apiClient.checkout(checkoutPayload, 'bach_direct');
-    } catch {
-      const orderRef = `ord_oj_${Math.floor(1000 + Math.random() * 9000)}`;
-      newOrder = {
-        id: `ord_${Date.now()}`,
-        reference: orderRef,
-        createdAt: new Date().toISOString(),
-        status: 'completed',
-        paymentMethod: 'bach_direct',
-        totalNgn: cart.totalAmountNgn,
-        customerEmail: user?.email || 'guest@ojalogs.com',
-        items: cart.items.map((item, idx) => ({
-          id: `ord_item_${Date.now()}_${idx}`,
-          product: item.product,
-          quantity: item.quantity,
-          unitPriceNgn: item.product.priceNgn,
-          totalNgn: item.subtotalNgn,
-          deliveredSecrets: [
-            {
-              type: 'license_key',
-              revealed: false,
-              value: `OJ-BACH-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-              instruction: 'Delivered via verified direct BACH Gateway transaction.'
-            }
-          ]
-        }))
-      };
-    }
+    const newOrder = await apiClient.checkout(checkoutPayload, 'bach_direct');
 
     setOrders(prev => {
       const updated = [newOrder, ...prev];
