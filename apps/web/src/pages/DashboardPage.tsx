@@ -50,6 +50,30 @@ export const DashboardPage: React.FC = () => {
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
   const [activityFilter, setActivityFilter] = useState<'all' | 'deposits' | 'orders'>('all');
 
+  // Dynamically calculate lifetime purchases & total spending from real orders and ledger transactions
+  const totalOrdersCount = useMemo(() => {
+    // 1. Completed/processing orders
+    const validOrders = orders.filter(o => o.status !== 'cancelled');
+    // 2. Order debit transactions in ledger
+    const ledgerOrderTxs = ledger.filter(tx => tx.type === 'debit' && tx.category !== 'refund');
+    // 3. Return maximum of orders list, ledger orders, or wallet counter
+    return Math.max(validOrders.length, ledgerOrderTxs.length, wallet.lifetimePurchases || 0);
+  }, [orders, ledger, wallet.lifetimePurchases]);
+
+  const totalMonthlySpendNgn = useMemo(() => {
+    // 1. Calculate from debit transactions in ledger
+    const ledgerSpend = ledger
+      .filter(tx => tx.type === 'debit' && tx.category !== 'refund')
+      .reduce((sum, tx) => sum + Math.abs(Number(tx.amountNgn) || 0), 0);
+
+    // 2. Calculate from orders
+    const ordersSpend = orders
+      .filter(o => o.status === 'completed' || o.status === 'processing')
+      .reduce((sum, o) => sum + (Number(o.totalNgn) || 0), 0);
+
+    return Math.max(ledgerSpend, ordersSpend, wallet.monthlySpendNgn || 0);
+  }, [ledger, orders, wallet.monthlySpendNgn]);
+
   // Proactively refresh live wallet on dashboard mount
   useEffect(() => {
     if (user) {
@@ -348,7 +372,7 @@ export const DashboardPage: React.FC = () => {
               Total orders
             </p>
             <p className="font-heading font-extrabold text-2xl text-oj-midnight dark:text-white">
-              {wallet.lifetimePurchases}
+              {totalOrdersCount}
             </p>
             <p className="text-[11px] text-oj-muted dark:text-oj-dark-muted mt-0.5">
               Lifetime purchases
@@ -368,7 +392,7 @@ export const DashboardPage: React.FC = () => {
               Monthly spend
             </p>
             <p className="font-heading font-extrabold text-2xl text-oj-midnight dark:text-white">
-              {formatPrice(wallet.monthlySpendNgn)}
+              {formatPrice(totalMonthlySpendNgn)}
             </p>
             <p className="text-[11px] text-oj-muted dark:text-oj-dark-muted mt-0.5">
               Total verified spending

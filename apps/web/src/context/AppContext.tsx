@@ -678,6 +678,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         try {
           localStorage.setItem('oj_user_ledger', JSON.stringify(resolvedTxs));
         } catch {}
+
+        // Automatically calculate lifetime purchases and spend from verified ledger transactions
+        const orderTxs = resolvedTxs.filter(tx => 
+          tx.type === 'debit' && tx.category !== 'refund'
+        );
+        const computedPurchases = orderTxs.length;
+        const computedSpend = orderTxs.reduce((sum, tx) => sum + Math.abs(Number(tx.amountNgn) || 0), 0);
+
+        setWallet(prev => ({
+          ...prev,
+          lifetimePurchases: Math.max(prev.lifetimePurchases, computedPurchases),
+          monthlySpendNgn: Math.max(prev.monthlySpendNgn, computedSpend)
+        }));
       }
     } catch {
       // Retain state if offline
@@ -755,6 +768,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           try {
             localStorage.setItem('oj_orders', JSON.stringify(merged));
           } catch {}
+
+          const completedOrders = merged.filter(o => o.status !== 'cancelled');
+          const ordersSpend = completedOrders.reduce((sum, o) => sum + (Number(o.totalNgn) || 0), 0);
+          setWallet(prev => ({
+            ...prev,
+            lifetimePurchases: Math.max(prev.lifetimePurchases, completedOrders.length),
+            monthlySpendNgn: Math.max(prev.monthlySpendNgn, ordersSpend)
+          }));
+
           return merged;
         });
       }
