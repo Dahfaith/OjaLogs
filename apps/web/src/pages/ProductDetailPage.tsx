@@ -241,7 +241,7 @@ export const ProductDetailPage: React.FC = () => {
             <div className="space-y-2">
               <button
                 onClick={handleBuyNow}
-                className="w-full py-3.5 rounded-btn bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-orange-500 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-all hover:scale-[1.01]"
+                className="w-full py-3.5 rounded-btn bg-gradient-to-r from-oj-primary via-blue-600 to-oj-cyan hover:opacity-95 text-white font-bold text-xs shadow-glow-primary flex items-center justify-center gap-2 transition-all hover:scale-[1.01]"
               >
                 <Zap className="w-4 h-4 fill-white" />
                 <span>Buy Now ({formatPrice(totalPrice)})</span>

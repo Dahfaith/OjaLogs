@@ -1,12 +1,16 @@
 import { app } from './app.js';
 import { env } from './config/env.js';
 import { configService } from './services/config.service.js';
+import { cronService } from './services/cron.service.js';
 
 // Initialize encrypted configuration from Supabase before serving requests
 configService.initialize().then(() => {
   console.log('[OJALOGS_API] Config service initialized successfully.');
+  // Start autonomous background cron workers
+  cronService.start();
 }).catch(err => {
   console.warn('[OJALOGS_API] Config service init notice:', err.message);
+  cronService.start();
 });
 
 const server = app.listen(env.PORT, () => {
@@ -16,6 +20,7 @@ const server = app.listen(env.PORT, () => {
 
 process.on('SIGTERM', () => {
   console.log('[OJALOGS_API] SIGTERM received. Gracefully shutting down...');
+  cronService.stop();
   server.close(() => {
     process.exit(0);
   });

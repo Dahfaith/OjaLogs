@@ -354,7 +354,7 @@ export const DashboardPage: React.FC = () => {
               Lifetime purchases
             </p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-oj-primary/10 text-oj-primary dark:bg-oj-primary/20 dark:text-oj-cyan flex items-center justify-center">
             <ShoppingBag className="w-5 h-5" />
           </div>
         </motion.div>
@@ -436,11 +436,11 @@ export const DashboardPage: React.FC = () => {
       {/* Discovery Promo Banner */}
       <Link
         to="/shop"
-        className="block p-4 sm:p-5 rounded-card bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-transparent border border-orange-500/20 hover:border-orange-500/40 transition-all group"
+        className="block p-4 sm:p-5 rounded-card bg-gradient-to-r from-oj-primary/10 via-blue-500/10 to-transparent border border-oj-primary/20 hover:border-oj-primary/40 transition-all group"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-orange-500/20 text-orange-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <div className="w-10 h-10 rounded-xl bg-oj-primary/20 text-oj-primary flex items-center justify-center group-hover:scale-110 transition-transform">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
@@ -452,7 +452,7 @@ export const DashboardPage: React.FC = () => {
               </p>
             </div>
           </div>
-          <div className="w-8 h-8 rounded-full bg-white dark:bg-oj-dark-surface shadow-sm flex items-center justify-center text-orange-600 group-hover:translate-x-1 transition-transform">
+          <div className="w-8 h-8 rounded-full bg-white dark:bg-oj-dark-surface shadow-sm flex items-center justify-center text-oj-primary group-hover:translate-x-1 transition-transform">
             <ArrowRight className="w-4 h-4" />
           </div>
         </div>
@@ -532,7 +532,7 @@ export const DashboardPage: React.FC = () => {
               <div className="flex items-center justify-center gap-2 pt-1">
                 <button
                   onClick={() => setIsFundModalOpen(true)}
-                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs font-bold shadow-md hover:scale-[1.02] transition-all inline-flex items-center gap-1.5"
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-oj-primary to-blue-600 text-white text-xs font-bold shadow-md hover:scale-[1.02] transition-all inline-flex items-center gap-1.5"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>+ Fund Wallet</span>

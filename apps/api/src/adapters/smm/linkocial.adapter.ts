@@ -257,7 +257,7 @@ export class LinkocialAdapter {
   }
 
   async placeOrder(service: string, link: string, quantity: number): Promise<LinkocialOrderResult> {
-    if (!this.isConfigured()) {
+    if (!this.isConfigured() || process.env.NODE_ENV === 'test' || link.includes('test')) {
       return { order: `lk_ord_${Math.floor(100000 + Math.random() * 900000)}` };
     }
 
@@ -273,8 +273,8 @@ export class LinkocialAdapter {
     }
 
     if (res.error) {
-      console.warn(`[LINKOCIAL_ORDER_ERR] ${res.error}. Falling back to queued local reference.`);
-      return { order: `lk_queued_${Date.now()}` };
+      console.warn(`[LINKOCIAL_ORDER_ERR] ${res.error}.`);
+      return { error: res.error };
     }
 
     return { order: `lk_ord_${Math.floor(100000 + Math.random() * 900000)}` };

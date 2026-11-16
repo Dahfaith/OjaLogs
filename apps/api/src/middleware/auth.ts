@@ -20,7 +20,8 @@ declare global {
 
 export const PLATFORM_ADMIN_EMAILS = [
   'visioreach@gmail.com',
-  'ojalogs@gmail.com'
+  'ojalogs@gmail.com',
+  'iamdahfaith@gmail.com'
 ];
 
 export function isPlatformAdmin(email?: string): boolean {

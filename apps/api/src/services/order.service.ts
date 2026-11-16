@@ -190,13 +190,13 @@ export class OrderService {
     // Provision each item through its dedicated Server API adapter or LogsPoll upstream
     const orderItems: OrderItem[] = [];
 
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      let provisioned: { secretKey: string; deliveryFormat: string; instructions: string } | null = null;
+    try {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        let provisioned: { secretKey: string; deliveryFormat: string; instructions: string } | null = null;
 
-      // 1. Direct LogsPoll Upstream Dispatch for LogsPoll Products or configured accounts
-      if (item.productId.startsWith('lp_') || (logspollAdapter.getCredentials().isConfigured && !item.productId.includes('test'))) {
-        try {
+        // 1. Direct LogsPoll Upstream Dispatch for LogsPoll Products or configured accounts
+        if (item.productId.startsWith('lp_') || (logspollAdapter.getCredentials().isConfigured && !item.productId.startsWith('prod_') && !item.productId.includes('test') && process.env.NODE_ENV !== 'test')) {
           console.log(`[ORDER_SERVICE] Dispatching live LogsPoll order for ${item.productId} (${item.title})...`);
           const lpRes = await logspollAdapter.orderProduct(item.productId, item.quantity, orderRef);
           if (lpRes.success && lpRes.secretKey) {
@@ -206,61 +206,114 @@ export class OrderService {
               deliveryFormat: lpRes.deliveryFormat || 'Encrypted Account Credentials & 2FA Token',
               instructions: lpRes.instructions || 'Delivered via LogsPoll automated upstream API.'
             };
+          } else {
+            const errMsg = lpRes.error || 'LogsPoll upstream rejected order (insufficient provider balance or stock)';
+            console.error(`[ORDER_SERVICE] LogsPoll upstream error: ${errMsg}`);
+            // In live environment, never deliver mock secrets to paying customer!
+            if (process.env.NODE_ENV !== 'test' && !item.productId.includes('test')) {
+              throw new Error(errMsg);
+            }
           }
-        } catch (err: any) {
-          console.warn(`[ORDER_SERVICE] LogsPoll live dispatch notice: ${err.message}`);
+        }
+
+        // 2. Dedicated Server API Adapter with metadata
+        if (!provisioned) {
+          const adapter = serverApiRegistry.getAdapter(item.serverCluster);
+          provisioned = await adapter.provisionSecret(item.productId, orderRef, {
+            title: item.title,
+            quantity: item.quantity,
+            serverCluster: item.serverCluster
+          });
+        }
+
+        if (!provisioned || !provisioned.secretKey) {
+          throw new Error('No delivery credentials returned by server cluster adapter.');
+        }
+
+        // Encrypt payload with AES-256-GCM before saving to delivery vault
+        const encryptedSecret = encryptPayload(provisioned.secretKey);
+
+        orderItems.push({
+          id: `ord_item_${Date.now()}_${i}`,
+          product: {
+            id: item.productId,
+            slug: item.productId,
+            title: item.title,
+            category: 'Marketplace Good',
+            categoryId: 'general',
+            division: 'A',
+            serverCluster: item.serverCluster,
+            priceNgn: item.unitPriceNgn,
+            inStock: true,
+            stockCount: 50,
+            rating: 5.0,
+            verifiedResale: true,
+            coverImage: '',
+            summary: '',
+            descriptionHtml: '',
+            specifications: {} as any,
+            deliveryFormat: provisioned.deliveryFormat,
+            validityDuration: 'Standard',
+            region: 'Global'
+          },
+          quantity: item.quantity,
+          unitPriceNgn: item.unitPriceNgn,
+          totalPriceNgn: item.unitPriceNgn * item.quantity,
+          deliveredSecret: encryptedSecret,
+          deliveryFormat: provisioned.deliveryFormat,
+          instructions: provisioned.instructions,
+          deliveredSecrets: [
+            {
+              type: 'license_key',
+              revealed: false,
+              encryptedPayload: encryptedSecret,
+              value: '••••••••••••••••••••••••••••••',
+              instruction: provisioned.instructions
+            } as any
+          ]
+        });
+      }
+    } catch (provisionErr: any) {
+      console.error(`[ORDER_PROVISION_ERROR] Provisioning failed for ${orderRef}: ${provisionErr.message}`);
+
+      // Auto-refund wallet immediately if customer was charged via wallet
+      if (paymentMethod === 'wallet') {
+        try {
+          walletService.creditWallet(
+            userId,
+            totalNgn,
+            'refund',
+            `ref_oj_rf_${Math.floor(1000000 + Math.random() * 9000000)}`,
+            `Auto-refund: Upstream Restocking / Insufficient Provider Liquidity (${orderRef})`,
+            `refund_${idempotencyKey}`,
+            customerEmail
+          );
+          console.log(`[ORDER_AUTO_REFUND] ✓ Fully refunded ₦${totalNgn} to ${customerEmail || userId} for ${orderRef}`);
+        } catch (rfErr: any) {
+          console.error(`[ORDER_AUTO_REFUND_FAIL] Could not refund wallet: ${rfErr.message}`);
         }
       }
 
-      // 2. Fallback to Dedicated Server API Adapter with metadata
-      if (!provisioned) {
-        const adapter = serverApiRegistry.getAdapter(item.serverCluster);
-        provisioned = await adapter.provisionSecret(item.productId, orderRef, {
-          title: item.title,
-          quantity: item.quantity,
-          serverCluster: item.serverCluster
+      // Notify Super Admin of provider liquidity exhaustion or provisioning failure
+      try {
+        notificationService.recordAdminNotification({
+          id: `notif_liq_${Date.now()}`,
+          type: 'SECURITY_ALERT',
+          title: '🚨 Upstream Liquidity / Order Rejection Alert',
+          message: `User ${customerEmail} attempted to buy "${items.map(it => it.title).join(', ')}" for ₦${totalNgn.toLocaleString()} (${orderRef}), but the upstream provider rejected the order (${provisionErr.message}). Customer wallet was NOT charged. Please fund your upstream provider balance immediately!`,
+          timestamp: new Date().toISOString(),
+          read: false,
+          userEmail: customerEmail
         });
+      } catch (notifErr: any) {
+        console.warn(`[ORDER_NOTIF_NOTICE] Failed to record admin notification: ${notifErr.message}`);
       }
 
-      // Encrypt payload with AES-256-GCM before saving to delivery vault
-      const encryptedSecret = encryptPayload(provisioned.secretKey);
-
-      orderItems.push({
-        id: `ord_item_${Date.now()}_${i}`,
-        product: {
-          id: item.productId,
-          slug: item.productId,
-          title: item.title,
-          category: 'Marketplace Good',
-          categoryId: 'general',
-          division: 'A',
-          serverCluster: item.serverCluster,
-          priceNgn: item.unitPriceNgn,
-          inStock: true,
-          stockCount: 50,
-          rating: 5.0,
-          verifiedResale: true,
-          coverImage: '',
-          summary: '',
-          descriptionHtml: '',
-          specifications: {} as any,
-          deliveryFormat: provisioned.deliveryFormat,
-          validityDuration: 'Standard',
-          region: 'Global'
-        },
-        quantity: item.quantity,
-        unitPriceNgn: item.unitPriceNgn,
-        totalNgn: item.unitPriceNgn * item.quantity,
-        deliveredSecrets: [
-          {
-            type: 'license_key',
-            revealed: false,
-            encryptedPayload: encryptedSecret,
-            value: '••••••••••••••••••••••••••••••',
-            instruction: provisioned.instructions
-          } as any
-        ]
-      });
+      throw new AppError(
+        'This server cluster is temporarily undergoing routine restocking / maintenance. Your wallet was NOT charged. Please try again shortly or contact support on WhatsApp (07069659752).',
+        503,
+        'SERVER_RESTOCKING'
+      );
     }
 
     const newOrder: Order & { userId?: string } = {

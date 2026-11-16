@@ -223,7 +223,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                         onClose();
                         setIsAuthModalOpen(true);
                       }}
-                      className="w-full py-3 px-4 rounded-btn bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:opacity-95 text-white text-xs font-bold shadow-lg flex items-center justify-center gap-2 transition-all hover:scale-[1.01]"
+                      className="w-full py-3 px-4 rounded-btn bg-gradient-to-r from-oj-primary via-blue-600 to-oj-cyan hover:opacity-95 text-white text-xs font-bold shadow-lg flex items-center justify-center gap-2 transition-all hover:scale-[1.01]"
                     >
                       <Sparkles className="w-4 h-4" />
                       <span>Sign In or Register to Checkout</span>

@@ -15,6 +15,7 @@ const DATA_DIR = fs.existsSync(path.join(process.cwd(), 'apps', 'api', 'data'))
 
 const ALERTED_SIGNUPS_FILE = path.join(DATA_DIR, 'alerted_signups.json');
 const NOTIFICATIONS_FILE = path.join(DATA_DIR, 'admin_notifications.json');
+const MANAGED_USERS_FILE = path.join(DATA_DIR, 'managed_users.json');
 
 class NotificationService {
   private alertedSignups: Set<string> = new Set();
@@ -33,6 +34,30 @@ class NotificationService {
   ];
 
   private managedUsers: AdminManagedUser[] = [
+    {
+      id: 'usr_adebayosaheed2233',
+      name: 'Adebayosaheed2233',
+      email: 'adebayosaheed2233@gmail.com',
+      role: 'customer',
+      status: 'active',
+      balanceNgn: 25000.00,
+      isVerified: true,
+      totalOrders: 1,
+      createdAt: '2026-11-15T11:00:00.000Z',
+      lastActiveAt: '2026-11-15T12:00:00.000Z'
+    },
+    {
+      id: 'usr_olatundunezekiel037',
+      name: 'Olatundunezekiel037',
+      email: 'olatundunezekiel037@gmail.com',
+      role: 'customer',
+      status: 'active',
+      balanceNgn: 0.00,
+      isVerified: true,
+      totalOrders: 0,
+      createdAt: '2026-11-15T11:48:10.000Z',
+      lastActiveAt: '2026-11-15T11:48:10.000Z'
+    },
     {
       id: 'cb96d015-bc19-42f1-a2b6-531dc01f610b',
       name: 'Info.masontyler1',
@@ -55,6 +80,17 @@ class NotificationService {
       totalOrders: 0,
       createdAt: '2026-11-15T09:42:26.000Z',
       lastActiveAt: '2026-11-15T09:45:57.000Z'
+    },
+    {
+      id: 'usr_admin_003',
+      name: 'Dahfaith',
+      email: 'iamdahfaith@gmail.com',
+      role: 'administrator',
+      status: 'active',
+      balanceNgn: 0.00,
+      isVerified: true,
+      totalOrders: 0,
+      createdAt: '2026-11-05T00:00:00.000Z'
     },
     {
       id: 'usr_admin_001',
@@ -83,7 +119,39 @@ class NotificationService {
   constructor() {
     this.loadAlertedSignups();
     this.loadNotifications();
+    this.loadManagedUsers();
     this.loadFromSupabase().catch(() => {});
+  }
+
+  private loadManagedUsers(): void {
+    try {
+      if (fs.existsSync(MANAGED_USERS_FILE)) {
+        const raw = fs.readFileSync(MANAGED_USERS_FILE, 'utf-8');
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          for (const u of parsed) {
+            const existing = this.managedUsers.find(m => m.email.toLowerCase() === u.email.toLowerCase());
+            if (existing) {
+              Object.assign(existing, u);
+            } else {
+              this.managedUsers.push(u);
+            }
+          }
+        }
+      }
+    } catch (err: any) {
+      console.warn(`[NOTIF_PERSISTENCE] Error reading managed users: ${err.message}`);
+    }
+  }
+
+  public saveManagedUsers(): void {
+    try {
+      fs.mkdirSync(path.dirname(MANAGED_USERS_FILE), { recursive: true });
+      fs.writeFileSync(MANAGED_USERS_FILE, JSON.stringify(this.managedUsers, null, 2), 'utf-8');
+      this.syncToSupabase().catch(() => {});
+    } catch (err: any) {
+      console.warn(`[NOTIF_PERSISTENCE] Error saving managed users: ${err.message}`);
+    }
   }
 
   private isTestRuntime(): boolean {
@@ -331,7 +399,22 @@ class NotificationService {
   }
 
   adjustBalance(userId: string, amountNgn: number, type: 'credit' | 'debit'): AdminManagedUser | null {
-    const user = this.managedUsers.find(u => u.id === userId || (u.email && u.email.toLowerCase() === userId.toLowerCase()));
+    let user = this.managedUsers.find(u => u.id === userId || (u.email && u.email.toLowerCase() === userId.toLowerCase()));
+    if (!user && userId.includes('@')) {
+      const emailLower = userId.toLowerCase().trim();
+      user = {
+        id: `usr_${Date.now()}`,
+        name: emailLower.split('@')[0],
+        email: emailLower,
+        role: 'customer',
+        status: 'active',
+        balanceNgn: 0,
+        isVerified: true,
+        totalOrders: 0,
+        createdAt: new Date().toISOString()
+      };
+      this.managedUsers.push(user);
+    }
     if (user) {
       if (type === 'credit') {
         walletService.creditWallet(
@@ -356,6 +439,7 @@ class NotificationService {
         );
       }
       user.balanceNgn = walletService.getBalance(user.id, user.email);
+      this.saveManagedUsers();
       return user;
     }
     return null;
@@ -427,6 +511,12 @@ class NotificationService {
     });
   }
 
+  recordAdminNotification(notif: AdminNotification) {
+    this.notifications.unshift(notif);
+    this.saveNotifications();
+    this.syncToSupabase().catch(() => {});
+  }
+
   async recordSignupAlert(email: string, name?: string, createdAt?: string): Promise<boolean> {
     const emailLower = email.toLowerCase().trim();
     const isAdmin = emailLower === 'visioreach@gmail.com' || emailLower === 'ojalogs@gmail.com';
@@ -447,6 +537,7 @@ class NotificationService {
         createdAt: timestamp,
         lastActiveAt: timestamp
       });
+      this.saveManagedUsers();
     }
 
     // In-App Notification (Admin Command Console only)

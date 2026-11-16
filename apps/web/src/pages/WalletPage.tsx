@@ -204,7 +204,7 @@ export const WalletPage: React.FC = () => {
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => setIsFundOpen(true)}
-            className="py-2.5 px-4 rounded-btn bg-gradient-to-r from-orange-500 to-amber-500 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-bold shadow-md flex items-center justify-center gap-2 transition-all hover:scale-[1.02]"
+            className="py-2.5 px-4 rounded-btn bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white text-xs font-bold shadow-md flex items-center justify-center gap-2 transition-all hover:scale-[1.02]"
           >
             <Plus className="w-4 h-4" />
             <span>+ Add money</span>
@@ -280,7 +280,7 @@ export const WalletPage: React.FC = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="p-3.5 rounded-xl bg-oj-surface-alt/50 dark:bg-oj-dark-surface-alt/50 border border-oj-border dark:border-oj-dark-border flex gap-3">
-            <span className="font-mono font-bold text-xs text-orange-600 bg-orange-100 dark:bg-orange-950/60 dark:text-orange-400 px-2 py-1 rounded-md h-fit">
+            <span className="font-mono font-bold text-xs text-oj-primary bg-blue-50 dark:bg-blue-950/60 dark:text-oj-cyan px-2 py-1 rounded-md h-fit">
               01
             </span>
             <div>
@@ -290,7 +290,7 @@ export const WalletPage: React.FC = () => {
           </div>
 
           <div className="p-3.5 rounded-xl bg-oj-surface-alt/50 dark:bg-oj-dark-surface-alt/50 border border-oj-border dark:border-oj-dark-border flex gap-3">
-            <span className="font-mono font-bold text-xs text-orange-600 bg-orange-100 dark:bg-orange-950/60 dark:text-orange-400 px-2 py-1 rounded-md h-fit">
+            <span className="font-mono font-bold text-xs text-oj-primary bg-blue-50 dark:bg-blue-950/60 dark:text-oj-cyan px-2 py-1 rounded-md h-fit">
               02
             </span>
             <div>
@@ -390,7 +390,7 @@ export const WalletPage: React.FC = () => {
               ) : (
                 <button
                   onClick={() => setIsFundOpen(true)}
-                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs font-bold shadow-md hover:scale-[1.02] transition-all inline-flex items-center gap-1.5"
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-oj-primary to-blue-600 text-white text-xs font-bold shadow-md hover:scale-[1.02] transition-all inline-flex items-center gap-1.5"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>+ Fund Wallet</span>

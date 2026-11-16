@@ -428,11 +428,51 @@ export class SMMManagerService {
     );
 
     // Dispatch to Linkocial API
-    const upstreamRes = await linkocialAdapter.placeOrder(
-      service.providerServiceId,
-      targetLink,
-      quantity
-    );
+    let upstreamRes: any;
+    try {
+      upstreamRes = await linkocialAdapter.placeOrder(
+        service.providerServiceId,
+        targetLink,
+        quantity
+      );
+
+      if (upstreamRes.error) {
+        throw new Error(upstreamRes.error);
+      }
+    } catch (smmErr: any) {
+      console.error(`[SMM_DISPATCH_FAIL] ${smmErr.message}. Auto-refunding customer...`);
+      try {
+        walletService.creditWallet(
+          userId,
+          totalNgn,
+          'refund',
+          `ref_oj_rf_${Math.floor(1000000 + Math.random() * 9000000)}`,
+          `Auto-refund: SMM Provider Maintenance (${orderRef})`,
+          `refund_${idempotencyKey}`,
+          customerEmail
+        );
+      } catch (rfErr: any) {
+        console.error(`[SMM_AUTO_REFUND_FAIL] ${rfErr.message}`);
+      }
+
+      try {
+        notificationService.recordAdminNotification({
+          id: `notif_smm_${Date.now()}`,
+          type: 'SECURITY_ALERT',
+          title: '🚨 SMM Upstream Balance / Order Rejection Alert',
+          message: `User ${customerEmail} ordered ${service.name} for ₦${totalNgn.toLocaleString()} (${orderRef}), but the upstream SMM provider rejected the order (${smmErr.message}). Wallet was auto-refunded. Please fund your SMM provider balance!`,
+          timestamp: new Date().toISOString(),
+          read: false,
+          userEmail: customerEmail
+        });
+      } catch {}
+
+      throw new AppError(
+        'The SMM boost network node is currently undergoing routine maintenance. Your wallet was NOT charged. Please try again shortly or contact support on WhatsApp (07069659752).',
+        503,
+        'SMM_UNAVAILABLE'
+      );
+    }
 
     const newOrder: SMMOrder = {
       id: `smm_ord_${Date.now()}`,

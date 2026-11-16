@@ -247,7 +247,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenCart }) => {
                 className={`w-8 h-8 sm:w-9 sm:h-9 rounded-btn border flex items-center justify-center text-xs font-bold hover:scale-105 transition-transform ${
                   isAdminRoute
                     ? 'bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border-emerald-500/40 text-emerald-800 dark:text-emerald-300'
-                    : 'bg-gradient-to-br from-amber-500/20 to-orange-500/20 border-amber-500/30 text-amber-700 dark:text-amber-300'
+                    : 'bg-gradient-to-br from-oj-primary/20 to-oj-cyan/20 border-oj-primary/30 text-oj-primary dark:text-oj-cyan'
                 }`}
               >
                 {user.initials}

@@ -87,7 +87,7 @@ export const ProfilePage: React.FC = () => {
 
       {/* User Card */}
       <div className="p-5 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft flex items-center gap-4">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/40 flex items-center justify-center font-heading font-extrabold text-lg text-amber-700 dark:text-amber-300">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-oj-primary/20 to-oj-cyan/20 border border-oj-primary/30 flex items-center justify-center font-heading font-extrabold text-lg text-oj-primary dark:text-oj-cyan">
           {user.initials}
         </div>
         <div>
@@ -170,7 +170,7 @@ export const ProfilePage: React.FC = () => {
           <button
             onClick={handleToggleAlerts}
             className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${
-              transactionAlerts ? 'bg-orange-500' : 'bg-slate-300 dark:bg-slate-700'
+              transactionAlerts ? 'bg-oj-primary' : 'bg-slate-300 dark:bg-slate-700'
             }`}
           >
             <motion.div
@@ -186,7 +186,7 @@ export const ProfilePage: React.FC = () => {
       {/* Personal Information Form */}
       <div className="p-5 rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft space-y-4">
         <h3 className="font-heading font-bold text-sm text-oj-midnight dark:text-white flex items-center gap-2">
-          <User className="w-4 h-4 text-orange-500" />
+          <User className="w-4 h-4 text-oj-primary" />
           <span>Personal Information</span>
         </h3>
 

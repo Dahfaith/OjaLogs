@@ -19,12 +19,19 @@ export const WhatsAppSupportModal: React.FC<WhatsAppSupportModalProps> = ({
   orderReference,
   defaultComplaint = ''
 }) => {
+  const [editableOrderRef, setEditableOrderRef] = useState(orderReference || '');
   const [complaint, setComplaint] = useState(defaultComplaint);
   const [copied, setCopied] = useState(false);
 
+  React.useEffect(() => {
+    if (orderReference) {
+      setEditableOrderRef(orderReference);
+    }
+  }, [orderReference]);
+
   if (!isOpen) return null;
 
-  const orderRefText = orderReference?.trim() || 'N/A';
+  const orderRefText = editableOrderRef.trim() || 'General Inquiry';
   const complaintBody = complaint.trim() || '[Your complaint will appear here]';
 
   const previewMessage = `I'm here from Ojalogs.\n\nOrder Reference: ${orderRefText}\n\nMy complaint is: ${complaintBody}`;
@@ -92,7 +99,7 @@ export const WhatsAppSupportModal: React.FC<WhatsAppSupportModalProps> = ({
           {/* Body */}
           <div className="p-4 sm:p-5 space-y-4 max-h-[75vh] overflow-y-auto">
             {/* Linked Order Reference */}
-            {orderReference && (
+            {orderReference ? (
               <div className="p-3 sm:p-3.5 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
                 <span className="text-xs font-bold text-oj-muted dark:text-slate-400">
                   Linked Order Reference:
@@ -100,6 +107,19 @@ export const WhatsAppSupportModal: React.FC<WhatsAppSupportModalProps> = ({
                 <span className="font-mono text-xs sm:text-sm font-extrabold text-oj-primary dark:text-oj-cyan break-all">
                   {orderReference}
                 </span>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-oj-midnight dark:text-white">
+                  Order Reference (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={editableOrderRef}
+                  onChange={(e) => setEditableOrderRef(e.target.value)}
+                  placeholder="e.g. ord_oj_1234 or leave blank for general inquiries"
+                  className="w-full text-xs p-2.5 rounded-xl bg-oj-surface-alt dark:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border text-oj-midnight dark:text-white font-mono focus:outline-none focus:border-oj-primary transition-all"
+                />
               </div>
             )}
 
@@ -133,7 +153,7 @@ export const WhatsAppSupportModal: React.FC<WhatsAppSupportModalProps> = ({
                 </button>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-oj-surface-alt/80 dark:bg-[#0b101b] border border-oj-border dark:border-oj-dark-border font-mono text-xs leading-relaxed text-oj-midnight dark:text-slate-200 select-all whitespace-pre-wrap">
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-oj-midnight/60 border border-oj-border dark:border-oj-dark-border font-mono text-xs leading-relaxed text-oj-midnight dark:text-slate-200 select-all whitespace-pre-wrap">
                 {previewMessage}
               </div>
 

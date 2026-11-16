@@ -27,7 +27,7 @@ export class Server2ApiAdapter implements IServerApiAdapter {
 
   async provisionSecret(sku: string, orderRef: string, metadata?: any): Promise<ProvisionResult> {
     // 1. If LogsPoll API is configured, attempt live upstream dispatch
-    if (sku.startsWith('lp_') || (logspollAdapter.getCredentials().isConfigured && !sku.includes('test'))) {
+    if (sku.startsWith('lp_') || (logspollAdapter.getCredentials().isConfigured && !sku.startsWith('prod_') && !sku.includes('test') && process.env.NODE_ENV !== 'test')) {
       try {
         console.log(`[SERVER_2_LOGSPOLL] Ordering social account for SKU: ${sku} via LogsPoll API...`);
         const orderResult = await logspollAdapter.orderProduct(sku, metadata?.quantity || 1, orderRef);
@@ -39,9 +39,18 @@ export class Server2ApiAdapter implements IServerApiAdapter {
             instructions: orderResult.instructions || 'Redeem and secure your account credentials with 2FA.',
             externalTransactionId: `lp_${orderResult.orderId || Date.now()}`
           };
+        } else {
+          const errMsg = orderResult.error || 'LogsPoll upstream rejected order (insufficient provider balance or out of stock)';
+          console.error(`[SERVER_2_LOGSPOLL] Upstream failure: ${errMsg}`);
+          if (process.env.NODE_ENV !== 'test' && !sku.includes('test')) {
+            throw new Error(errMsg);
+          }
         }
       } catch (err: any) {
-        console.warn(`[SERVER_2_LOGSPOLL] Live dispatch notice: ${err.message}`);
+        console.error(`[SERVER_2_LOGSPOLL] Live dispatch failed: ${err.message}`);
+        if (process.env.NODE_ENV !== 'test' && !sku.includes('test')) {
+          throw err;
+        }
       }
     }
 

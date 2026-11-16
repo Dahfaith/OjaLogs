@@ -274,7 +274,8 @@ export const AdminPage: React.FC = () => {
   // RBAC Access Gate: Only authorized administrators can view the command console
   const adminEmails = [
     'visioreach@gmail.com',
-    'ojalogs@gmail.com'
+    'ojalogs@gmail.com',
+    'iamdahfaith@gmail.com'
   ];
   const userEmailLower = user?.email?.toLowerCase().trim() || '';
   const isAuthorizedEmail = adminEmails.includes(userEmailLower);
@@ -1549,25 +1550,36 @@ export const AdminPage: React.FC = () => {
     if (!adjustingUser || adjustAmount <= 0) return;
 
     try {
-      await apiClient.adjustUserBalance(adjustingUser.id, adjustAmount, adjustType, adjustReason);
-    } catch { }
+      const res = await apiClient.adjustUserBalance(
+        adjustingUser.email || adjustingUser.id,
+        adjustAmount,
+        adjustType,
+        adjustReason
+      );
 
-    setUsersList(prev => {
-      const updated = prev.map(u => {
-        if (u.id === adjustingUser.id) {
-          const newBal = adjustType === 'credit'
-            ? u.balanceNgn + adjustAmount
-            : Math.max(0, u.balanceNgn - adjustAmount);
-          return { ...u, balanceNgn: newBal };
-        }
-        return u;
+      const liveBalance = (res as any)?.balanceNgn;
+      setUsersList(prev => {
+        const updated = prev.map(u => {
+          if (u.id === adjustingUser.id || u.email.toLowerCase() === adjustingUser.email.toLowerCase()) {
+            const newBal = typeof liveBalance === 'number'
+              ? liveBalance
+              : (adjustType === 'credit'
+                ? u.balanceNgn + adjustAmount
+                : Math.max(0, u.balanceNgn - adjustAmount));
+            return { ...u, balanceNgn: newBal };
+          }
+          return u;
+        });
+        localStorage.setItem('oj_managed_users', JSON.stringify(updated));
+        return updated;
       });
-      localStorage.setItem('oj_managed_users', JSON.stringify(updated));
-      return updated;
-    });
 
-    showToast(`Successfully ${adjustType === 'credit' ? 'credited' : 'debited'} ${adjustingUser.email} with ₦${adjustAmount.toLocaleString()}`);
-    setAdjustingUser(null);
+      showToast(`Successfully ${adjustType === 'credit' ? 'credited' : 'debited'} ${adjustingUser.email} with ₦${adjustAmount.toLocaleString()}`);
+      setAdjustingUser(null);
+    } catch (err: any) {
+      console.error('[ADMIN_ADJUST_ERROR]', err);
+      showToast(err.message || 'Failed to adjust balance. Please verify administrator elevation.');
+    }
   };
 
   const handleMarkNotificationsRead = async () => {
@@ -2340,11 +2352,13 @@ export const AdminPage: React.FC = () => {
 
           {/* Users List Container */}
           {(() => {
+            const searchClean = userSearch.trim().toLowerCase();
             const filteredUsers = usersList.filter(u => {
               if (u.email === 'info.masontyler@gmail.com') return false;
-              const matchesSearch =
-                u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
-                u.name.toLowerCase().includes(userSearch.toLowerCase());
+              const matchesSearch = !searchClean ||
+                u.email.toLowerCase().includes(searchClean) ||
+                u.name.toLowerCase().includes(searchClean) ||
+                u.id.toLowerCase().includes(searchClean);
               const matchesRole = userRoleFilter === 'all' || u.role === userRoleFilter;
               const matchesStatus = userStatusFilter === 'all' || u.status === userStatusFilter;
               return matchesSearch && matchesRole && matchesStatus;
@@ -3890,10 +3904,10 @@ export const AdminPage: React.FC = () => {
           </div>
 
           {/* TextPlug Webhook Integration Guide Card */}
-          <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-transparent border border-amber-500/30 dark:border-amber-500/20 shadow-soft space-y-3">
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-oj-primary/10 via-blue-500/10 to-transparent border border-oj-primary/30 dark:border-oj-primary/20 shadow-soft space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-lg shadow-md">
+                <div className="w-10 h-10 rounded-xl bg-oj-primary text-white flex items-center justify-center font-bold text-lg shadow-md">
                   ⚡
                 </div>
                 <div>

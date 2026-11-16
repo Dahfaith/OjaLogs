@@ -83,7 +83,7 @@ export const LandingPage: React.FC = () => {
       inStockCount: 24,
       icon: Shield,
       isLucide: true,
-      color: 'text-orange-500',
+      color: 'text-oj-primary',
       slug: 'vpn',
       description: 'NordVPN, Surfshark & ExpressVPN official vouchers'
     },
@@ -219,7 +219,7 @@ export const LandingPage: React.FC = () => {
 
             <Link
               to="/social-boost"
-              className="w-full sm:w-auto px-6 py-3.5 rounded-btn bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:opacity-95 text-white text-xs font-bold shadow-lg flex items-center justify-center gap-2 transition-all hover:scale-105"
+              className="w-full sm:w-auto px-6 py-3.5 rounded-btn bg-gradient-to-r from-oj-primary via-blue-600 to-oj-cyan hover:opacity-95 text-white text-xs font-bold shadow-lg flex items-center justify-center gap-2 transition-all hover:scale-105"
             >
               <Flame className="w-4 h-4 fill-white" />
               <span>Social Boost (SMM)</span>
@@ -331,15 +331,15 @@ export const LandingPage: React.FC = () => {
         {/* 3 Trust Indicators Below Cards (Exact Match to Desktop Screenshot 1) */}
         <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-16 pt-8 pb-4 text-center">
           <div className="flex flex-col items-center space-y-1">
-            <div className="w-8 h-8 rounded-full bg-orange-500/10 text-orange-600 flex items-center justify-center">
-              <Zap className="w-4 h-4 fill-orange-600" />
+            <div className="w-8 h-8 rounded-full bg-oj-primary/10 text-oj-primary flex items-center justify-center">
+              <Zap className="w-4 h-4 fill-oj-primary" />
             </div>
             <span className="font-heading font-bold text-xs text-oj-midnight dark:text-white">Fast Access</span>
             <span className="text-[11px] text-oj-muted">Get started quickly</span>
           </div>
 
           <div className="flex flex-col items-center space-y-1">
-            <div className="w-8 h-8 rounded-full bg-orange-500/10 text-orange-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full bg-oj-primary/10 text-oj-primary flex items-center justify-center">
               <ShieldCheck className="w-4 h-4" />
             </div>
             <span className="font-heading font-bold text-xs text-oj-midnight dark:text-white">Secure & Private</span>
@@ -347,7 +347,7 @@ export const LandingPage: React.FC = () => {
           </div>
 
           <div className="flex flex-col items-center space-y-1">
-            <div className="w-8 h-8 rounded-full bg-orange-500/10 text-orange-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full bg-oj-primary/10 text-oj-primary flex items-center justify-center">
               <LifeBuoy className="w-4 h-4" />
             </div>
             <span className="font-heading font-bold text-xs text-oj-midnight dark:text-white">Dedicated Support</span>
@@ -359,7 +359,7 @@ export const LandingPage: React.FC = () => {
       {/* ALL DIRECTORY CATEGORIES (Exact Match to Desktop Screenshot 2) */}
       <section className="max-w-7xl mx-auto px-4 pt-4">
         <div className="text-center mb-8">
-          <span className="text-xs font-extrabold uppercase tracking-widest text-orange-600 dark:text-orange-400">
+          <span className="text-xs font-extrabold uppercase tracking-widest text-oj-primary dark:text-oj-cyan">
             ALL DIRECTORY CATEGORIES
           </span>
         </div>
@@ -414,7 +414,7 @@ export const LandingPage: React.FC = () => {
 
               <h2 className="font-heading font-black text-2xl sm:text-4xl text-white tracking-tight leading-tight">
                 Skyrocket Your Reach on <br className="hidden sm:inline" />
-                <span className="bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-indigo-300 bg-clip-text text-transparent">
                   Instagram, TikTok & YouTube
                 </span>
               </h2>
@@ -444,7 +444,7 @@ export const LandingPage: React.FC = () => {
               <div className="pt-2 flex flex-wrap items-center gap-3">
                 <Link
                   to="/social-boost"
-                  className="px-6 py-3 rounded-btn bg-gradient-to-r from-amber-500 to-orange-500 hover:from-orange-500 hover:to-amber-500 text-white font-bold text-xs shadow-lg flex items-center gap-2 transition-transform hover:scale-105"
+                  className="px-6 py-3 rounded-btn bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white font-bold text-xs shadow-glow-primary flex items-center gap-2 transition-transform hover:scale-105"
                 >
                   <Flame className="w-4 h-4 fill-white" />
                   <span>Launch Social Boost Hub</span>
@@ -611,7 +611,7 @@ export const LandingPage: React.FC = () => {
           <div className="absolute top-0 right-0 w-80 h-80 bg-oj-primary/20 blur-3xl rounded-full pointer-events-none" />
 
           <div className="text-center space-y-2 mb-10 relative z-10">
-            <span className="text-xs font-bold uppercase tracking-wider text-orange-400">
+            <span className="text-xs font-bold uppercase tracking-wider text-oj-cyan">
               SIMPLE THREE-STEP WORKFLOW
             </span>
             <h2 className="font-heading font-black text-2xl sm:text-3xl">
@@ -624,7 +624,7 @@ export const LandingPage: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
             <div className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-3">
-              <span className="text-xs font-mono font-bold text-orange-400 bg-orange-500/20 px-2 py-0.5 rounded">
+              <span className="text-xs font-mono font-bold text-oj-cyan bg-oj-primary/20 px-2 py-0.5 rounded">
                 01
               </span>
               <h3 className="font-heading font-bold text-base">1. Explore Products</h3>
@@ -634,7 +634,7 @@ export const LandingPage: React.FC = () => {
             </div>
 
             <div className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-3">
-              <span className="text-xs font-mono font-bold text-orange-400 bg-orange-500/20 px-2 py-0.5 rounded">
+              <span className="text-xs font-mono font-bold text-oj-cyan bg-oj-primary/20 px-2 py-0.5 rounded">
                 02
               </span>
               <h3 className="font-heading font-bold text-base">2. Complete Checkout</h3>
@@ -644,7 +644,7 @@ export const LandingPage: React.FC = () => {
             </div>
 
             <div className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-3">
-              <span className="text-xs font-mono font-bold text-orange-400 bg-orange-500/20 px-2 py-0.5 rounded">
+              <span className="text-xs font-mono font-bold text-oj-cyan bg-oj-primary/20 px-2 py-0.5 rounded">
                 03
               </span>
               <h3 className="font-heading font-bold text-base">3. Instant Automated Delivery</h3>

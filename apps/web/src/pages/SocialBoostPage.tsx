@@ -307,12 +307,12 @@ export const SocialBoostPage: React.FC = () => {
   if (!user) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-16 pb-24 md:pb-12 text-center space-y-6">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500/20 to-orange-500/10 text-amber-500 mx-auto flex items-center justify-center shadow-soft border border-amber-500/20">
-          <Flame className="w-8 h-8 fill-amber-500" />
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-oj-primary/20 to-oj-cyan/20 text-oj-primary mx-auto flex items-center justify-center shadow-soft border border-oj-primary/30">
+          <Flame className="w-8 h-8 fill-oj-primary" />
         </div>
 
         <div className="space-y-2">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-oj-primary/10 border border-oj-primary/20 text-oj-primary dark:text-oj-cyan text-xs font-bold">
             <Lock className="w-3.5 h-3.5" />
             <span>Member Authentication Required</span>
           </div>
@@ -351,7 +351,7 @@ export const SocialBoostPage: React.FC = () => {
 
           <button
             onClick={() => setIsAuthModalOpen(true)}
-            className="w-full py-3.5 rounded-btn bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:opacity-95 text-white text-xs font-bold shadow-lg transition-all flex items-center justify-center gap-2 hover:scale-105"
+            className="w-full py-3.5 rounded-btn bg-gradient-to-r from-oj-primary via-blue-600 to-oj-cyan hover:opacity-95 text-white text-xs font-bold shadow-lg transition-all flex items-center justify-center gap-2 hover:scale-105"
           >
             <Lock className="w-4 h-4" />
             <span>Sign In or Register with Email</span>

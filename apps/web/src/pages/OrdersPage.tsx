@@ -629,39 +629,39 @@ export const OrdersPage: React.FC = () => {
                                             </label>
                                           </div>
 
-                                          <div className="p-2 sm:p-2.5 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border flex items-center justify-between gap-2 shadow-sm">
-                                            <div className="min-w-0 flex-1 px-1.5 overflow-hidden">
+                                          <div className="px-3 py-2.5 rounded-xl bg-white dark:bg-oj-dark-surface border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shadow-xs">
+                                            <div className="min-w-0 flex-1 pr-1 overflow-hidden select-all">
                                               {isPassword && !isRevealedPw ? (
-                                                <span className="font-mono text-sm tracking-widest text-oj-muted dark:text-slate-400 select-none block truncate">
+                                                <span className="font-mono text-base tracking-widest text-slate-400 dark:text-slate-500 font-extrabold select-none block truncate">
                                                   ••••••••••••
                                                 </span>
                                               ) : (
-                                                <span className="font-mono text-xs sm:text-sm font-bold text-oj-midnight dark:text-white break-all select-all block">
+                                                <span className="font-mono text-xs sm:text-sm font-bold text-oj-midnight dark:text-white break-all select-all block leading-tight">
                                                   {field.value}
                                                 </span>
                                               )}
                                             </div>
 
-                                            <div className="flex items-center gap-1.5 shrink-0">
+                                            <div className="flex items-center gap-2 shrink-0">
                                               {isPassword && (
                                                 <button
                                                   type="button"
                                                   onClick={() => togglePasswordVisibility(fieldKey)}
-                                                  className="w-8 h-8 rounded-lg border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt/70 dark:bg-oj-dark-surface-alt/70 hover:bg-oj-border dark:hover:bg-oj-dark-border text-oj-muted hover:text-oj-midnight dark:hover:text-white flex items-center justify-center shrink-0 transition-colors"
-                                                  title={isRevealedPw ? 'Mask details' : 'Reveal details'}
-                                                  aria-label={isRevealedPw ? 'Mask details' : 'Reveal details'}
+                                                  className="h-8 w-8 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 hover:border-oj-primary dark:hover:border-oj-cyan text-slate-500 hover:text-oj-primary dark:text-slate-400 dark:hover:text-oj-cyan flex items-center justify-center shrink-0 transition-all shadow-xs"
+                                                  title={isRevealedPw ? 'Mask secret' : 'Reveal secret'}
+                                                  aria-label={isRevealedPw ? 'Mask secret' : 'Reveal secret'}
                                                 >
-                                                  {isRevealedPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                  {isRevealedPw ? <EyeOff className="w-4 h-4 text-oj-primary dark:text-oj-cyan" /> : <Eye className="w-4 h-4" />}
                                                 </button>
                                               )}
 
                                               <button
                                                 type="button"
                                                 onClick={() => handleCopy(field.value, fieldKey, field.label)}
-                                                className={`h-8 px-2.5 sm:px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 shrink-0 transition-all ${
+                                                className={`h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 shrink-0 transition-all shadow-xs ${
                                                   isCopied
                                                     ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700'
-                                                    : 'bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-border dark:hover:bg-oj-dark-border text-oj-midnight dark:text-white border border-oj-border/80 dark:border-oj-dark-border/80'
+                                                    : 'bg-white dark:bg-oj-dark-surface hover:border-oj-primary text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700/80'
                                                 }`}
                                               >
                                                 {isCopied ? (
@@ -671,7 +671,7 @@ export const OrdersPage: React.FC = () => {
                                                   </>
                                                 ) : (
                                                   <>
-                                                    <Copy className="w-3.5 h-3.5" />
+                                                    <Copy className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                                                     <span>Copy</span>
                                                   </>
                                                 )}
@@ -681,9 +681,9 @@ export const OrdersPage: React.FC = () => {
 
                                           {/* 2FA Helper Banner (Rendered cleanly below the row, preventing mobile button crowding) */}
                                           {field.type === '2fa' && (
-                                            <div className="flex items-center justify-between px-1.5 text-[11px] text-oj-muted dark:text-slate-400 pt-0.5">
-                                              <span className="flex items-center gap-1 text-[11px]">
-                                                <Smartphone className="w-3 h-3 text-oj-cyan shrink-0" />
+                                            <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-oj-muted dark:text-slate-400 pt-0.5">
+                                              <span className="flex items-center gap-1.5 text-[11px]">
+                                                <Smartphone className="w-3.5 h-3.5 text-oj-cyan shrink-0" />
                                                 <span>Need 6-digit TOTP code?</span>
                                               </span>
                                               <a
@@ -691,7 +691,7 @@ export const OrdersPage: React.FC = () => {
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 onClick={() => handleCopy(field.value, `${fieldKey}_totp`, '2FA Secret')}
-                                                className="inline-flex items-center gap-1 font-bold text-oj-primary dark:text-oj-cyan hover:underline shrink-0"
+                                                className="inline-flex items-center gap-1 font-bold text-oj-primary dark:text-oj-cyan hover:underline shrink-0 text-xs"
                                                 title="Copy secret & open 2fa.live"
                                               >
                                                 <span>Copy & 2fa.live</span>
@@ -743,13 +743,13 @@ export const OrdersPage: React.FC = () => {
                                   </div>
                                 </div>
 
-                                {/* Bottom Help & Status Bar */}
-                                <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-oj-border/60 dark:border-oj-dark-border/60">
+                                {/* Bottom Help & Status Bar (Matching Clean Action Row) */}
+                                <div className="pt-3 flex flex-wrap items-center justify-between gap-3 border-t border-oj-border/60 dark:border-oj-dark-border/60">
                                   <div className="flex flex-wrap items-center gap-2">
                                     <button
                                       type="button"
                                       onClick={() => setSelectedHelpOrder(order)}
-                                      className="py-2 px-3.5 rounded-xl border border-oj-primary/30 hover:border-oj-primary bg-oj-primary/5 dark:bg-oj-primary/10 text-oj-primary dark:text-oj-cyan text-xs font-bold flex items-center gap-1.5 transition-all"
+                                      className="py-2 px-3.5 rounded-xl border border-oj-primary/30 hover:border-oj-primary bg-oj-primary/5 dark:bg-oj-primary/10 text-oj-primary dark:text-oj-cyan text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs"
                                     >
                                       <HelpCircle className="w-3.5 h-3.5 text-oj-primary dark:text-oj-cyan" />
                                       <span>Need Help With This Order?</span>
@@ -762,6 +762,15 @@ export const OrdersPage: React.FC = () => {
                                     >
                                       <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                                       <span>Chat on WhatsApp</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleRaw(itemKey)}
+                                      className="py-2 px-3.5 rounded-xl border border-oj-border dark:border-oj-dark-border hover:border-oj-primary bg-white dark:bg-oj-dark-surface text-oj-midnight dark:text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs"
+                                    >
+                                      <Lock className="w-3.5 h-3.5 text-oj-primary dark:text-oj-cyan" />
+                                      <span>Open Delivery Vault</span>
                                     </button>
                                   </div>
 

@@ -461,7 +461,7 @@ export const VirtualNumbersPage: React.FC = () => {
                 setIsAuthModalOpen(true);
                 showToast('Please sign in or enter your email to allocate a virtual number.');
               }}
-              className="py-3 px-6 rounded-btn bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:opacity-95 text-white text-xs font-bold shadow-lg flex items-center justify-center gap-2 transition-all hover:scale-105"
+              className="py-3 px-6 rounded-btn bg-gradient-to-r from-oj-primary via-blue-600 to-oj-cyan hover:opacity-95 text-white text-xs font-bold shadow-lg flex items-center justify-center gap-2 transition-all hover:scale-105"
             >
               <Zap className="w-4 h-4 fill-white" />
               <span>Sign In to Allocate Number</span>

@@ -18,9 +18,26 @@ export interface UpstreamServiceBalance {
 }
 
 export class BalanceService {
-  async getAllBalances(): Promise<UpstreamServiceBalance[]> {
-    const results: UpstreamServiceBalance[] = [];
-    const now = new Date().toISOString();
+  private cachedBalances: UpstreamServiceBalance[] = [];
+  private lastFetchedAt = 0;
+  private isRefreshing = false;
+
+  async getAllBalances(forceFresh = false): Promise<UpstreamServiceBalance[]> {
+    const CACHE_TTL_MS = 45 * 1000; // 45-second cache TTL
+    if (!forceFresh && this.cachedBalances.length > 0 && (Date.now() - this.lastFetchedAt < CACHE_TTL_MS)) {
+      return this.cachedBalances;
+    }
+    return this.refreshBalances();
+  }
+
+  async refreshBalances(): Promise<UpstreamServiceBalance[]> {
+    if (this.isRefreshing && this.cachedBalances.length > 0) {
+      return this.cachedBalances;
+    }
+    this.isRefreshing = true;
+    try {
+      const results: UpstreamServiceBalance[] = [];
+      const now = new Date().toISOString();
 
     // 1. Bachs Payment Gateway
     try {
@@ -158,7 +175,16 @@ export class BalanceService {
       });
     }
 
-    return results;
+      this.cachedBalances = results;
+      this.lastFetchedAt = Date.now();
+      return results;
+    } finally {
+      this.isRefreshing = false;
+    }
+  }
+
+  getCachedBalances(): UpstreamServiceBalance[] {
+    return this.cachedBalances;
   }
 }
 
