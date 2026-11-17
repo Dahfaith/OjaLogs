@@ -72,162 +72,99 @@ const defaultSmmConfig: SMMProviderConfig = {
   balanceNgn: 1000.00
 };
 
+const MOCK_SMM_IDS = new Set(['101', '102', '103', '201', '202', '301', '302', '401', '402', '501', '502', '601', '602', '701']);
+
 const defaultSmmServices: SMMService[] = [
   {
-    id: 'smm_ig_001',
-    providerServiceId: '101',
-    name: 'Instagram High-Quality Followers [Non-Drop | 30 Days Refill]',
-    category: 'Instagram - Followers Guaranteed',
+    id: 'smm_instagram_901',
+    providerServiceId: '901',
+    name: 'Instagram Likes | 30K | 1K/Day [Instant Start]',
+    category: 'Instagram - Likes',
     platform: 'instagram',
-    sourceRateNgn: 4500.00,
-    retailRateNgn: 5850.00,
-    minQuantity: 50,
+    sourceRateNgn: 208.00,
+    retailRateNgn: 270.00,
+    minQuantity: 10,
+    maxQuantity: 1000000,
+    description: 'Instant delivery authentic likes for Instagram posts, reels, and carousels.',
+    isActive: true
+  },
+  {
+    id: 'smm_instagram_864',
+    providerServiceId: '864',
+    name: 'Instagram Followers Exclusive [Ultra Fast 10K/Day | Full Profiles]',
+    category: 'Instagram - Followers',
+    platform: 'instagram',
+    sourceRateNgn: 1144.00,
+    retailRateNgn: 1487.00,
+    minQuantity: 10,
     maxQuantity: 100000,
-    description: 'High retention authentic profiles with profile photos and recent posts.',
+    description: 'High retention authentic profiles with profile photos and posts.',
     isActive: true,
     refillSupported: true
   },
   {
-    id: 'smm_ig_002',
-    providerServiceId: '102',
-    name: 'Instagram Real Post Likes [Instant Start | Explore Algorithm]',
-    category: 'Instagram - Likes',
-    platform: 'instagram',
-    sourceRateNgn: 1200.00,
-    retailRateNgn: 1600.00,
-    minQuantity: 20,
-    maxQuantity: 50000,
-    description: 'Instant delivery likes for posts, reels, and IGTV.',
-    isActive: true
-  },
-  {
-    id: 'smm_ig_003',
-    providerServiceId: '103',
-    name: 'Instagram Reel Views + Impressions [Viral Algorithm Trigger]',
-    category: 'Instagram - Views & Reach',
-    platform: 'instagram',
-    sourceRateNgn: 650.00,
-    retailRateNgn: 950.00,
-    minQuantity: 100,
+    id: 'smm_tiktok_203',
+    providerServiceId: '203',
+    name: 'TikTok Likes & Hearts [Stable | Non-Drop]',
+    category: 'TikTok - Likes',
+    platform: 'tiktok',
+    sourceRateNgn: 2100.00,
+    retailRateNgn: 2730.00,
+    minQuantity: 50,
     maxQuantity: 500000,
-    description: 'Super-fast views with organic retention.',
+    description: 'Instant boost to push your video to the For You Page (FYP).',
     isActive: true
   },
   {
-    id: 'smm_tk_001',
-    providerServiceId: '201',
-    name: 'TikTok Video Views [Super Instant | High Retention FYP]',
-    category: 'TikTok - Views',
-    platform: 'tiktok',
-    sourceRateNgn: 500.00,
-    retailRateNgn: 750.00,
-    minQuantity: 100,
-    maxQuantity: 1000000,
-    description: 'Instant algorithm boost to push your video to the For You Page (FYP).',
-    isActive: true
-  },
-  {
-    id: 'smm_tk_002',
-    providerServiceId: '202',
-    name: 'TikTok Followers [Active Real Users | Unlock LIVE]',
-    category: 'TikTok - Followers',
-    platform: 'tiktok',
-    sourceRateNgn: 5200.00,
-    retailRateNgn: 6800.00,
-    minQuantity: 50,
-    maxQuantity: 50000,
-    description: 'Real active TikTok followers. Helps unlock livestreaming (1k+).',
-    isActive: true
-  },
-  {
-    id: 'smm_tw_001',
-    providerServiceId: '401',
-    name: 'X / Twitter Followers [Aged Accounts | Organic Growth]',
-    category: 'X (Twitter) - Followers',
+    id: 'smm_twitter_1599',
+    providerServiceId: '1599',
+    name: 'Twitter Space Listener [Global Users]',
+    category: 'X (Twitter) - Space Listeners',
     platform: 'twitter',
-    sourceRateNgn: 4800.00,
-    retailRateNgn: 6200.00,
-    minQuantity: 50,
-    maxQuantity: 50000,
-    description: 'Boost your X presence with real-looking active accounts.',
-    isActive: true
-  },
-  {
-    id: 'smm_tw_002',
-    providerServiceId: '402',
-    name: 'X / Twitter Retweets & Likes [High Authority Verified Accounts]',
-    category: 'X (Twitter) - Engagement',
-    platform: 'twitter',
-    sourceRateNgn: 2600.00,
-    retailRateNgn: 3400.00,
-    minQuantity: 50,
-    maxQuantity: 25000,
-    description: 'Organic retweets and likes to boost tweet impressions.',
-    isActive: true
-  },
-  {
-    id: 'smm_yt_001',
-    providerServiceId: '301',
-    name: 'YouTube Monetizable Watch Hours [Desktop Views | Fast High Retention]',
-    category: 'YouTube - Watch Time',
-    platform: 'youtube',
-    sourceRateNgn: 12000.00,
-    retailRateNgn: 15500.00,
-    minQuantity: 100,
-    maxQuantity: 4000,
-    description: 'Guaranteed high-retention watch time towards YPP 4,000 hours.',
-    isActive: true
-  },
-  {
-    id: 'smm_yt_002',
-    providerServiceId: '302',
-    name: 'YouTube Subscribers [Non-Drop | Organic Speed]',
-    category: 'YouTube - Subscribers',
-    platform: 'youtube',
-    sourceRateNgn: 8500.00,
-    retailRateNgn: 11000.00,
+    sourceRateNgn: 337.00,
+    retailRateNgn: 438.00,
     minQuantity: 50,
     maxQuantity: 10000,
-    description: 'Permanent subscribers from verified Google accounts.',
+    description: 'Active worldwide listeners for Twitter spaces and engagements.',
     isActive: true
   },
   {
-    id: 'smm_tg_001',
-    providerServiceId: '501',
-    name: 'Telegram Channel / Group Members [0% Drop | 30 Days Guarantee]',
-    category: 'Telegram - Members',
-    platform: 'telegram',
-    sourceRateNgn: 2200.00,
-    retailRateNgn: 2900.00,
+    id: 'smm_youtube_1222',
+    providerServiceId: '1222',
+    name: 'YouTube Native Views [Real Human Views | Lowest Rate]',
+    category: 'YouTube - Views',
+    platform: 'youtube',
+    sourceRateNgn: 1748.00,
+    retailRateNgn: 2272.00,
     minQuantity: 100,
-    maxQuantity: 200000,
-    description: 'Clean global members for public and private channels.',
+    maxQuantity: 500000,
+    description: 'AdSense safe human views to trigger search ranking algorithm.',
     isActive: true
   },
   {
-    id: 'smm_sp_001',
-    providerServiceId: '701',
-    name: 'Spotify Track Plays [Algorithm & Royalty Eligible | Worldwide Streams]',
-    category: 'Spotify - Plays',
-    platform: 'spotify',
-    sourceRateNgn: 1400.00,
-    retailRateNgn: 1950.00,
-    minQuantity: 1000,
-    maxQuantity: 1000000,
-    description: 'Streams from premium accounts eligible for artist royalties.',
-    isActive: true
-  },
-  {
-    id: 'smm_fb_001',
-    providerServiceId: '601',
-    name: 'Facebook Page Likes + Followers [Official Meta Engagement]',
+    id: 'smm_facebook_845',
+    providerServiceId: '845',
+    name: 'Facebook Page Followers [All Type Page & Profile | Non Drop]',
     category: 'Facebook - Page Growth',
     platform: 'facebook',
-    sourceRateNgn: 3800.00,
-    retailRateNgn: 4950.00,
-    minQuantity: 100,
+    sourceRateNgn: 289.00,
+    retailRateNgn: 376.00,
+    minQuantity: 50,
     maxQuantity: 50000,
-    description: 'High-authority page likes and followers.',
+    description: 'High authority page likes and followers to establish business credibility.',
+    isActive: true
+  },
+  {
+    id: 'smm_telegram_1309',
+    providerServiceId: '1309',
+    name: 'Telegram Channel/Group Members [30 Day NonDrop Guarantee]',
+    category: 'Telegram - Members',
+    platform: 'telegram',
+    sourceRateNgn: 915.00,
+    retailRateNgn: 1190.00,
+    minQuantity: 50,
+    maxQuantity: 100000,
+    description: 'High quality members for channels and crypto groups.',
     isActive: true
   }
 ];
@@ -599,7 +536,10 @@ export const AdminPage: React.FC = () => {
       const saved = localStorage.getItem('oj_smm_services');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const clean = parsed.filter((s: SMMService) => !MOCK_SMM_IDS.has(String(s.providerServiceId)));
+          if (clean.length > 0) return clean;
+        }
       }
     } catch {}
     return defaultSmmServices;

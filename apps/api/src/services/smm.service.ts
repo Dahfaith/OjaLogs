@@ -76,8 +76,13 @@ export class SMMManagerService {
         const raw = fs.readFileSync(SERVICES_FILE, 'utf-8');
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          this.services = parsed;
-          console.log(`[SMM_PERSISTENCE] Loaded ${parsed.length} persisted SMM services from disk.`);
+          const MOCK_IDS = new Set(['101', '102', '103', '201', '202', '301', '302', '401', '402', '501', '502', '601', '602', '701']);
+          const clean = parsed.filter((s: any) => !MOCK_IDS.has(String(s.providerServiceId)));
+          if (clean.length > 0) {
+            this.services = clean;
+            console.log(`[SMM_PERSISTENCE] Loaded ${clean.length} live Linkocial services from disk.`);
+            return;
+          }
         }
       }
     } catch (err: any) {
@@ -96,161 +101,95 @@ export class SMMManagerService {
 
   private services: SMMService[] = [
     {
-      id: 'smm_ig_001',
-      providerServiceId: '101',
-      name: 'Instagram High-Quality Followers [Non-Drop | 30 Days Refill]',
-      category: 'Instagram - Followers Guaranteed',
-      platform: 'instagram',
-      sourceRateNgn: 4500.00,
-      retailRateNgn: 5850.00, // +30% margin
-      minQuantity: 50,
-      maxQuantity: 100000,
-      description: 'High retention authentic profiles with profile photos and recent posts. Delivery speed: 5k - 10k/day.',
-      isActive: true,
-      refillSupported: true
-    },
-    {
-      id: 'smm_ig_002',
-      providerServiceId: '102',
-      name: 'Instagram Real Post Likes [Instant Start | Explore Algorithm]',
+      id: 'smm_instagram_901',
+      providerServiceId: '901',
+      name: 'Instagram Likes | 30K | 1K/Day [Instant Start]',
       category: 'Instagram - Likes',
       platform: 'instagram',
-      sourceRateNgn: 1200.00,
-      retailRateNgn: 1600.00,
-      minQuantity: 20,
-      maxQuantity: 50000,
-      description: 'Instant delivery likes for posts, reels, and IGTV. Enhances explore page visibility.',
-      isActive: true
-    },
-    {
-      id: 'smm_ig_003',
-      providerServiceId: '103',
-      name: 'Instagram Reel Views + Impressions [Viral Algorithm Trigger]',
-      category: 'Instagram - Views & Reach',
-      platform: 'instagram',
-      sourceRateNgn: 650.00,
-      retailRateNgn: 950.00,
-      minQuantity: 100,
-      maxQuantity: 500000,
-      description: 'Super-fast views with organic retention. Starts in under 60 seconds.',
-      isActive: true
-    },
-    {
-      id: 'smm_tk_001',
-      providerServiceId: '201',
-      name: 'TikTok Video Views [Super Instant | High Retention FYP]',
-      category: 'TikTok - Views',
-      platform: 'tiktok',
-      sourceRateNgn: 500.00,
-      retailRateNgn: 750.00,
-      minQuantity: 100,
+      sourceRateNgn: 208.00,
+      retailRateNgn: 270.00,
+      minQuantity: 10,
       maxQuantity: 1000000,
-      description: 'Instant algorithm boost to push your video to the For You Page (FYP).',
+      description: 'Instant delivery authentic likes for Instagram posts, reels, and carousels.',
       isActive: true
     },
     {
-      id: 'smm_tk_002',
-      providerServiceId: '202',
-      name: 'TikTok Followers [Active Real Users | Unlock LIVE]',
-      category: 'TikTok - Followers',
-      platform: 'tiktok',
-      sourceRateNgn: 5200.00,
-      retailRateNgn: 6800.00,
-      minQuantity: 50,
-      maxQuantity: 50000,
-      description: 'Helps unlock TikTok LIVE broadcast and creator fund eligibility requirements.',
-      isActive: true
-    },
-    {
-      id: 'smm_tw_001',
-      providerServiceId: '301',
-      name: 'X / Twitter Followers [Real Worldwide Profiles | Organic]',
-      category: 'X / Twitter - Followers',
-      platform: 'twitter',
-      sourceRateNgn: 6000.00,
-      retailRateNgn: 7900.00,
-      minQuantity: 100,
-      maxQuantity: 25000,
-      description: 'High authority Twitter accounts for monetization, crypto projects, and influencer reach.',
-      isActive: true
-    },
-    {
-      id: 'smm_tw_002',
-      providerServiceId: '302',
-      name: 'X / Twitter Retweets & Reposts [Viral Boost]',
-      category: 'X / Twitter - Engagements',
-      platform: 'twitter',
-      sourceRateNgn: 3400.00,
-      retailRateNgn: 4500.00,
-      minQuantity: 25,
-      maxQuantity: 10000,
-      description: 'Viral boosts for marketing announcements, token launches, and trending tags.',
-      isActive: true
-    },
-    {
-      id: 'smm_yt_001',
-      providerServiceId: '401',
-      name: 'YouTube High-Retention Views [AdSense Safe | Natural Watch Time]',
-      category: 'YouTube - Views & Watch Time',
-      platform: 'youtube',
-      sourceRateNgn: 3800.00,
-      retailRateNgn: 4950.00,
-      minQuantity: 500,
-      maxQuantity: 500000,
-      description: '100% Monetization and AdSense safe watch time. Helps video ranking in search results.',
-      isActive: true
-    },
-    {
-      id: 'smm_yt_002',
-      providerServiceId: '402',
-      name: 'YouTube Channel Subscribers [Stable | Lifetime Guaranteed]',
-      category: 'YouTube - Subscribers',
-      platform: 'youtube',
-      sourceRateNgn: 8500.00,
-      retailRateNgn: 11000.00,
-      minQuantity: 50,
-      maxQuantity: 10000,
-      description: 'Guaranteed non-drop channel subscribers to hit YouTube Partner Program goals.',
+      id: 'smm_instagram_864',
+      providerServiceId: '864',
+      name: 'Instagram Followers Exclusive [Ultra Fast 10K/Day | Full Profiles]',
+      category: 'Instagram - Followers',
+      platform: 'instagram',
+      sourceRateNgn: 1144.00,
+      retailRateNgn: 1487.00,
+      minQuantity: 10,
+      maxQuantity: 100000,
+      description: 'High retention authentic profiles with profile photos and posts.',
       isActive: true,
       refillSupported: true
     },
     {
-      id: 'smm_tg_001',
-      providerServiceId: '501',
-      name: 'Telegram Public/Private Channel Members [Instant Fast Add]',
-      category: 'Telegram - Channel & Group Members',
-      platform: 'telegram',
-      sourceRateNgn: 2800.00,
-      retailRateNgn: 3700.00,
+      id: 'smm_tiktok_203',
+      providerServiceId: '203',
+      name: 'TikTok Likes & Hearts [Stable | Non-Drop]',
+      category: 'TikTok - Likes',
+      platform: 'tiktok',
+      sourceRateNgn: 2100.00,
+      retailRateNgn: 2730.00,
       minQuantity: 50,
-      maxQuantity: 100000,
-      description: 'Works for crypto channels, business groups, and private broadcast channels.',
+      maxQuantity: 500000,
+      description: 'Instant boost to push your video to the For You Page (FYP).',
       isActive: true
     },
     {
-      id: 'smm_sp_001',
-      providerServiceId: '601',
-      name: 'Spotify Track Streams [Royalty Eligible | Premium Plays]',
-      category: 'Spotify - Music Streams',
-      platform: 'spotify',
-      sourceRateNgn: 3200.00,
-      retailRateNgn: 4300.00,
-      minQuantity: 1000,
-      maxQuantity: 1000000,
-      description: 'Eligible for royalties and Spotify algorithmic playlist placement.',
+      id: 'smm_twitter_1599',
+      providerServiceId: '1599',
+      name: 'Twitter Space Listener [Global Users]',
+      category: 'X / Twitter - Space Listeners',
+      platform: 'twitter',
+      sourceRateNgn: 337.00,
+      retailRateNgn: 438.00,
+      minQuantity: 50,
+      maxQuantity: 10000,
+      description: 'Active worldwide listeners for Twitter spaces and engagements.',
       isActive: true
     },
     {
-      id: 'smm_fb_001',
-      providerServiceId: '701',
-      name: 'Facebook Page Likes & Followers [Global Targeted]',
+      id: 'smm_youtube_1222',
+      providerServiceId: '1222',
+      name: 'YouTube Native Views [Real Human Views | Lowest Rate]',
+      category: 'YouTube - Views',
+      platform: 'youtube',
+      sourceRateNgn: 1748.00,
+      retailRateNgn: 2272.00,
+      minQuantity: 100,
+      maxQuantity: 500000,
+      description: 'AdSense safe human views to trigger search ranking algorithm.',
+      isActive: true
+    },
+    {
+      id: 'smm_facebook_845',
+      providerServiceId: '845',
+      name: 'Facebook Page Followers [All Type Page & Profile | Non Drop]',
       category: 'Facebook - Page Growth',
       platform: 'facebook',
-      sourceRateNgn: 4800.00,
-      retailRateNgn: 6300.00,
-      minQuantity: 100,
+      sourceRateNgn: 289.00,
+      retailRateNgn: 376.00,
+      minQuantity: 50,
       maxQuantity: 50000,
-      description: 'Official business page followers and page thumbs up.',
+      description: 'High authority page likes and followers to establish business credibility.',
+      isActive: true
+    },
+    {
+      id: 'smm_telegram_1309',
+      providerServiceId: '1309',
+      name: 'Telegram Channel/Group Members [30 Day NonDrop Guarantee]',
+      category: 'Telegram - Members',
+      platform: 'telegram',
+      sourceRateNgn: 915.00,
+      retailRateNgn: 1190.00,
+      minQuantity: 50,
+      maxQuantity: 100000,
+      description: 'High quality members for channels and crypto groups.',
       isActive: true
     }
   ];
@@ -262,14 +201,15 @@ export class SMMManagerService {
   // ==========================================
 
   getPublicServices(platform?: string): SMMService[] {
-    // If services catalog has fewer than 20 services, auto-trigger provider sync in background
-    if (this.services.length <= 12 && this.config.apiKey) {
+    const MOCK_IDS = new Set(['101', '102', '103', '201', '202', '301', '302', '401', '402', '501', '502', '601', '602', '701']);
+    // If services catalog has fewer than 50 services, auto-trigger provider sync in background
+    if ((this.services.length < 50 || this.services.some(s => MOCK_IDS.has(String(s.providerServiceId)))) && this.config.apiKey) {
       this.syncServicesFromProvider().catch(err => {
         console.warn('[SMM_AUTO_SYNC] Background sync notice:', err.message);
       });
     }
 
-    let list = this.services.filter(s => s.isActive);
+    let list = this.services.filter(s => s.isActive && !MOCK_IDS.has(String(s.providerServiceId)));
     if (platform && platform !== 'all') {
       list = list.filter(s => s.platform === platform);
     }
@@ -329,6 +269,9 @@ export class SMMManagerService {
     const rawServices: LinkocialRawService[] = await linkocialAdapter.getServices();
     let newCount = 0;
     let syncedCount = 0;
+
+    const MOCK_IDS = new Set(['101', '102', '103', '201', '202', '301', '302', '401', '402', '501', '502', '601', '602', '701']);
+    this.services = this.services.filter(s => !MOCK_IDS.has(String(s.providerServiceId)));
 
     const multiplier = 1 + (this.config.defaultMarkupPercent / 100);
 
@@ -405,7 +348,8 @@ export class SMMManagerService {
       throw new AppError('This service is currently unavailable', 400, 'SERVICE_INACTIVE');
     }
 
-    if (quantity < service.minQuantity || quantity > service.maxQuantity) {
+    const cleanQty = Math.floor(Number(quantity));
+    if (isNaN(cleanQty) || cleanQty < service.minQuantity || cleanQty > service.maxQuantity) {
       throw new AppError(
         `Quantity must be between ${service.minQuantity.toLocaleString()} and ${service.maxQuantity.toLocaleString()}`,
         400,
@@ -413,8 +357,8 @@ export class SMMManagerService {
       );
     }
 
-    const totalNgn = Math.round((service.retailRateNgn / 1000) * quantity);
-    const sourceCostNgn = Math.round((service.sourceRateNgn / 1000) * quantity);
+    const totalNgn = Math.round((service.retailRateNgn / 1000) * cleanQty);
+    const sourceCostNgn = Math.round((service.sourceRateNgn / 1000) * cleanQty);
     const profitNgn = totalNgn - sourceCostNgn;
     const orderRef = `ord_smm_${Math.floor(100000 + Math.random() * 900000)}`;
 
@@ -424,7 +368,7 @@ export class SMMManagerService {
       totalNgn,
       'order_payment',
       `ref_oj_${Math.floor(1000000 + Math.random() * 9000000)}`,
-      `SMM Boost: ${service.name} (${quantity.toLocaleString()} units)`,
+      `SMM Boost: ${service.name} (${cleanQty.toLocaleString()} units)`,
       idempotencyKey,
       orderRef
     );
@@ -434,8 +378,8 @@ export class SMMManagerService {
     try {
       upstreamRes = await linkocialAdapter.placeOrder(
         service.providerServiceId,
-        targetLink,
-        quantity
+        targetLink.trim(),
+        cleanQty
       );
 
       if (upstreamRes.error) {
