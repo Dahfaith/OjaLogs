@@ -237,7 +237,6 @@ export class OrderService {
 
     // Provision each item through its dedicated Server API adapter or LogsPoll upstream
     const orderItems: OrderItem[] = [];
-    let hasPendingManualItem = false;
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
@@ -415,64 +414,42 @@ export class OrderService {
           ]
         });
       } else {
-        // Upstream automated API is unverified, restocking, or manual fulfillment.
-        // Complete the order safely in "processing" state so customer's payment succeeds!
-        hasPendingManualItem = true;
+        // Upstream automated API is unverified, restocking, or failed: do not charge customer or create empty order
+        if (paymentMethod === 'wallet') {
+          try {
+            walletService.creditWallet(
+              userId,
+              totalNgn,
+              'refund',
+              `ref_oj_rf_${Math.floor(1000000 + Math.random() * 9000000)}`,
+              `Auto-refund: Upstream Restocking (${orderRef})`,
+              `refund_${idempotencyKey}`,
+              customerEmail
+            );
+          } catch {}
+        }
 
-        orderItems.push({
-          id: `ord_item_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
-          product: {
-            id: item.productId,
-            slug: item.productId,
-            title: item.title,
-            category: 'Marketplace Good',
-            categoryId: 'general',
-            division: 'A',
-            serverCluster: item.serverCluster,
-            priceNgn: item.unitPriceNgn,
-            inStock: true,
-            stockCount: 50,
-            rating: 5.0,
-            verifiedResale: true,
-            coverImage: '',
-            summary: '',
-            descriptionHtml: '',
-            specifications: {} as any,
-            deliveryFormat: 'Manual fulfillment',
-            validityDuration: 'Standard',
-            region: 'Global'
-          },
-          quantity: item.quantity,
-          unitPriceNgn: item.unitPriceNgn,
-          totalNgn: item.unitPriceNgn * item.quantity,
-          deliveredSecrets: [
-            {
-              type: 'pending_fulfillment',
-              revealed: false,
-              value: 'PENDING_DISPATCH',
-              instruction: 'Order verified & confirmed. Our operations desk is preparing and verifying your login credentials from the provider fleet. They will appear here in your vault shortly. For priority dispatch, contact support on WhatsApp (07069659752).'
-            } as any
-          ]
-        });
-
-        // Notify Super Admin of manual dispatch required
         try {
           notificationService.recordAdminNotification({
-            id: `notif_manual_${Date.now()}_${i}`,
+            id: `notif_restock_${Date.now()}_${i}`,
             type: 'SECURITY_ALERT',
-            title: '🚨 Manual Fulfillment Required',
-            message: `User ${customerEmail} paid ₦${(item.unitPriceNgn * item.quantity).toLocaleString()} for "${item.title}" (${orderRef}). Upstream automated API is unverified / restocking. Please dispatch credentials in Admin Console or via WhatsApp.`,
+            title: '⚠️ Product Restocking Blocked Checkout',
+            message: `Checkout attempt by ${customerEmail} for "${item.title}" (${orderRef}) halted safely. LogsPoll upstream returned unverified / restocking. Customer wallet was auto-refunded.`,
             timestamp: new Date().toISOString(),
             read: false,
             userEmail: customerEmail
           });
         } catch {}
+
+        throw new AppError(
+          'This server cluster is temporarily undergoing routine restocking / maintenance. Your wallet was NOT charged. Please try again shortly or contact support on WhatsApp (07069659752).',
+          503,
+          'SERVER_RESTOCKING'
+        );
       }
     }
 
-    const orderStatus: Order['status'] = paymentMethod === 'bach_direct'
-      ? 'pending'
-      : (hasPendingManualItem ? 'processing' : 'completed');
+    const orderStatus: Order['status'] = paymentMethod === 'bach_direct' ? 'pending' : 'completed';
 
     const newOrder: Order & { userId?: string } = {
       id: `ord_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
