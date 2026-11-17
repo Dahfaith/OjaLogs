@@ -132,10 +132,11 @@ export class LogsPollAdapter {
     return { balance: 0, currency: 'NGN' };
   }
 
-  async fetchCatalog(options?: { q?: string; mainCategory?: string; limit?: number }): Promise<LogsPollProduct[]> {
+  async fetchCatalog(options?: { q?: string; category?: string; mainCategory?: string; limit?: number }): Promise<LogsPollProduct[]> {
     try {
       const params = new URLSearchParams();
       params.set('availability', 'in-stock');
+      if (options?.category) params.set('category', options.category);
       if (options?.q) params.set('q', options.q);
       if (options?.mainCategory) params.set('main_category', options.mainCategory);
       if (options?.limit) params.set('limit', String(options.limit));
@@ -178,6 +179,7 @@ export class LogsPollAdapter {
     page?: number;
     limit?: number;
     q?: string;
+    category?: string;
     server?: number | string;
     availability?: string;
   }): Promise<LogsPollPaginatedResult> {
@@ -193,6 +195,7 @@ export class LogsPollAdapter {
       } else {
         params.set('availability', 'in-stock');
       }
+      if (options?.category) params.set('category', options.category);
       if (options?.q) params.set('q', options.q);
       if (options?.server) params.set('server', String(options.server));
 

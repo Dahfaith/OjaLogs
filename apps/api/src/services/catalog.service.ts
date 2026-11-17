@@ -343,46 +343,48 @@ export class CatalogService {
           if (match) serverNum = Number(match[0]);
         }
 
-        // Determine effective query term
-        let effectiveQuery = search;
-        const lowerCat = category.toLowerCase();
-        const categoryQueryMap: Record<string, string> = {
-          'social-media': 'account',
-          'gift-cards': 'card',
-          'cards': 'card',
-          'mastercard': 'mastercard',
-          'visa': 'visa',
-          'email': 'mail',
-          'gmail': 'gmail',
-          'vpn': 'vpn',
-          'proxies': 'proxy',
-          'esim': 'esim',
-          'ai-tools': 'ai',
-          'ai': 'ai',
-          'streaming': 'netflix',
-          'software': 'license',
-          'cloud-hosting': 'vps',
-          'virtual-numbers': 'voice',
-          'instagram': 'instagram',
-          'facebook': 'facebook',
-          'twitter': 'twitter',
-          'tiktok': 'tiktok',
-          'threads': 'threads',
-          'telegram': 'telegram',
-          'snapchat': 'snapchat',
-          'reddit': 'reddit'
+        // Determine authoritative LogsPoll category slug
+        const lowerCat = category.toLowerCase().trim();
+        const logspollCategorySlugMap: Record<string, string> = {
+          'facebook': 'ypg-buy-facebook-accounts',
+          'fb': 'ypg-buy-facebook-accounts',
+          'twitter': 'ypg-buy-twitter-x-accounts',
+          'x': 'ypg-buy-twitter-x-accounts',
+          'instagram': 'ypg-buy-instagram-accounts',
+          'ig': 'ypg-buy-instagram-accounts',
+          'tiktok': 'ypg-browse-tiktok-accounts-for-sale',
+          'telegram': 'ypg-buy-telegram-accounts',
+          'reddit': 'ypg-buy-reddit-accounts',
+          'linkedin': 'ypg-buy-linkedin-accounts',
+          'threads': 'ypg-threads-social-platform',
+          'snapchat': 'ypg-buy-snapchat-accounts',
+          'gmail': 'ypg-buy-gmail-accounts',
+          'outlook': 'ypg-buy-outlook-accounts',
+          'email': 'ypg-buy-gmail-accounts',
+          'protonmail': 'ypg-buy-protonmail-accounts',
+          'vpn': 'ypg-buy-vpn-accounts',
+          'proxies': 'ypg-buy-mobile-proxies',
+          'ai-tools': 'ypg-buy-ai-accounts',
+          'ai': 'ypg-buy-ai-accounts',
+          'windows-vps': 'ypg-buy-windows-vps',
+          'cloud-hosting': 'ypg-buy-windows-vps',
+          'youtube': 'ypg-buy-youtube-accounts',
+          'dating': 'ypg-buy-dating-accounts',
+          'discord': 'ypg-buy-discord-accounts',
+          'mastercard': 'ypg-buy-prepaid-mastercard',
+          'amazon': 'ypg-amazon-accounts',
+          'google-voice': 'ypg-buy-google-voice-accounts',
+          'netflix': 'ypg-buy-netflix-accounts',
+          'spotify': 'ypg-spotify-premium'
         };
 
-        if (!effectiveQuery && categoryQueryMap[lowerCat]) {
-          effectiveQuery = categoryQueryMap[lowerCat];
-        } else if (effectiveQuery && categoryQueryMap[lowerCat]) {
-          effectiveQuery = `${effectiveQuery} ${categoryQueryMap[lowerCat]}`;
-        }
+        const targetCatSlug = logspollCategorySlugMap[lowerCat] || (category.startsWith('ypg-') || category.startsWith('server') ? category : undefined);
 
         const lpResult = await logspollAdapter.fetchCatalogPaginated({
           page,
           limit,
-          q: effectiveQuery || undefined,
+          category: targetCatSlug,
+          q: search || undefined,
           server: serverNum,
           availability: availability === 'in_stock' ? 'in-stock' : availability === 'out_of_stock' ? 'out-of-stock' : undefined
         });
