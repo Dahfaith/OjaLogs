@@ -484,6 +484,13 @@ class ApiClient {
     });
   }
 
+  async dispatchAdminOrderSecret(orderId: string, itemId: string, secretValue: string, instructions?: string): Promise<Order> {
+    return this.request<Order>(`/admin/orders/${encodeURIComponent(orderId)}/items/${encodeURIComponent(itemId)}/dispatch`, {
+      method: 'POST',
+      body: JSON.stringify({ secretValue, instructions })
+    });
+  }
+
   async deleteAdminNotification(id: string): Promise<boolean> {
     const res = await this.request<{ id: string; deleted: boolean }>(`/admin/notifications/${encodeURIComponent(id)}`, {
       method: 'DELETE'

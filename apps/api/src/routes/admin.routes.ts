@@ -652,6 +652,26 @@ router.post('/orders/:orderId/refund', (req, res) => {
   });
 });
 
+const DispatchSecretSchema = z.object({
+  secretValue: z.string().min(1, 'Secret or account credentials cannot be empty'),
+  instructions: z.string().optional()
+});
+
+router.post('/orders/:orderId/items/:itemId/dispatch', validateBody(DispatchSecretSchema), (req, res, next) => {
+  try {
+    const rawOrderId = Array.isArray(req.params.orderId) ? req.params.orderId[0] : req.params.orderId;
+    const rawItemId = Array.isArray(req.params.itemId) ? req.params.itemId[0] : req.params.itemId;
+    const updated = orderService.dispatchManualSecret(rawOrderId, rawItemId, req.body.secretValue, req.body.instructions);
+    res.json({
+      success: true,
+      data: updated,
+      meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.delete('/notifications/:id', (req, res) => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const deleted = notificationService.deleteNotification(id);

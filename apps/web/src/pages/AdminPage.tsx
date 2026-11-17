@@ -266,6 +266,31 @@ export const AdminPage: React.FC = () => {
   const [orderStatusFilter, setOrderStatusFilter] = useState('all');
   const [inspectingOrder, setInspectingOrder] = useState<Order | null>(null);
 
+  const [dispatchSecretInputs, setDispatchSecretInputs] = useState<Record<string, string>>({});
+  const [dispatchInstructionsInputs, setDispatchInstructionsInputs] = useState<Record<string, string>>({});
+  const [isDispatchingMap, setIsDispatchingMap] = useState<Record<string, boolean>>({});
+
+  const handleDispatchSecret = async (order: Order, item: any) => {
+    const key = `${order.id}_${item.id}`;
+    const secretVal = dispatchSecretInputs[key]?.trim();
+    if (!secretVal) {
+      showToast('Please enter credentials to dispatch');
+      return;
+    }
+    const instructionVal = dispatchInstructionsInputs[key]?.trim();
+    setIsDispatchingMap(prev => ({ ...prev, [key]: true }));
+    try {
+      const updated = await apiClient.dispatchAdminOrderSecret(order.id, item.id, secretVal, instructionVal);
+      setAdminOrders(prev => prev.map(o => o.id === order.id ? updated : o));
+      setInspectingOrder(updated);
+      showToast(`Credentials securely dispatched to customer vault for Order ${order.reference}!`);
+    } catch (err: any) {
+      showToast(`Dispatch failed: ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsDispatchingMap(prev => ({ ...prev, [key]: false }));
+    }
+  };
+
   const effectiveOrders = adminOrders.length > 0 ? adminOrders : orders;
 
   // Customer Profile State
@@ -2956,6 +2981,17 @@ export const AdminPage: React.FC = () => {
                           <span className="font-mono font-extrabold text-sm text-oj-midnight dark:text-white">{formatPrice(o.totalNgn)}</span>
                         </div>
                         <div className="flex items-center gap-2">
+                          {(o.status === 'processing' || o.status === 'pending') && (
+                            <button
+                              type="button"
+                              onClick={() => setInspectingOrder(o)}
+                              className="px-3 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-500/10 hover:bg-amber-500 hover:text-white text-amber-700 dark:text-amber-400 font-bold text-xs flex items-center gap-1 transition-all"
+                              title="Dispatch credentials to customer vault"
+                            >
+                              <Zap className="w-3.5 h-3.5" />
+                              <span>Fulfill</span>
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => setInspectingOrder(o)}
@@ -3044,6 +3080,17 @@ export const AdminPage: React.FC = () => {
                           </td>
                           <td className="py-3 px-3 text-right">
                             <div className="flex items-center justify-end gap-1.5">
+                              {(o.status === 'processing' || o.status === 'pending') && (
+                                <button
+                                  type="button"
+                                  onClick={() => setInspectingOrder(o)}
+                                  className="px-2.5 py-1 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-500/10 hover:bg-amber-500 hover:text-white text-amber-700 dark:text-amber-400 font-bold text-[11px] flex items-center gap-1 transition-all"
+                                  title="Dispatch credentials to customer vault"
+                                >
+                                  <Zap className="w-3 h-3" />
+                                  <span>Fulfill</span>
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => setInspectingOrder(o)}
@@ -3109,35 +3156,82 @@ export const AdminPage: React.FC = () => {
                     </span>
                   </div>
 
-                  {item.deliveredSecrets && item.deliveredSecrets.length > 0 ? (
-                    item.deliveredSecrets.map((sec: any, sIdx: number) => (
-                      <div key={sIdx} className="space-y-1.5 pt-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-oj-muted font-bold">Encrypted Payload Status:</span>
-                          <span className="text-[10px] text-emerald-600 font-bold">AES-256-GCM Sealed</span>
-                        </div>
-                        <div className="p-2.5 rounded-lg bg-black text-emerald-400 font-mono text-xs break-all flex items-center justify-between gap-2 overflow-hidden">
-                          <span className="min-w-0 flex-1 break-all select-all">{sec.value || '••••••••••••••••••••••••'}</span>
+                  {(() => {
+                    const isItemPending = !item.deliveredSecrets || item.deliveredSecrets.length === 0 || item.deliveredSecrets.some((sec: any) => sec.value === 'PENDING_DISPATCH' || sec.type === 'pending_fulfillment');
+                    const key = `${inspectingOrder.id}_${item.id}`;
+
+                    if (isItemPending) {
+                      return (
+                        <div className="space-y-2 pt-1 border-t border-amber-500/20">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              <span>Fulfillment Pending</span>
+                            </span>
+                            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold px-2 py-0.5 rounded bg-amber-500/10">
+                              Manual Dispatch Required
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-oj-muted">
+                            Customer paid ₦{(item.unitPriceNgn * item.quantity).toLocaleString()}. Enter account credentials, login lines, or license keys below:
+                          </p>
+                          <textarea
+                            rows={3}
+                            placeholder="e.g. 100012345678|Password123|2FA_SECRET_CODE or cookies/login token"
+                            value={dispatchSecretInputs[key] || ''}
+                            onChange={(e) => setDispatchSecretInputs(prev => ({ ...prev, [key]: e.target.value }))}
+                            className="w-full text-xs font-mono p-2.5 rounded-lg border border-oj-border dark:border-oj-dark-border bg-white dark:bg-oj-dark-surface text-oj-midnight dark:text-white focus:outline-none focus:ring-1 focus:ring-oj-primary"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Optional delivery instructions (e.g. Log in with mobile proxy)"
+                            value={dispatchInstructionsInputs[key] || ''}
+                            onChange={(e) => setDispatchInstructionsInputs(prev => ({ ...prev, [key]: e.target.value }))}
+                            className="w-full text-xs p-2 rounded-lg border border-oj-border dark:border-oj-dark-border bg-white dark:bg-oj-dark-surface text-oj-midnight dark:text-white focus:outline-none"
+                          />
                           <button
                             type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText(sec.value || '');
-                              showToast('Copied delivered secret to clipboard');
-                            }}
-                            className="p-1.5 rounded-md text-xs text-oj-muted hover:text-white hover:bg-white/10 shrink-0 transition-colors"
-                            title="Copy Secret"
+                            disabled={isDispatchingMap[key]}
+                            onClick={() => handleDispatchSecret(inspectingOrder, item)}
+                            className="w-full py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
                           >
-                            <Copy className="w-3.5 h-3.5" />
+                            <Zap className="w-3.5 h-3.5" />
+                            <span>{isDispatchingMap[key] ? 'Encrypting & Dispatching...' : '⚡ Dispatch to Customer Vault (Instant Delivery)'}</span>
                           </button>
                         </div>
-                        {sec.instruction && (
-                          <p className="text-[11px] text-oj-muted italic">{sec.instruction}</p>
-                        )}
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-2">
+                        {(item.deliveredSecrets || []).map((sec: any, sIdx: number) => (
+                          <div key={sIdx} className="space-y-1.5 pt-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] text-oj-muted font-bold">Encrypted Payload Status:</span>
+                              <span className="text-[10px] text-emerald-600 font-bold">AES-256-GCM Sealed</span>
+                            </div>
+                            <div className="p-2.5 rounded-lg bg-black text-emerald-400 font-mono text-xs break-all flex items-center justify-between gap-2 overflow-hidden">
+                              <span className="min-w-0 flex-1 break-all select-all">{sec.value || '••••••••••••••••••••••••'}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(sec.value || '');
+                                  showToast('Copied delivered secret to clipboard');
+                                }}
+                                className="p-1.5 rounded-md text-xs text-oj-muted hover:text-white hover:bg-white/10 shrink-0 transition-colors"
+                                title="Copy Secret"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            {sec.instruction && (
+                              <p className="text-[11px] text-oj-muted italic">{sec.instruction}</p>
+                            )}
+                          </div>
+                        ))}
                       </div>
-                    ))
-                  ) : (
-                    <p className="text-xs text-oj-muted py-2">No license secrets delivered for this line item.</p>
-                  )}
+                    );
+                  })()}
                 </div>
               ))}
             </div>

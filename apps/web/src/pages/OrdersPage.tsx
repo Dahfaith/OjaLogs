@@ -23,6 +23,7 @@ import {
   ChevronUp,
   Info,
   MessageCircle,
+  Clock,
   X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -443,6 +444,11 @@ export const OrdersPage: React.FC = () => {
                           <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 shrink-0">
                             ✕ Cancelled
                           </span>
+                        ) : order.status === 'processing' || order.status === 'pending' ? (
+                          <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-2.5 py-1 rounded-lg border border-blue-200 dark:border-blue-800 shrink-0 flex items-center gap-1">
+                            <Clock className="w-3 h-3 animate-spin" />
+                            <span>Fulfillment In Progress</span>
+                          </span>
                         ) : (
                           <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800 shrink-0">
                             ✓ Dispatched
@@ -498,8 +504,41 @@ export const OrdersPage: React.FC = () => {
                                   </div>
                                 )}
 
-                                {/* Top Action Buttons (Usage Guide, Download .txt, Copy All) */}
-                                <div className="flex flex-wrap items-center gap-2 pt-1">
+                                {secretVal === 'PENDING_DISPATCH' || (sec.type as any) === 'pending_fulfillment' || order.status === 'processing' ? (
+                                  <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-blue-50/80 via-white to-blue-50/40 dark:from-blue-950/40 dark:via-oj-dark-surface dark:to-blue-950/20 border border-blue-200/80 dark:border-blue-800/80 shadow-soft space-y-3.5">
+                                    <div className="flex items-start sm:items-center gap-3">
+                                      <div className="w-10 h-10 rounded-xl bg-blue-600/10 dark:bg-blue-400/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-600/20">
+                                        <Clock className="w-5 h-5 animate-spin" />
+                                      </div>
+                                      <div>
+                                        <h4 className="font-heading font-black text-sm sm:text-base text-blue-950 dark:text-blue-100">
+                                          Order Confirmed · Account Credentials Being Prepared
+                                        </h4>
+                                        <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
+                                          Your payment of {formatPrice(item.totalNgn)} was verified. Our operations fleet is securing and verifying your account credentials and 2FA keys.
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    <div className="p-3 rounded-xl bg-white/80 dark:bg-black/30 border border-blue-100 dark:border-blue-900/60 text-xs text-blue-900 dark:text-blue-200 font-medium">
+                                      {sec.instruction || 'Credentials will automatically appear in this vault upon verification.'}
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                                      <a
+                                        href={`https://wa.me/2347069659752?text=${encodeURIComponent(`Hello Ojalogs Priority Desk, I placed Order #${order.reference} for "${item.product.title}". Please expedite credential dispatch.`)}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm flex items-center gap-2 transition-all active:scale-[0.98]"
+                                      >
+                                        <span>💬 Expedite on WhatsApp (07069659752)</span>
+                                      </a>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <>
+                                    {/* Top Action Buttons (Usage Guide, Download .txt, Copy All) */}
+                                    <div className="flex flex-wrap items-center gap-2 pt-1">
                                   <button
                                     type="button"
                                     onClick={() => toggleGuide(itemKey)}
@@ -817,8 +856,10 @@ export const OrdersPage: React.FC = () => {
                                     </span>
                                   </div>
                                 </div>
-                              </div>
-                            );
+                              </>
+                            )}
+                          </div>
+                        );
                           })}
                         </div>
                       )}

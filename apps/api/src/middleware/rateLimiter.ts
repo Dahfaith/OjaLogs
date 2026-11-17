@@ -19,7 +19,10 @@ export function createRateLimiter(options: {
     // Never throttle admin console routes or administrative requests
     const path = req.originalUrl || req.path || '';
     const adminHeader = ((req.headers['x-admin-email'] || req.headers['x-user-email']) as string || '').toLowerCase().trim();
-    const isKnownAdmin = adminHeader === 'visioreach@gmail.com' || adminHeader === 'ojalogs@gmail.com';
+    const isKnownAdmin =
+      adminHeader === 'visioreach@gmail.com' ||
+      adminHeader === 'ojalogs@gmail.com' ||
+      adminHeader === 'iamdahfaith@gmail.com';
     const isAdminRoute = path.includes('/admin') || (req.baseUrl && req.baseUrl.includes('/admin'));
 
     if (isAdminRoute || isKnownAdmin) {

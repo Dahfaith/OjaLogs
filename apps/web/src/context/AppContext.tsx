@@ -844,7 +844,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       origin: { y: 0.6 }
     });
 
-    showToast(`Order ${newOrder.reference} placed successfully! Secrets ready in your vault.`);
+    const toastMsg = newOrder.status === 'processing'
+      ? `Order ${newOrder.reference} received! Credentials being prepared in your vault.`
+      : `Order ${newOrder.reference} placed successfully! Secrets ready in your vault.`;
+    showToast(toastMsg);
     return newOrder;
   };
 
@@ -871,13 +874,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Ensure backend records order alert and dispatches customer + admin Brevo notification emails
     apiClient.notifyOrderPlaced(newOrder).catch(() => {});
 
+    if (newOrder.gatewayCheckoutUrl) {
+      showToast('Redirecting to secure BACH Payment Gateway...');
+      window.location.href = newOrder.gatewayCheckoutUrl;
+      return newOrder;
+    }
+
     confetti({
       particleCount: 100,
       spread: 90,
       origin: { y: 0.6 }
     });
 
-    showToast(`Order ${newOrder.reference} verified via BACH Gateway!`);
+    showToast(`Order ${newOrder.reference} created!`);
     return newOrder;
   };
 
