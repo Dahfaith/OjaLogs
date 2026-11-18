@@ -140,7 +140,13 @@ export const SocialBoostPage: React.FC = () => {
     } catch {}
     return defaultPublicServices;
   });
-  const [orders, setOrders] = useState<SMMOrder[]>([]);
+  const [orders, setOrders] = useState<SMMOrder[]>(() => {
+    try {
+      const saved = localStorage.getItem('oj_smm_user_orders');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
   const [selectedPlatform, setSelectedPlatform] = useState<string>('all');
   const [selectedServiceId, setSelectedServiceId] = useState<string>('');
   const [targetLink, setTargetLink] = useState('');
@@ -221,13 +227,20 @@ export const SocialBoostPage: React.FC = () => {
   // Fetch User SMM Orders
   useEffect(() => {
     if (!user) return;
+    let isMounted = true;
     const fetchOrders = async () => {
       try {
         const data = await apiClient.getSMMOrders();
-        if (data) setOrders(data);
+        if (data && isMounted) {
+          setOrders(data);
+          try {
+            localStorage.setItem('oj_smm_user_orders', JSON.stringify(data));
+          } catch {}
+        }
       } catch {}
     };
     fetchOrders();
+    return () => { isMounted = false; };
   }, [user]);
 
   const effectiveServices = services && services.length > 0 ? services : defaultPublicServices;
@@ -352,7 +365,13 @@ export const SocialBoostPage: React.FC = () => {
         `idemp_smm_${Date.now()}`
       );
 
-      setOrders(prev => [order, ...prev]);
+      setOrders(prev => {
+        const next = [order, ...prev.filter(o => o.id !== order.id)];
+        try {
+          localStorage.setItem('oj_smm_user_orders', JSON.stringify(next));
+        } catch {}
+        return next;
+      });
       setTargetLink('');
       refreshWallet();
 
@@ -374,7 +393,13 @@ export const SocialBoostPage: React.FC = () => {
   const handleSyncOrder = async (orderId: string) => {
     try {
       const updated = await apiClient.syncSMMOrder(orderId);
-      setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+      setOrders(prev => {
+        const next = prev.map(o => o.id === orderId ? updated : o);
+        try {
+          localStorage.setItem('oj_smm_user_orders', JSON.stringify(next));
+        } catch {}
+        return next;
+      });
       showToast(`Order ${updated.reference} status: ${updated.status.toUpperCase()}`);
     } catch {
       showToast('Could not sync status with provider');

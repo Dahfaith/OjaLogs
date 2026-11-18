@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   PackageCheck,
@@ -24,12 +24,17 @@ import {
   Info,
   MessageCircle,
   Clock,
-  X
+  X,
+  RotateCw,
+  Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrandCoverBanner } from '../components/common/BrandCoverBanner';
 import { WhatsAppSupportModal } from '../components/support/WhatsAppSupportModal';
 import { SEO } from '../components/common/SEO';
+import { SMMOrder } from '@ojalogs/shared';
+import { apiClient } from '../lib/apiClient';
+import { Link } from 'react-router-dom';
 
 interface ParsedField {
   label: string;
@@ -134,6 +139,7 @@ function parseSecretValue(secret: string): { isStructured: boolean; fields: Pars
 export const OrdersPage: React.FC = () => {
   const { orders, showToast, formatPrice, currency, user, setIsAuthModalOpen, setIsSupportOpen } = useApp();
   const [activeTab, setActiveTab] = useState<'all' | 'completed' | 'pending'>('all');
+  const [orderTypeFilter, setOrderTypeFilter] = useState<'all' | 'vault' | 'smm'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({});
@@ -141,6 +147,46 @@ export const OrdersPage: React.FC = () => {
   const [rawOpen, setRawOpen] = useState<Record<string, boolean>>({});
   const [selectedHelpOrder, setSelectedHelpOrder] = useState<any | null>(null);
   const [orderComplaintMessage, setOrderComplaintMessage] = useState('');
+  const [syncingSmmId, setSyncingSmmId] = useState<string | null>(null);
+
+  const [smmOrders, setSmmOrders] = useState<SMMOrder[]>(() => {
+    try {
+      const saved = localStorage.getItem('oj_smm_user_orders');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  useEffect(() => {
+    if (!user) return;
+    let isMounted = true;
+    apiClient.getSMMOrders()
+      .then(data => {
+        if (data && Array.isArray(data) && isMounted) {
+          setSmmOrders(data);
+          try { localStorage.setItem('oj_smm_user_orders', JSON.stringify(data)); } catch {}
+        }
+      })
+      .catch(() => {});
+    return () => { isMounted = false; };
+  }, [user]);
+
+  const handleSyncSMM = async (orderId: string) => {
+    setSyncingSmmId(orderId);
+    try {
+      const updated = await apiClient.syncSMMOrder(orderId);
+      setSmmOrders(prev => {
+        const next = prev.map(o => o.id === orderId ? updated : o);
+        try { localStorage.setItem('oj_smm_user_orders', JSON.stringify(next)); } catch {}
+        return next;
+      });
+      showToast(`Updated ${updated.reference}: ${updated.status.toUpperCase()}`);
+    } catch {
+      showToast('Status check complete.');
+    } finally {
+      setSyncingSmmId(null);
+    }
+  };
 
   const completedOrders = orders.filter(o => o.status === 'completed');
   const pendingOrders = orders.filter(o => o.status === 'pending' || o.status === 'processing');
@@ -154,6 +200,20 @@ export const OrdersPage: React.FC = () => {
       const matchesRef = order.reference.toLowerCase().includes(q);
       const matchesProduct = order.items.some(i => i.product.title.toLowerCase().includes(q));
       if (!matchesRef && !matchesProduct) return false;
+    }
+    return true;
+  });
+
+  const filteredSmmOrders = smmOrders.filter(order => {
+    if (activeTab === 'completed' && order.status !== 'completed') return false;
+    if (activeTab === 'pending' && order.status !== 'in_progress' && order.status !== 'pending') return false;
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const matchesRef = order.reference.toLowerCase().includes(q);
+      const matchesService = order.serviceName.toLowerCase().includes(q);
+      const matchesLink = order.targetLink.toLowerCase().includes(q);
+      if (!matchesRef && !matchesService && !matchesLink) return false;
     }
     return true;
   });
@@ -305,6 +365,45 @@ export const OrdersPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Order Category Pills: All Orders / Digital Accounts Vault / SMM Social Boosts */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+        <button
+          onClick={() => setOrderTypeFilter('all')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+            orderTypeFilter === 'all'
+              ? 'bg-oj-midnight dark:bg-white text-white dark:text-oj-midnight shadow-md'
+              : 'bg-white dark:bg-oj-dark-surface text-oj-muted hover:text-oj-midnight dark:hover:text-white border border-oj-border dark:border-oj-dark-border'
+          }`}
+        >
+          <PackageCheck className="w-3.5 h-3.5" />
+          <span>All Orders ({orders.length + smmOrders.length})</span>
+        </button>
+
+        <button
+          onClick={() => setOrderTypeFilter('vault')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+            orderTypeFilter === 'vault'
+              ? 'bg-oj-primary text-white shadow-md'
+              : 'bg-white dark:bg-oj-dark-surface text-oj-muted hover:text-oj-midnight dark:hover:text-white border border-oj-border dark:border-oj-dark-border'
+          }`}
+        >
+          <KeyRound className="w-3.5 h-3.5" />
+          <span>Digital Accounts ({orders.length})</span>
+        </button>
+
+        <button
+          onClick={() => setOrderTypeFilter('smm')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+            orderTypeFilter === 'smm'
+              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md'
+              : 'bg-white dark:bg-oj-dark-surface text-oj-muted hover:text-oj-midnight dark:hover:text-white border border-oj-border dark:border-oj-dark-border'
+          }`}
+        >
+          <Zap className="w-3.5 h-3.5 text-amber-400" />
+          <span>Social Boosts SMM ({smmOrders.length})</span>
+        </button>
+      </div>
+
       {/* Tabs & Search */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         {/* Status Tabs */}
@@ -317,7 +416,7 @@ export const OrdersPage: React.FC = () => {
                 : 'text-oj-muted hover:text-oj-midnight dark:hover:text-white'
             }`}
           >
-            All ({orders.length})
+            All ({orderTypeFilter === 'smm' ? smmOrders.length : orderTypeFilter === 'vault' ? orders.length : (orders.length + smmOrders.length)})
           </button>
           <button
             onClick={() => setActiveTab('completed')}
@@ -327,7 +426,7 @@ export const OrdersPage: React.FC = () => {
                 : 'text-oj-muted hover:text-oj-midnight dark:hover:text-white'
             }`}
           >
-            Completed ({completedOrders.length})
+            Completed ({orderTypeFilter === 'smm' ? smmOrders.filter(o => o.status === 'completed').length : orderTypeFilter === 'vault' ? completedOrders.length : (completedOrders.length + smmOrders.filter(o => o.status === 'completed').length)})
           </button>
           <button
             onClick={() => setActiveTab('pending')}
@@ -337,7 +436,7 @@ export const OrdersPage: React.FC = () => {
                 : 'text-oj-muted hover:text-oj-midnight dark:hover:text-white'
             }`}
           >
-            Pending ({pendingOrders.length})
+            Pending ({orderTypeFilter === 'smm' ? smmOrders.filter(o => o.status !== 'completed' && o.status !== 'canceled').length : orderTypeFilter === 'vault' ? pendingOrders.length : (pendingOrders.length + smmOrders.filter(o => o.status !== 'completed' && o.status !== 'canceled').length)})
           </button>
         </div>
 
@@ -348,7 +447,7 @@ export const OrdersPage: React.FC = () => {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by order ref or product..."
+            placeholder="Search by order ref, service or product..."
             className="w-full text-xs pl-8 pr-3 py-2 rounded-xl bg-oj-surface-alt dark:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary transition-all"
           />
         </div>
@@ -356,18 +455,131 @@ export const OrdersPage: React.FC = () => {
 
       {/* Orders List */}
       <div className="space-y-5">
-        {filteredOrders.length === 0 ? (
-          <div className="p-10 sm:p-14 text-center bg-white dark:bg-oj-dark-surface rounded-2xl border border-oj-border dark:border-oj-dark-border shadow-soft">
-            <PackageCheck className="w-12 h-12 text-oj-muted/60 mx-auto mb-3" />
-            <h3 className="font-heading font-bold text-base text-oj-midnight dark:text-white">
-              No orders found
-            </h3>
-            <p className="text-xs text-oj-muted mt-1 max-w-sm mx-auto">
-              Your purchased accounts, software licenses, and 2FA credentials will appear here automatically upon payment verification.
-            </p>
+        {/* 1. SMM Boost Orders (Shown when in 'all' or 'smm' filter) */}
+        {(orderTypeFilter === 'all' || orderTypeFilter === 'smm') && filteredSmmOrders.length > 0 && (
+          <div className="space-y-4">
+            {orderTypeFilter === 'all' && (
+              <div className="flex items-center justify-between pb-1 border-b border-oj-border/60 dark:border-oj-dark-border/60">
+                <span className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5 uppercase tracking-wider">
+                  <Zap className="w-3.5 h-3.5" />
+                  Social Boosts Orders ({filteredSmmOrders.length})
+                </span>
+                <Link to="/boost" className="text-xs text-oj-primary hover:underline font-semibold">
+                  + New Boost
+                </Link>
+              </div>
+            )}
+            {filteredSmmOrders.map((smmOrder) => (
+              <div
+                key={smmOrder.id}
+                className="rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft overflow-hidden"
+              >
+                <div className="p-4 sm:p-5 bg-oj-surface-alt/40 dark:bg-oj-dark-surface-alt/40 border-b border-oj-border dark:border-oj-dark-border flex flex-wrap items-center justify-between gap-3">
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono font-extrabold text-sm sm:text-base text-oj-midnight dark:text-white">
+                        {smmOrder.reference}
+                      </span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                        <Zap className="w-3 h-3 text-amber-500" />
+                        SMM Boost
+                      </span>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                        smmOrder.status === 'completed'
+                          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                          : smmOrder.status === 'canceled'
+                          ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
+                          : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
+                      }`}>
+                        {smmOrder.status.toUpperCase()}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-oj-muted font-medium">
+                      Placed on {new Date(smmOrder.createdAt).toLocaleDateString()} at {new Date(smmOrder.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · Method: {currency} Wallet
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+                    <span className="font-mono font-black text-base sm:text-lg text-emerald-600 dark:text-emerald-400">
+                      {formatPrice(smmOrder.totalNgn)}
+                    </span>
+                    <button
+                      onClick={() => handleSyncSMM(smmOrder.id)}
+                      disabled={syncingSmmId === smmOrder.id}
+                      className="p-2 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border hover:border-oj-primary text-oj-muted hover:text-oj-midnight dark:hover:text-white transition-all shadow-sm"
+                      title="Check Live Provider Progress"
+                    >
+                      <RotateCw className={`w-4 h-4 ${syncingSmmId === smmOrder.id ? 'animate-spin text-oj-primary' : ''}`} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-4 sm:p-5 space-y-3">
+                  <div>
+                    <h4 className="font-heading font-bold text-sm text-oj-midnight dark:text-white">
+                      {smmOrder.serviceName}
+                    </h4>
+                    <div className="mt-1 flex items-center gap-2 text-xs">
+                      <span className="text-oj-muted">Target Link:</span>
+                      <a
+                        href={smmOrder.targetLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-mono text-oj-primary hover:underline flex items-center gap-1 max-w-md truncate"
+                      >
+                        <span className="truncate">{smmOrder.targetLink}</span>
+                        <ExternalLink className="w-3 h-3 shrink-0" />
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-oj-border/50 dark:border-oj-dark-border/50 text-xs">
+                    <div className="p-2.5 rounded-xl bg-oj-surface-alt/50 dark:bg-oj-dark-surface-alt/50">
+                      <span className="text-[10px] text-oj-muted block">Quantity</span>
+                      <span className="font-mono font-extrabold text-oj-midnight dark:text-white">
+                        {smmOrder.quantity.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-oj-surface-alt/50 dark:bg-oj-dark-surface-alt/50">
+                      <span className="text-[10px] text-oj-muted block">Start Count</span>
+                      <span className="font-mono font-extrabold text-oj-midnight dark:text-white">
+                        {smmOrder.startCount?.toLocaleString() || '0'}
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-oj-surface-alt/50 dark:bg-oj-dark-surface-alt/50">
+                      <span className="text-[10px] text-oj-muted block">Remains</span>
+                      <span className="font-mono font-extrabold text-oj-midnight dark:text-white">
+                        {smmOrder.remains !== undefined ? smmOrder.remains.toLocaleString() : 'In Delivery'}
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-oj-surface-alt/50 dark:bg-oj-dark-surface-alt/50">
+                      <span className="text-[10px] text-oj-muted block">Status</span>
+                      <span className="font-bold text-oj-primary dark:text-oj-cyan capitalize">
+                        {smmOrder.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-        ) : (
-          filteredOrders.map((order) => (
+        )}
+
+        {/* 2. Digital Accounts & Vault Orders (Shown when in 'all' or 'vault' filter) */}
+        {(orderTypeFilter === 'all' || orderTypeFilter === 'vault') && (
+          <div className="space-y-4">
+            {orderTypeFilter === 'all' && filteredSmmOrders.length > 0 && filteredOrders.length > 0 && (
+              <div className="flex items-center justify-between pb-1 border-b border-oj-border/60 dark:border-oj-dark-border/60 pt-2">
+                <span className="text-xs font-bold text-oj-primary dark:text-oj-cyan flex items-center gap-1.5 uppercase tracking-wider">
+                  <KeyRound className="w-3.5 h-3.5" />
+                  Digital Accounts & Vault ({filteredOrders.length})
+                </span>
+                <Link to="/storefront" className="text-xs text-oj-primary hover:underline font-semibold">
+                  + Storefront
+                </Link>
+              </div>
+            )}
+            {filteredOrders.map((order) => (
             <div
               key={order.id}
               className="rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft overflow-hidden"
@@ -868,8 +1080,48 @@ export const OrdersPage: React.FC = () => {
                 })}
               </div>
             </div>
-          ))
-        )}
+          ))}
+          {filteredOrders.length === 0 && (
+            <div className="p-8 text-center bg-white dark:bg-oj-dark-surface rounded-2xl border border-oj-border dark:border-oj-dark-border shadow-soft">
+              <KeyRound className="w-8 h-8 text-oj-muted/50 mx-auto mb-2" />
+              <p className="text-xs font-bold text-oj-midnight dark:text-white">No digital accounts orders found.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Empty State for SMM tab */}
+      {orderTypeFilter === 'smm' && filteredSmmOrders.length === 0 && (
+        <div className="p-10 sm:p-14 text-center bg-white dark:bg-oj-dark-surface rounded-2xl border border-oj-border dark:border-oj-dark-border shadow-soft">
+          <Zap className="w-12 h-12 text-amber-500/40 mx-auto mb-3" />
+          <h3 className="font-heading font-bold text-base text-oj-midnight dark:text-white">
+            No SMM Social Boost Orders Yet
+          </h3>
+          <p className="text-xs text-oj-muted mt-1 max-w-sm mx-auto mb-4">
+            Boost your Instagram, TikTok, YouTube, and X accounts with instant real engagement.
+          </p>
+          <Link
+            to="/boost"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-oj-primary text-white text-xs font-bold hover:opacity-95 shadow-soft transition-all"
+          >
+            <Zap className="w-3.5 h-3.5" />
+            <span>Configure a Social Boost</span>
+          </Link>
+        </div>
+      )}
+
+      {/* Global Empty State for All Orders */}
+      {orderTypeFilter === 'all' && filteredOrders.length === 0 && filteredSmmOrders.length === 0 && (
+        <div className="p-10 sm:p-14 text-center bg-white dark:bg-oj-dark-surface rounded-2xl border border-oj-border dark:border-oj-dark-border shadow-soft">
+          <PackageCheck className="w-12 h-12 text-oj-muted/60 mx-auto mb-3" />
+          <h3 className="font-heading font-bold text-base text-oj-midnight dark:text-white">
+            No orders found
+          </h3>
+          <p className="text-xs text-oj-muted mt-1 max-w-sm mx-auto">
+            Your purchased accounts and social media boost campaigns will appear here automatically.
+          </p>
+        </div>
+      )}
       </div>
 
       {/* WhatsApp Official Support Modal */}

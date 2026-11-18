@@ -50,14 +50,23 @@ export const DashboardPage: React.FC = () => {
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
   const [activityFilter, setActivityFilter] = useState<'all' | 'deposits' | 'orders'>('all');
 
-  // Dynamically calculate lifetime purchases & total spending from real orders and ledger transactions
+  // Dynamically calculate lifetime purchases & total spending from real orders, SMM boosts, and ledger transactions
   const totalOrdersCount = useMemo(() => {
+    let smmCount = 0;
+    try {
+      const saved = localStorage.getItem('oj_smm_user_orders');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) smmCount = parsed.length;
+      }
+    } catch {}
+
     // 1. Completed/processing orders
     const validOrders = orders.filter(o => o.status !== 'cancelled');
     // 2. Order debit transactions in ledger
     const ledgerOrderTxs = ledger.filter(tx => tx.type === 'debit' && tx.category !== 'refund');
-    // 3. Return maximum of orders list, ledger orders, or wallet counter
-    return Math.max(validOrders.length, ledgerOrderTxs.length, wallet.lifetimePurchases || 0);
+    // 3. Return maximum of orders list + smm, ledger orders, or wallet counter
+    return Math.max(validOrders.length + smmCount, ledgerOrderTxs.length, wallet.lifetimePurchases || 0);
   }, [orders, ledger, wallet.lifetimePurchases]);
 
   const totalMonthlySpendNgn = useMemo(() => {

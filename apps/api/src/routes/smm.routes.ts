@@ -76,7 +76,7 @@ router.post('/orders', authMiddleware, validateBody(SMMOrderInputSchema), async 
 });
 
 router.get('/orders', authMiddleware, (req, res) => {
-  const orders = smmService.getOrders(req.user!.id);
+  const orders = smmService.getOrders(req.user!.id, req.user!.email);
   res.json({
     success: true,
     data: orders,

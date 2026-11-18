@@ -4,6 +4,7 @@ import { SMMService, SMMOrder, SMMProviderConfig, SMMPlatform } from '@ojalogs/s
 import { linkocialAdapter, LinkocialRawService } from '../adapters/smm/linkocial.adapter.js';
 import { walletService } from './wallet.service.js';
 import { notificationService } from './notification.service.js';
+import { supabaseAdmin } from '../config/supabase.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { env } from '../config/env.js';
 
@@ -12,6 +13,8 @@ const DATA_DIR = fs.existsSync(path.join(process.cwd(), 'apps', 'api', 'data'))
   : path.join(process.cwd(), 'data');
 const CONFIG_FILE = path.join(DATA_DIR, 'smm_config.json');
 const SERVICES_FILE = path.join(DATA_DIR, 'smm_services.json');
+const SMM_ORDERS_FILE = path.join(DATA_DIR, 'smm_orders.json');
+const SMM_ORDERS_SLUG = 'smm_orders_master';
 
 export class SMMManagerService {
   private config: SMMProviderConfig = {
@@ -31,6 +34,7 @@ export class SMMManagerService {
   constructor() {
     this.loadPersistedConfig();
     this.loadPersistedServices();
+    this.loadPersistedOrders();
     // Auto-sync in the background on startup so Linkocial catalog is always up to date without admin login
     if (this.config.autoSyncEnabled && this.config.apiKey) {
       setTimeout(() => {
@@ -96,6 +100,106 @@ export class SMMManagerService {
       fs.writeFileSync(SERVICES_FILE, JSON.stringify(this.services, null, 2), 'utf-8');
     } catch (err: any) {
       console.warn(`[SMM_PERSISTENCE] Notice saving services: ${err.message}`);
+    }
+  }
+
+  private loadPersistedOrders() {
+    try {
+      if (fs.existsSync(SMM_ORDERS_FILE)) {
+        const raw = fs.readFileSync(SMM_ORDERS_FILE, 'utf-8');
+        const list = JSON.parse(raw);
+        if (Array.isArray(list) && list.length > 0) {
+          this.orders = list;
+          console.log(`[SMM_PERSISTENCE] Loaded ${list.length} persisted SMM orders from disk.`);
+        }
+      }
+    } catch (err: any) {
+      console.warn(`[SMM_PERSISTENCE] Notice loading orders from disk: ${err.message}`);
+    }
+
+    // Load from Supabase site_pages asynchronously
+    this.loadOrdersFromSupabase().catch(() => {});
+  }
+
+  private async loadOrdersFromSupabase(): Promise<void> {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('site_pages')
+        .select('content')
+        .eq('slug', SMM_ORDERS_SLUG)
+        .maybeSingle();
+
+      if (!error && data?.content) {
+        const list = JSON.parse(data.content);
+        if (Array.isArray(list) && list.length > 0) {
+          const existingIds = new Set(this.orders.map(o => o.id));
+          let added = 0;
+          for (const ord of list) {
+            if (!existingIds.has(ord.id)) {
+              this.orders.push(ord);
+              existingIds.add(ord.id);
+              added++;
+            }
+          }
+          if (added > 0) {
+            this.orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            console.log(`[SMM_PERSISTENCE] Merged ${added} SMM orders from Supabase (Total: ${this.orders.length})`);
+            this.saveOrdersToDisk();
+          }
+        }
+      }
+    } catch (err: any) {
+      console.warn(`[SMM_SUPABASE] Notice loading orders: ${err.message}`);
+    }
+  }
+
+  private saveOrdersToDisk() {
+    try {
+      if (process.env.NODE_ENV === 'test') return;
+      fs.mkdirSync(path.dirname(SMM_ORDERS_FILE), { recursive: true });
+      fs.writeFileSync(SMM_ORDERS_FILE, JSON.stringify(this.orders, null, 2), 'utf-8');
+    } catch (err: any) {
+      console.warn(`[SMM_PERSISTENCE] Notice saving orders to disk: ${err.message}`);
+    }
+  }
+
+  private savePersistedOrders() {
+    this.saveOrdersToDisk();
+    this.syncOrdersToSupabase().catch(() => {});
+  }
+
+  private async syncOrdersToSupabase(): Promise<void> {
+    try {
+      if (process.env.NODE_ENV === 'test') return;
+      const payload = JSON.stringify(this.orders);
+      const { data: existing } = await supabaseAdmin
+        .from('site_pages')
+        .select('id')
+        .eq('slug', SMM_ORDERS_SLUG)
+        .maybeSingle();
+
+      if (existing) {
+        await supabaseAdmin
+          .from('site_pages')
+          .update({
+            content: payload,
+            last_updated_at: new Date().toISOString()
+          })
+          .eq('slug', SMM_ORDERS_SLUG);
+      } else {
+        await supabaseAdmin
+          .from('site_pages')
+          .insert({
+            slug: SMM_ORDERS_SLUG,
+            title: 'SMM Customer Orders Master Store',
+            category: 'system',
+            summary: 'Persistent customer SMM social boost orders and fulfillment status',
+            content: payload,
+            last_updated_at: new Date().toISOString()
+          });
+      }
+    } catch (err: any) {
+      console.warn(`[SMM_SUPABASE] Notice syncing orders: ${err.message}`);
     }
   }
 
@@ -441,6 +545,7 @@ export class SMMManagerService {
     };
 
     this.orders.unshift(newOrder);
+    this.savePersistedOrders();
 
     // Automated In-App Alert & Email notification
     notificationService.recordOrderAlert(
@@ -495,15 +600,23 @@ export class SMMManagerService {
         if (statusRes.start_count !== undefined) order.startCount = Number(statusRes.start_count);
         if (statusRes.remains !== undefined) order.remains = Number(statusRes.remains);
         order.updatedAt = new Date().toISOString();
+        this.savePersistedOrders();
       }
     }
 
     return order;
   }
 
-  getOrders(userId?: string): SMMOrder[] {
-    if (userId) {
-      return this.orders.filter(o => o.userId === userId);
+  getOrders(userId?: string, userEmail?: string): SMMOrder[] {
+    if (userId || userEmail) {
+      const cleanUid = userId?.trim();
+      const cleanEmail = userEmail?.toLowerCase().trim();
+      return this.orders.filter(o => 
+        (cleanUid && o.userId === cleanUid) ||
+        (cleanEmail && o.customerEmail?.toLowerCase() === cleanEmail) ||
+        (cleanEmail && o.userId?.toLowerCase() === cleanEmail) ||
+        (cleanUid && o.customerEmail?.toLowerCase() === cleanUid.toLowerCase())
+      );
     }
     return this.orders;
   }
