@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, Trash2, ShieldCheck, ArrowRight, Wallet, CreditCard, Sparkles, AlertCircle } from 'lucide-react';
+import { X, Trash2, ShieldCheck, ArrowRight, Wallet, CreditCard, Sparkles, AlertCircle, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { BrandCoverBanner } from '../common/BrandCoverBanner';
@@ -16,11 +16,26 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const navigate = useNavigate();
 
+  const hasManualFulfillment = cart.items.some(item =>
+    (item.product.deliveryFormat || '').toLowerCase().includes('manual') ||
+    (item.product.serverCluster === 'Server 2' && (item.product.deliveryFormat || '').toLowerCase().includes('manual'))
+  );
+
+  const outOfStockItems = cart.items.filter(item =>
+    item.product.inStock === false || (typeof item.product.stockCount === 'number' && item.product.stockCount <= 0)
+  );
+  const hasOutOfStock = outOfStockItems.length > 0;
+
   const handleWalletCheckout = async () => {
     if (!user) {
       onClose();
       setIsAuthModalOpen(true);
       showToast('Please sign in or enter your email to complete checkout.');
+      return;
+    }
+
+    if (hasOutOfStock) {
+      setErrorMessage('One or more items in your cart are currently out of stock. Please remove them to proceed.');
       return;
     }
 
@@ -44,6 +59,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
       showToast('Please sign in or enter your email to complete checkout.');
       return;
     }
+
+    if (hasOutOfStock) {
+      setErrorMessage('One or more items in your cart are currently out of stock. Please remove them to proceed.');
+      return;
+    }
+
     setIsProcessing(true);
     setErrorMessage(null);
     try {
@@ -136,9 +157,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                       <p className="text-xs font-semibold text-oj-midnight dark:text-white truncate">
                         {item.product.title}
                       </p>
-                      <p className="text-[11px] text-oj-muted dark:text-oj-dark-muted mb-1.5">
-                        {item.product.serverCluster} · {item.product.deliveryFormat}
-                      </p>
+                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                        <p className="text-[11px] text-oj-muted dark:text-oj-dark-muted">
+                          {item.product.serverCluster} · {item.product.deliveryFormat}
+                        </p>
+                        {(item.product.inStock === false || (typeof item.product.stockCount === 'number' && item.product.stockCount <= 0)) && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
+                            Out of Stock
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-center justify-between">
                         <span className="font-mono font-bold text-xs text-oj-primary dark:text-oj-cyan">
                           {formatPrice(item.product.priceNgn)}
@@ -209,6 +237,27 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                   </span>
                 </div>
 
+                {/* Manual Fulfillment Notice */}
+                {hasManualFulfillment && (
+                  <div className="p-2.5 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-[11px] text-blue-800 dark:text-blue-300 flex items-start gap-2 shadow-xs">
+                    <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold">Manual Fulfillment Item Included</p>
+                      <p className="text-[10px] text-blue-700 dark:text-blue-300 mt-0.5 leading-relaxed">
+                        Account credentials will be verified by operations fleet and dispatched to your Digital Vault upon confirmation.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Out of Stock Warning */}
+                {hasOutOfStock && (
+                  <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-[11px] text-rose-800 dark:text-rose-300 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>Cart contains out-of-stock items. Please remove them to proceed.</span>
+                  </div>
+                )}
+
                 {/* Checkout Buttons */}
                 {!user ? (
                   <div className="space-y-2 pt-1">
@@ -233,17 +282,21 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                 ) : (
                   <div className="space-y-2 pt-1">
                     <button
-                      disabled={isProcessing}
+                      disabled={isProcessing || hasOutOfStock}
                       onClick={handleWalletCheckout}
                       className="w-full py-3 px-4 rounded-btn bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white text-xs font-bold shadow-glow-primary flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                     >
                       <Wallet className="w-4 h-4" />
-                      <span>Pay with NGN Wallet (Instant Delivery)</span>
+                      <span>
+                        {hasManualFulfillment
+                          ? 'Pay with NGN Wallet (Manual Fulfillment)'
+                          : 'Pay with NGN Wallet (Instant Delivery)'}
+                      </span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
 
                     <button
-                      disabled={isProcessing}
+                      disabled={isProcessing || hasOutOfStock}
                       onClick={handleGatewayCheckout}
                       className="w-full py-2.5 px-4 rounded-btn border border-oj-border dark:border-oj-dark-border bg-white dark:bg-oj-dark-surface hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt text-oj-midnight dark:text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
                     >

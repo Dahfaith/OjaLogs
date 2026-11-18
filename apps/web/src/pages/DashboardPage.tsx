@@ -50,39 +50,6 @@ export const DashboardPage: React.FC = () => {
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
   const [activityFilter, setActivityFilter] = useState<'all' | 'deposits' | 'orders'>('all');
 
-  // Dynamically calculate lifetime purchases & total spending from real orders, SMM boosts, and ledger transactions
-  const totalOrdersCount = useMemo(() => {
-    let smmCount = 0;
-    try {
-      const saved = localStorage.getItem('oj_smm_user_orders');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) smmCount = parsed.length;
-      }
-    } catch {}
-
-    // 1. Completed/processing orders
-    const validOrders = orders.filter(o => o.status !== 'cancelled');
-    // 2. Order debit transactions in ledger
-    const ledgerOrderTxs = ledger.filter(tx => tx.type === 'debit' && tx.category !== 'refund');
-    // 3. Return maximum of orders list + smm, ledger orders, or wallet counter
-    return Math.max(validOrders.length + smmCount, ledgerOrderTxs.length, wallet.lifetimePurchases || 0);
-  }, [orders, ledger, wallet.lifetimePurchases]);
-
-  const totalMonthlySpendNgn = useMemo(() => {
-    // 1. Calculate from debit transactions in ledger
-    const ledgerSpend = ledger
-      .filter(tx => tx.type === 'debit' && tx.category !== 'refund')
-      .reduce((sum, tx) => sum + Math.abs(Number(tx.amountNgn) || 0), 0);
-
-    // 2. Calculate from orders
-    const ordersSpend = orders
-      .filter(o => o.status === 'completed' || o.status === 'processing')
-      .reduce((sum, o) => sum + (Number(o.totalNgn) || 0), 0);
-
-    return Math.max(ledgerSpend, ordersSpend, wallet.monthlySpendNgn || 0);
-  }, [ledger, orders, wallet.monthlySpendNgn]);
-
   // Proactively refresh live wallet on dashboard mount
   useEffect(() => {
     if (user) {
@@ -208,6 +175,52 @@ export const DashboardPage: React.FC = () => {
     // Sort newest first
     return items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }, [ledger, orders]);
+
+  // Dynamically calculate lifetime purchases & total spending from real orders, SMM boosts, ledger transactions, and activity stream
+  const totalOrdersCount = useMemo(() => {
+    let smmCount = 0;
+    try {
+      const saved = localStorage.getItem('oj_smm_user_orders');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) smmCount = parsed.length;
+      }
+    } catch {}
+
+    const validOrders = orders.filter(o => o.status !== 'cancelled' && o.status !== 'refunded');
+    const activityOrders = activityItems.filter(i => i.category === 'order' && i.status !== 'refunded' && i.status !== 'failed');
+    const ledgerOrderTxs = ledger.filter(tx => tx.type === 'debit' && tx.category !== 'refund');
+
+    return Math.max(
+      validOrders.length + smmCount,
+      activityOrders.length,
+      ledgerOrderTxs.length,
+      wallet.lifetimePurchases || 0
+    );
+  }, [orders, activityItems, ledger, wallet.lifetimePurchases]);
+
+  const totalMonthlySpendNgn = useMemo(() => {
+    // 1. Calculate from debit transactions in ledger minus refunds
+    const totalDebits = ledger
+      .filter(tx => tx.type === 'debit' && tx.category !== 'refund')
+      .reduce((sum, tx) => sum + Math.abs(Number(tx.amountNgn) || 0), 0);
+    const totalRefunds = ledger
+      .filter(tx => tx.type === 'credit' && tx.category === 'refund')
+      .reduce((sum, tx) => sum + Math.abs(Number(tx.amountNgn) || 0), 0);
+    const netLedgerSpend = Math.max(0, totalDebits - totalRefunds);
+
+    // 2. Calculate from orders
+    const ordersSpend = orders
+      .filter(o => o.status === 'completed' || o.status === 'processing')
+      .reduce((sum, o) => sum + (Number(o.totalNgn) || 0), 0);
+
+    // 3. Calculate from activity items
+    const activitySpend = activityItems
+      .filter(i => i.category === 'order' && i.status !== 'refunded' && i.status !== 'failed')
+      .reduce((sum, i) => sum + (Number(i.amountNgn) || 0), 0);
+
+    return Math.max(netLedgerSpend, ordersSpend, activitySpend, wallet.monthlySpendNgn || 0);
+  }, [ledger, orders, activityItems, wallet.monthlySpendNgn]);
 
   const filteredActivities = useMemo(() => {
     if (activityFilter === 'deposits') return activityItems.filter(i => i.category === 'deposit' || i.category === 'refund');

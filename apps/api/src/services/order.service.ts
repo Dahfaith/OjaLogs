@@ -212,7 +212,76 @@ export class OrderService {
     const orderRef = `ord_oj_${Math.floor(1000 + Math.random() * 9000)}`;
     let gatewayCheckoutUrl: string | undefined;
 
-    // Debit Wallet if Wallet Checkout
+    // 1. Pre-Checkout Wallet Balance Check (Fail before any transaction)
+    if (paymentMethod === 'wallet') {
+      const currentBalance = walletService.getBalance(userId, customerEmail);
+      if (currentBalance < totalNgn) {
+        throw new AppError(
+          `Insufficient wallet balance. Required: ₦${totalNgn.toLocaleString()}, Available: ₦${currentBalance.toLocaleString()}. Please fund your wallet to complete this purchase.`,
+          400,
+          'INSUFFICIENT_FUNDS'
+        );
+      }
+    }
+
+    // 2. Pre-Checkout Validation (Server cluster mismatch & Live upstream stock verification)
+    const isTestMode = process.env.NODE_ENV === 'test' || items.some(it => it.productId.includes('test'));
+
+    for (const item of items) {
+      // Server 1 guard: Server 1 rejects social accounts with cluster mismatch
+      if (item.serverCluster === 'Server 1') {
+        const titleLower = (item.title || '').toLowerCase();
+        if (
+          titleLower.includes('facebook') ||
+          titleLower.includes('fb') ||
+          titleLower.includes('instagram') ||
+          titleLower.includes('twitter') ||
+          titleLower.includes('tiktok')
+        ) {
+          throw new AppError(
+            'This server cluster is temporarily undergoing routine restocking / maintenance. Your wallet was NOT charged. Please try again shortly or contact support on WhatsApp (07069659752).',
+            503,
+            'SERVER_RESTOCKING'
+          );
+        }
+      }
+
+      // Live LogsPoll Pre-Checkout Stock & Verification Check
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.productId.replace(/^lp_/, ''));
+      const isLogsPollSku = item.productId.startsWith('lp_') || isUuid;
+
+      if (!isTestMode && (isLogsPollSku || (logspollAdapter.getCredentials().isConfigured && !item.productId.startsWith('prod_')))) {
+        try {
+          const avail = await logspollAdapter.validateProductAvailability(item.productId, item.quantity);
+          if (!avail.purchasable) {
+            if (avail.reason === 'OUT_OF_STOCK') {
+              throw new AppError(
+                avail.message || `The product "${item.title}" is currently out of stock. Please check back later or choose another item.`,
+                400,
+                'OUT_OF_STOCK'
+              );
+            } else if (avail.reason === 'SUPPLIER_UNVERIFIED') {
+              throw new AppError(
+                `The supplier inventory for "${item.title}" is currently undergoing routine stock verification. Please try again shortly.`,
+                400,
+                'SUPPLIER_UNVERIFIED'
+              );
+            } else {
+              throw new AppError(
+                avail.message || `The product "${item.title}" is currently unavailable.`,
+                400,
+                'PRODUCT_UNAVAILABLE'
+              );
+            }
+          }
+        } catch (vErr: any) {
+          if (vErr instanceof AppError) throw vErr;
+          console.warn(`[ORDER_PRECHECK_NOTICE] ${vErr.message}`);
+        }
+      }
+    }
+
+    // 3. Debit Wallet (only after all pre-flight checks pass cleanly)
     if (paymentMethod === 'wallet') {
       walletService.debitWallet(
         userId,
@@ -221,7 +290,8 @@ export class OrderService {
         `ref_oj_${Math.floor(1000000 + Math.random() * 9000000)}`,
         `Marketplace order payment (${orderRef})`,
         idempotencyKey,
-        orderRef
+        orderRef,
+        customerEmail
       );
     } else {
       // Direct BACH Gateway Checkout Session
@@ -237,6 +307,7 @@ export class OrderService {
 
     // Provision each item through its dedicated Server API adapter or LogsPoll upstream
     const orderItems: OrderItem[] = [];
+    let hasPendingManualFulfillment = false;
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
@@ -244,38 +315,6 @@ export class OrderService {
 
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.productId.replace(/^lp_/, ''));
       const isLogsPollSku = item.productId.startsWith('lp_') || isUuid;
-      const isTestMode = process.env.NODE_ENV === 'test' || item.productId.includes('test');
-
-      // Check for server cluster mismatch (e.g. Server 1 receiving social accounts, per test 6)
-      if (item.serverCluster === 'Server 1') {
-        const titleLower = (item.title || '').toLowerCase();
-        if (
-          titleLower.includes('facebook') ||
-          titleLower.includes('fb') ||
-          titleLower.includes('instagram') ||
-          titleLower.includes('twitter') ||
-          titleLower.includes('tiktok')
-        ) {
-          if (paymentMethod === 'wallet') {
-            try {
-              walletService.creditWallet(
-                userId,
-                totalNgn,
-                'refund',
-                `ref_oj_rf_${Math.floor(1000000 + Math.random() * 9000000)}`,
-                `Auto-refund: Server Cluster Mismatch (${orderRef})`,
-                `refund_${idempotencyKey}`,
-                customerEmail
-              );
-            } catch {}
-          }
-          throw new AppError(
-            'This server cluster is temporarily undergoing routine restocking / maintenance. Your wallet was NOT charged. Please try again shortly or contact support on WhatsApp (07069659752).',
-            503,
-            'SERVER_RESTOCKING'
-          );
-        }
-      }
 
       // If Bach Direct, skip upstream automated provisioning until payment is completed
       if (paymentMethod === 'bach_direct') {
@@ -310,7 +349,73 @@ export class OrderService {
         continue;
       }
 
+      // Check if item is designated for manual operations fulfillment
+      const isManual = (item.title || '').toLowerCase().includes('manual fulfillment') ||
+        (item.serverCluster === 'Server 2' && (item.title || '').toLowerCase().includes('manual'));
+
+      if (isManual && !isTestMode) {
+        hasPendingManualFulfillment = true;
+        orderItems.push({
+          id: `ord_item_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
+          product: {
+            id: item.productId,
+            slug: item.productId,
+            title: item.title,
+            category: 'Social Media Accounts',
+            categoryId: 'social-media',
+            division: 'A',
+            serverCluster: item.serverCluster,
+            priceNgn: item.unitPriceNgn,
+            inStock: true,
+            stockCount: 50,
+            rating: 5.0,
+            verifiedResale: true,
+            coverImage: '',
+            summary: 'Aged social media account pending operations manual verification.',
+            descriptionHtml: `<p>${item.title}</p><p>Guaranteed authentic delivery via Ojalogs operations team.</p>`,
+            specifications: {
+              title: item.title,
+              serverOrigin: `${item.serverCluster} (Verified Stock)`,
+              deliveryType: 'manual_fulfillment',
+              validityDuration: 'Permanent Access',
+              fulfillmentSpeed: 'Operations Manual Fulfillment'
+            } as any,
+            deliveryFormat: 'Manual fulfillment',
+            validityDuration: 'Permanent',
+            region: 'Global'
+          },
+          quantity: item.quantity,
+          unitPriceNgn: item.unitPriceNgn,
+          totalNgn: item.unitPriceNgn * item.quantity,
+          deliveredSecrets: [
+            {
+              type: 'pending_fulfillment',
+              revealed: false,
+              value: 'PENDING_DISPATCH',
+              encryptedPayload: '',
+              instruction: 'Order verified & confirmed. Our operations desk is preparing and verifying your login credentials from the provider fleet. They will appear here in your vault shortly. For priority dispatch, contact support on WhatsApp (07069659752).'
+            } as any
+          ]
+        });
+
+        // Notify admin of manual fulfillment dispatch needed
+        try {
+          notificationService.recordAdminNotification({
+            id: `notif_manual_${Date.now()}_${i}`,
+            type: 'ORDER_PLACED',
+            title: '📋 New Manual Fulfillment Order',
+            message: `Customer ${customerEmail} placed manual fulfillment order ${orderRef} for "${item.title}". Please fulfill credentials in Admin Console.`,
+            timestamp: new Date().toISOString(),
+            read: false,
+            userEmail: customerEmail
+          });
+        } catch {}
+
+        continue;
+      }
+
       // 1. Direct LogsPoll Upstream Dispatch for LogsPoll Products or configured accounts (in live mode)
+      let upstreamError: string | null = null;
       if (!isTestMode && (isLogsPollSku || (logspollAdapter.getCredentials().isConfigured && !item.productId.startsWith('prod_')))) {
         try {
           console.log(`[ORDER_SERVICE] Dispatching live LogsPoll order for ${item.productId} (${item.title})...`);
@@ -323,9 +428,11 @@ export class OrderService {
               instructions: lpRes.instructions || 'Delivered via LogsPoll automated upstream API.'
             };
           } else {
-            console.warn(`[ORDER_SERVICE] LogsPoll upstream notice for ${item.productId}: ${lpRes.error || 'Pending manual fulfillment'}`);
+            upstreamError = lpRes.error || null;
+            console.warn(`[ORDER_SERVICE] LogsPoll upstream notice for ${item.productId}: ${upstreamError || 'Pending manual fulfillment'}`);
           }
         } catch (lpErr: any) {
+          upstreamError = lpErr.message;
           console.warn(`[ORDER_SERVICE] LogsPoll error notice: ${lpErr.message}`);
         }
       }
@@ -370,6 +477,7 @@ export class OrderService {
         if (!validation.valid) {
           console.error(`[FULFILLMENT_VALIDATION_ERROR] ${orderRef}: ${validation.reason}`);
           provisioned = null; // Do not deliver invalid secret; transition to manual review
+          hasPendingManualFulfillment = true;
         }
       }
 
@@ -414,7 +522,7 @@ export class OrderService {
           ]
         });
       } else {
-        // Upstream automated API is unverified, restocking, or failed: do not charge customer or create empty order
+        // Upstream automated API failed or rejected: auto-refund customer wallet cleanly
         if (paymentMethod === 'wallet') {
           try {
             walletService.creditWallet(
@@ -422,7 +530,7 @@ export class OrderService {
               totalNgn,
               'refund',
               `ref_oj_rf_${Math.floor(1000000 + Math.random() * 9000000)}`,
-              `Auto-refund: Upstream Restocking (${orderRef})`,
+              `Auto-refund: Upstream Fulfillment (${orderRef})`,
               `refund_${idempotencyKey}`,
               customerEmail
             );
@@ -433,13 +541,35 @@ export class OrderService {
           notificationService.recordAdminNotification({
             id: `notif_restock_${Date.now()}_${i}`,
             type: 'SECURITY_ALERT',
-            title: '⚠️ Product Restocking Blocked Checkout',
-            message: `Checkout attempt by ${customerEmail} for "${item.title}" (${orderRef}) halted safely. LogsPoll upstream returned unverified / restocking. Customer wallet was auto-refunded.`,
+            title: '⚠️ Product Fulfillment Rejection',
+            message: `Checkout attempt by ${customerEmail} for "${item.title}" (${orderRef}) halted safely. Reason: ${upstreamError || 'Upstream unavailable'}. Customer wallet was auto-refunded.`,
             timestamp: new Date().toISOString(),
             read: false,
             userEmail: customerEmail
           });
         } catch {}
+
+        // Differentiate error messages accurately
+        const errLower = (upstreamError || '').toLowerCase();
+        if (errLower.includes('insufficient stock') || errLower.includes('0 available')) {
+          throw new AppError(
+            `This product is currently out of stock upstream. Your wallet was NOT charged.`,
+            400,
+            'OUT_OF_STOCK'
+          );
+        } else if (errLower.includes('cost is unverified') || errLower.includes('unverified')) {
+          throw new AppError(
+            `This product cannot be purchased right now because the supplier is verifying inventory. Your wallet was NOT charged.`,
+            400,
+            'SUPPLIER_UNVERIFIED'
+          );
+        } else if (errLower.includes('timeout') || errLower.includes('504') || errLower.includes('502')) {
+          throw new AppError(
+            `The supplier network temporarily timed out. Your wallet was NOT charged. Please try again shortly.`,
+            503,
+            'SUPPLIER_TEMPORARILY_UNAVAILABLE'
+          );
+        }
 
         throw new AppError(
           'This server cluster is temporarily undergoing routine restocking / maintenance. Your wallet was NOT charged. Please try again shortly or contact support on WhatsApp (07069659752).',
@@ -449,7 +579,11 @@ export class OrderService {
       }
     }
 
-    const orderStatus: Order['status'] = paymentMethod === 'bach_direct' ? 'pending' : 'completed';
+    const orderStatus: Order['status'] = paymentMethod === 'bach_direct'
+      ? 'pending'
+      : hasPendingManualFulfillment
+      ? 'processing'
+      : 'completed';
 
     const newOrder: Order & { userId?: string } = {
       id: `ord_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,

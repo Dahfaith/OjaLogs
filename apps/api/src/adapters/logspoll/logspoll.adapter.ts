@@ -302,6 +302,55 @@ export class LogsPollAdapter {
     return null;
   }
 
+  /**
+   * Pre-checkout validation of product availability on LogsPoll upstream API.
+   * Prevents premature wallet debits for out-of-stock or unverified items.
+   */
+  async validateProductAvailability(
+    productId: string,
+    quantity: number = 1
+  ): Promise<{
+    purchasable: boolean;
+    reason?: 'OUT_OF_STOCK' | 'SUPPLIER_UNVERIFIED' | 'NOT_FOUND' | 'UPSTREAM_ERROR';
+    message?: string;
+    stock: number;
+    deliveryType?: string;
+    product?: LogsPollProduct;
+  }> {
+    if (!this.apiKey) {
+      return { purchasable: true, stock: 50 };
+    }
+
+    const cleanId = productId.replace(/^lp_/, '').trim();
+    const prod = await this.fetchProduct(cleanId);
+    if (!prod) {
+      return {
+        purchasable: false,
+        reason: 'NOT_FOUND',
+        message: 'This product is no longer listed by the upstream provider. Please choose an in-stock alternative.',
+        stock: 0
+      };
+    }
+
+    if (prod.stockCount < quantity) {
+      return {
+        purchasable: false,
+        reason: 'OUT_OF_STOCK',
+        message: `This product is currently out of stock (${prod.stockCount} available). Please check back later or choose another item.`,
+        stock: prod.stockCount,
+        deliveryType: prod.deliveryFormat,
+        product: prod
+      };
+    }
+
+    return {
+      purchasable: true,
+      stock: prod.stockCount,
+      deliveryType: prod.deliveryFormat,
+      product: prod
+    };
+  }
+
   async orderProduct(productId: string, quantity: number = 1, idempotencyKey?: string): Promise<LogsPollOrderResult> {
     if (!this.apiKey) {
       return { success: false, status: 'error', error: 'LogsPoll API key not configured' };

@@ -292,6 +292,18 @@ export class CatalogService {
             this.products.push(prodObj);
             this.productDetailsCache.set(lpId, prodObj);
             existingIds.add(lpId);
+          } else {
+            // Update existing product with real-time upstream stock and price
+            const existing = this.products.find(p => p.id === lpId);
+            if (existing) {
+              existing.stockCount = u.stockCount;
+              existing.inStock = u.stockCount > 0;
+              existing.priceNgn = Math.ceil(u.priceNgn * getLogsPollMargin());
+              if (u.deliveryFormat) {
+                existing.deliveryFormat = u.deliveryFormat;
+              }
+              this.productDetailsCache.set(lpId, existing);
+            }
           }
         }
       }

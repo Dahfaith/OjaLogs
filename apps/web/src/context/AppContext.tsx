@@ -278,6 +278,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         refreshWallet(userObj);
         setTimeout(() => {
           refreshWallet(userObj);
+          refreshOrders();
         }, 300);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
@@ -769,7 +770,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             localStorage.setItem('oj_orders', JSON.stringify(merged));
           } catch {}
 
-          const completedOrders = merged.filter(o => o.status !== 'cancelled');
+          const completedOrders = merged.filter(o => o.status !== 'cancelled' && o.status !== 'refunded');
           const ordersSpend = completedOrders.reduce((sum, o) => sum + (Number(o.totalNgn) || 0), 0);
           setWallet(prev => ({
             ...prev,
@@ -778,6 +779,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }));
 
           return merged;
+        });
+      } else {
+        // Calculate spend from stored local orders if remote query was empty
+        setOrders(prev => {
+          const completedOrders = prev.filter(o => o.status !== 'cancelled' && o.status !== 'refunded');
+          const ordersSpend = completedOrders.reduce((sum, o) => sum + (Number(o.totalNgn) || 0), 0);
+          if (completedOrders.length > 0) {
+            setWallet(prevW => ({
+              ...prevW,
+              lifetimePurchases: Math.max(prevW.lifetimePurchases, completedOrders.length),
+              monthlySpendNgn: Math.max(prevW.monthlySpendNgn, ordersSpend)
+            }));
+          }
+          return prev;
         });
       }
     } catch {

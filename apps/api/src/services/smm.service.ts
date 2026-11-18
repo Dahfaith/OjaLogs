@@ -517,8 +517,21 @@ export class SMMManagerService {
         });
       } catch {}
 
+      const rawMsg = smmErr.message || '';
+      let clientMsg = 'The SMM boost network node is currently undergoing routine maintenance. Your wallet was NOT charged. Please try again shortly or contact support on WhatsApp (07069659752).';
+
+      if (rawMsg.toLowerCase().includes('quantity') || rawMsg.toLowerCase().includes('min')) {
+        clientMsg = `Order quantity rejected by provider (${rawMsg}). Your wallet was NOT charged.`;
+      } else if (rawMsg.toLowerCase().includes('link')) {
+        clientMsg = `Target link format rejected by provider (${rawMsg}). Your wallet was NOT charged.`;
+      } else if (rawMsg.toLowerCase().includes('balance') || rawMsg.toLowerCase().includes('funds')) {
+        clientMsg = 'This SMM boost service is temporarily undergoing inventory replenishment. Your wallet was NOT charged. Please try again shortly.';
+      } else if (rawMsg.length > 0 && !rawMsg.includes('fetch failed')) {
+        clientMsg = `SMM boost order notice: ${rawMsg}. Your wallet was NOT charged.`;
+      }
+
       throw new AppError(
-        'The SMM boost network node is currently undergoing routine maintenance. Your wallet was NOT charged. Please try again shortly or contact support on WhatsApp (07069659752).',
+        clientMsg,
         503,
         'SMM_UNAVAILABLE'
       );
