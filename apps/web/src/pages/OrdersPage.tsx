@@ -12,27 +12,20 @@ import {
   KeyRound,
   ExternalLink,
   Download,
-  FileText,
   User,
-  Lock,
-  Smartphone,
-  Shield,
-  Mail,
-  HelpCircle,
-  ChevronDown,
-  ChevronUp,
-  MessageCircle,
   Clock,
   X,
   RotateCw,
   Zap,
-  Sparkles,
-  Camera,
   RefreshCw,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  MessageCircle,
+  ChevronDown,
+  Shield
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { BrandCoverBanner } from '../components/common/BrandCoverBanner';
 import { WhatsAppSupportModal } from '../components/support/WhatsAppSupportModal';
 import { SEO } from '../components/common/SEO';
 import { SMMOrder } from '@ojalogs/shared';
@@ -160,7 +153,7 @@ interface UnifiedOrderItem {
 export const OrdersPage: React.FC = () => {
   const { orders, showToast, formatPrice, currency, user, setIsAuthModalOpen, reloadOrders } = useApp();
   
-  // Status Filter Tabs (Matches LogsPoll: All Orders, Completed, Pending, Failed / Cancelled)
+  // Status Filter Tabs (All Orders, Completed, Pending, Failed / Cancelled)
   const [statusTab, setStatusTab] = useState<'all' | 'completed' | 'pending' | 'failed'>('all');
   
   // Secondary Category Filter Chips
@@ -358,75 +351,37 @@ export const OrdersPage: React.FC = () => {
   // Filtered orders list
   const filteredOrders = useMemo(() => {
     return unifiedOrders.filter(item => {
-      // 1. Status Filter Tab
+      // 1. Status Filter
       if (statusTab === 'completed' && item.fulfillmentStatus !== 'completed') return false;
       if (statusTab === 'pending' && item.fulfillmentStatus !== 'processing') return false;
       if (statusTab === 'failed' && item.fulfillmentStatus !== 'refunded' && item.fulfillmentStatus !== 'cancelled') return false;
 
-      // 2. Category Filter Chip
-      if (categoryFilter !== 'all' && item.kind !== categoryFilter) return false;
+      // 2. Category Filter
+      if (categoryFilter === 'account' && item.kind !== 'account') return false;
+      if (categoryFilter === 'smm' && item.kind !== 'smm') return false;
 
-      // 3. Search query
+      // 3. Search Query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const matchesRef = item.reference.toLowerCase().includes(q);
         const matchesTitle = item.title.toLowerCase().includes(q);
         const matchesCluster = item.serverCluster.toLowerCase().includes(q);
-        const matchesLink = item.smmOrder?.targetLink?.toLowerCase().includes(q);
-        if (!matchesRef && !matchesTitle && !matchesCluster && !matchesLink) return false;
+        return matchesRef || matchesTitle || matchesCluster;
       }
 
       return true;
     });
   }, [unifiedOrders, statusTab, categoryFilter, searchQuery]);
 
-  // Helper to get brand icon and styling
-  const getBrandVisual = (title: string, kind: string) => {
-    const t = title.toLowerCase();
-    if (kind === 'smm') {
-      return {
-        icon: Zap,
-        bgClass: 'bg-amber-500/10 text-amber-500 border-amber-500/20 dark:bg-amber-500/20'
-      };
-    }
-    if (t.includes('outlook') || t.includes('microsoft') || t.includes('hotmail') || t.includes('email') || t.includes('mail')) {
-      return {
-        icon: Mail,
-        bgClass: 'bg-blue-500/10 text-blue-600 border-blue-500/20 dark:bg-blue-500/20 dark:text-blue-400'
-      };
-    }
-    if (t.includes('instagram') || t.includes('threads')) {
-      return {
-        icon: Camera,
-        bgClass: 'bg-gradient-to-br from-purple-500/15 via-pink-500/15 to-orange-500/15 text-pink-600 border-pink-500/20 dark:text-pink-400'
-      };
-    }
-    if (t.includes('twitter') || t.includes(' x ') || t.startsWith('x ')) {
-      return {
-        icon: Lock,
-        bgClass: 'bg-slate-900/10 text-slate-900 border-slate-900/20 dark:bg-white/10 dark:text-white dark:border-white/20'
-      };
-    }
-    if (t.includes('facebook') || t.includes('fb') || t.includes('meta')) {
-      return {
-        icon: Shield,
-        bgClass: 'bg-blue-600/10 text-blue-600 border-blue-600/20 dark:bg-blue-600/20 dark:text-blue-400'
-      };
-    }
-    return {
-      icon: KeyRound,
-      bgClass: 'bg-oj-primary/10 text-oj-primary border-oj-primary/20 dark:bg-oj-cyan/15 dark:text-oj-cyan'
-    };
-  };
-
   const handleDownloadTxt = (order: any, item: any, secretVal: string, instruction?: string) => {
     const parsed = parseSecretValue(secretVal);
     let content = `=======================================================\n`;
     content += `OJALOGS DIGITAL DELIVERY VAULT & RECEIPT\n`;
-    content += `=======================================================\n\n`;
     content += `Order Reference:   ${order.reference}\n`;
+    content += `Item ID:           ${item.id || item.productId || 'N/A'}\n`;
     content += `Product:           ${item.product?.title || item.title}\n`;
     content += `Server Cluster:    ${item.product?.serverCluster || 'Server 2'}\n`;
+    content += `Quantity:          ${item.quantity || 1}\n`;
     content += `Purchase Date:     ${new Date(order.createdAt).toLocaleString()}\n`;
     content += `Payment Method:    ${order.paymentMethod === 'wallet' ? 'NGN Wallet' : 'BACH Gateway'}\n`;
     content += `Amount Paid:       NGN ${item.totalNgn || order.totalNgn}\n\n`;
@@ -446,7 +401,6 @@ export const OrdersPage: React.FC = () => {
     if (instruction) {
       content += `\n-------------------------------------------------------\n`;
       content += `USAGE INSTRUCTIONS:\n`;
-      content += `-------------------------------------------------------\n`;
       content += `${instruction}\n`;
     }
 
@@ -533,49 +487,49 @@ export const OrdersPage: React.FC = () => {
       <SEO title="My Orders & Vault" noindex={true} />
 
       {/* ============================================================== */}
-      {/* 1. Header Section (Directly aligned with LogsPoll Reference)   */}
+      {/* 1. Header Section (Ojalogs Brand Tokens & Typography)          */}
       {/* ============================================================== */}
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] sm:text-xs font-mono font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            ORDER RECONCILIATION & FULFILLMENT
+          <span className="text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider text-oj-primary dark:text-oj-cyan flex items-center gap-1.5">
+            <ShieldCheck className="w-3.5 h-3.5 text-oj-primary dark:text-oj-cyan" />
+            Order Reconciliation & Fulfillment
           </span>
 
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="p-1.5 rounded-lg text-oj-muted hover:text-oj-midnight dark:hover:text-white hover:bg-oj-surface-alt transition-all flex items-center gap-1 text-[11px] font-bold"
+            className="p-1.5 sm:px-2.5 sm:py-1 rounded-btn text-oj-muted hover:text-oj-midnight dark:hover:text-white hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt transition-all flex items-center gap-1.5 text-[11px] font-bold border border-oj-border/50 dark:border-oj-dark-border/50 shadow-xs"
             title="Refresh Orders"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-oj-primary' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-oj-primary dark:text-oj-cyan' : ''}`} />
             <span className="hidden sm:inline">Refresh</span>
           </button>
         </div>
 
         <h1 className="font-heading font-black text-2xl sm:text-3xl text-oj-midnight dark:text-white tracking-tight">
-          My Orders
+          Customer Orders & Vault
         </h1>
         <p className="text-xs sm:text-sm text-oj-muted dark:text-oj-dark-muted max-w-xl leading-relaxed">
-          Track payment reconciliation, automated processing, and order fulfillment status.
+          Track payment reconciliation, automated processing, and copy your delivered digital accounts and keys.
         </p>
       </div>
 
       {/* ============================================================== */}
-      {/* 2. Primary Status Filter Tabs (Matches LogsPoll in Image 3)     */}
+      {/* 2. Primary Status Filter Tabs (Ojalogs Royal Blue Styling)     */}
       {/* ============================================================== */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
         <button
           onClick={() => setStatusTab('all')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+          className={`px-4 py-2 rounded-btn text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
             statusTab === 'all'
-              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md font-extrabold'
+              ? 'bg-oj-primary text-white shadow-glow-primary font-black'
               : 'bg-white dark:bg-oj-dark-surface text-oj-muted hover:text-oj-midnight dark:hover:text-white border border-oj-border dark:border-oj-dark-border'
           }`}
         >
           <span>All Orders</span>
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-black ${
-            statusTab === 'all' ? 'bg-white/25 text-white' : 'bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted'
+            statusTab === 'all' ? 'bg-white/25 text-white' : 'bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted dark:text-oj-dark-muted'
           }`}>
             {counts.all}
           </span>
@@ -583,15 +537,15 @@ export const OrdersPage: React.FC = () => {
 
         <button
           onClick={() => setStatusTab('completed')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+          className={`px-4 py-2 rounded-btn text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
             statusTab === 'completed'
-              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md font-extrabold'
+              ? 'bg-oj-primary text-white shadow-glow-primary font-black'
               : 'bg-white dark:bg-oj-dark-surface text-oj-muted hover:text-oj-midnight dark:hover:text-white border border-oj-border dark:border-oj-dark-border'
           }`}
         >
           <span>Completed</span>
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-black ${
-            statusTab === 'completed' ? 'bg-white/25 text-white' : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400'
+            statusTab === 'completed' ? 'bg-white/25 text-white' : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/50'
           }`}>
             {counts.completed}
           </span>
@@ -599,15 +553,15 @@ export const OrdersPage: React.FC = () => {
 
         <button
           onClick={() => setStatusTab('pending')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+          className={`px-4 py-2 rounded-btn text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
             statusTab === 'pending'
-              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md font-extrabold'
+              ? 'bg-oj-primary text-white shadow-glow-primary font-black'
               : 'bg-white dark:bg-oj-dark-surface text-oj-muted hover:text-oj-midnight dark:hover:text-white border border-oj-border dark:border-oj-dark-border'
           }`}
         >
           <span>Pending</span>
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-black ${
-            statusTab === 'pending' ? 'bg-white/25 text-white' : 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400'
+            statusTab === 'pending' ? 'bg-white/25 text-white' : 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/50'
           }`}>
             {counts.pending}
           </span>
@@ -615,15 +569,15 @@ export const OrdersPage: React.FC = () => {
 
         <button
           onClick={() => setStatusTab('failed')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+          className={`px-4 py-2 rounded-btn text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
             statusTab === 'failed'
-              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md font-extrabold'
+              ? 'bg-oj-primary text-white shadow-glow-primary font-black'
               : 'bg-white dark:bg-oj-dark-surface text-oj-muted hover:text-oj-midnight dark:hover:text-white border border-oj-border dark:border-oj-dark-border'
           }`}
         >
           <span>Failed / Cancelled</span>
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-black ${
-            statusTab === 'failed' ? 'bg-white/25 text-white' : 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
+            statusTab === 'failed' ? 'bg-white/25 text-white' : 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-800/50'
           }`}>
             {counts.failed}
           </span>
@@ -631,7 +585,7 @@ export const OrdersPage: React.FC = () => {
       </div>
 
       {/* ============================================================== */}
-      {/* 3. Search Bar (Exact LogsPoll layout)                           */}
+      {/* 3. Search Bar (Ojalogs Theme Focus and Borders)                */}
       {/* ============================================================== */}
       <div className="relative">
         <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-oj-muted" />
@@ -640,12 +594,12 @@ export const OrdersPage: React.FC = () => {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search by order ref or product..."
-          className="w-full text-xs pl-10 pr-9 py-2.5 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border text-oj-midnight dark:text-white placeholder:text-oj-muted/70 focus:outline-none focus:border-amber-500 shadow-soft transition-all"
+          className="w-full text-xs pl-10 pr-9 py-2.5 rounded-input bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border text-oj-midnight dark:text-white placeholder:text-oj-muted/70 focus:outline-none focus:border-oj-primary focus:ring-2 focus:ring-oj-primary/15 shadow-soft transition-all"
         />
         {searchQuery && (
           <button
             onClick={() => setSearchQuery('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-oj-muted hover:text-oj-midnight dark:hover:text-white"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-oj-muted hover:text-oj-midnight dark:hover:text-white p-1"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -656,13 +610,13 @@ export const OrdersPage: React.FC = () => {
       {/* 4. Secondary Category Filter Chips (Unified without 0 silos)   */}
       {/* ============================================================== */}
       <div className="flex items-center gap-2 text-xs overflow-x-auto pb-1 scrollbar-none">
-        <span className="text-[11px] text-oj-muted font-bold mr-1 shrink-0">Filter By:</span>
+        <span className="text-[11px] text-oj-muted dark:text-oj-dark-muted font-bold mr-1 shrink-0">Filter By:</span>
         <button
           onClick={() => setCategoryFilter('all')}
-          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all shrink-0 ${
+          className={`px-3 py-1.5 rounded-btn text-xs font-bold transition-all shrink-0 ${
             categoryFilter === 'all'
-              ? 'bg-oj-midnight dark:bg-white text-white dark:text-oj-midnight font-extrabold'
-              : 'text-oj-muted hover:text-oj-midnight dark:hover:text-white'
+              ? 'bg-oj-midnight dark:bg-white text-white dark:text-oj-midnight font-black shadow-soft'
+              : 'text-oj-muted hover:text-oj-midnight dark:hover:text-white bg-white/60 dark:bg-oj-dark-surface/60 border border-oj-border dark:border-oj-dark-border'
           }`}
         >
           All Items ({categoryCounts.all})
@@ -670,53 +624,50 @@ export const OrdersPage: React.FC = () => {
 
         <button
           onClick={() => setCategoryFilter('account')}
-          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all shrink-0 flex items-center gap-1 ${
+          className={`px-3 py-1.5 rounded-btn text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
             categoryFilter === 'account'
-              ? 'bg-oj-primary text-white font-extrabold'
-              : 'text-oj-muted hover:text-oj-midnight dark:hover:text-white'
+              ? 'bg-oj-primary text-white font-black shadow-glow-primary'
+              : 'text-oj-muted hover:text-oj-midnight dark:hover:text-white bg-white/60 dark:bg-oj-dark-surface/60 border border-oj-border dark:border-oj-dark-border'
           }`}
         >
-          <KeyRound className="w-3 h-3" />
+          <KeyRound className="w-3.5 h-3.5" />
           <span>Digital Accounts ({categoryCounts.account})</span>
         </button>
 
         <button
           onClick={() => setCategoryFilter('smm')}
-          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all shrink-0 flex items-center gap-1 ${
+          className={`px-3 py-1.5 rounded-btn text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
             categoryFilter === 'smm'
-              ? 'bg-amber-500 text-white font-extrabold'
-              : 'text-oj-muted hover:text-oj-midnight dark:hover:text-white'
+              ? 'bg-gradient-to-r from-oj-primary to-blue-600 text-white font-black shadow-glow-primary'
+              : 'text-oj-muted hover:text-oj-midnight dark:hover:text-white bg-white/60 dark:bg-oj-dark-surface/60 border border-oj-border dark:border-oj-dark-border'
           }`}
         >
-          <Zap className="w-3 h-3 text-amber-300" />
+          <Zap className="w-3.5 h-3.5" />
           <span>Social Boosts SMM ({categoryCounts.smm})</span>
         </button>
       </div>
 
       {/* ============================================================== */}
-      {/* 5. Unified Orders Stream (Direct Card Match to Image 3)        */}
+      {/* 5. Unified Orders Stream (Right Image & Ojalogs CSS)           */}
       {/* ============================================================== */}
       <div className="space-y-4">
         {filteredOrders.map((item, index) => {
           const isExpanded = expandedOrders[item.id] !== undefined 
             ? expandedOrders[item.id] 
             : (item.fulfillmentStatus === 'processing' || index === 0);
-          
-          const visual = getBrandVisual(item.title, item.kind);
-          const VisualIcon = visual.icon;
 
           return (
             <div
               key={item.id}
-              className="rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft overflow-hidden transition-all hover:border-amber-500/40"
+              className="rounded-card bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft overflow-hidden transition-all hover:border-oj-primary/50 dark:hover:border-oj-cyan/40 hover:shadow-elevated"
             >
               {/* Card Container Padding */}
               <div className="p-4 sm:p-5 space-y-4">
                 {/* ------------------------------------------------ */}
-                {/* Top Row: Server Cluster & Ref (Matches LogsPoll) */}
+                {/* Top Row: Server Cluster & Ref                    */}
                 {/* ------------------------------------------------ */}
                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                  <span className="px-2.5 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-primary dark:text-oj-cyan border border-oj-border dark:border-oj-dark-border">
                     {item.serverCluster}
                   </span>
 
@@ -725,7 +676,7 @@ export const OrdersPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleCopy(item.reference, `ref_${item.id}`, 'Order reference')}
-                      className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-oj-muted hover:text-oj-midnight dark:hover:text-white transition-colors"
+                      className="p-1 rounded hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt text-oj-muted hover:text-oj-midnight dark:hover:text-white transition-colors"
                       title="Copy Order Reference"
                     >
                       {copiedId === `ref_${item.id}` ? (
@@ -738,13 +689,17 @@ export const OrdersPage: React.FC = () => {
                 </div>
 
                 {/* ------------------------------------------------ */}
-                {/* Middle Row: Icon + Date + Product Title + Status */}
+                {/* Middle Row: Exact Product Image + Details        */}
                 {/* ------------------------------------------------ */}
                 <div className="flex items-start gap-3.5">
-                  {/* Brand Visual Icon Box */}
-                  <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0 border shadow-xs ${visual.bgClass}`}>
-                    <VisualIcon className="w-5 h-5 sm:w-6 sm:h-6" />
-                  </div>
+                  {/* Verified Brand Cover Banner / Vector Squircle Image */}
+                  <BrandCoverBanner
+                    product={item.accountItem?.product || { title: item.title, category: item.category }}
+                    title={item.title}
+                    category={item.category}
+                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl shrink-0 shadow-sm"
+                    showSubtitle={false}
+                  />
 
                   {/* Title & Metadata */}
                   <div className="min-w-0 flex-1 space-y-1.5">
@@ -761,7 +716,7 @@ export const OrdersPage: React.FC = () => {
                       {item.title}
                     </h3>
 
-                    {/* Dual Status Pills (Matches LogsPoll in Image 3) */}
+                    {/* Dual Status Badges (Ojalogs Theme Badges) */}
                     <div className="flex items-center gap-2 flex-wrap pt-0.5">
                       {/* 1. Payment Pill */}
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
@@ -776,12 +731,12 @@ export const OrdersPage: React.FC = () => {
                           <span>Delivered</span>
                         </span>
                       ) : item.fulfillmentStatus === 'processing' ? (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-800 flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-amber-500 animate-spin" />
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 dark:border-blue-800 flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-blue-500 animate-spin" />
                           <span>Delivery Awaiting Supplier</span>
                         </span>
                       ) : item.fulfillmentStatus === 'refunded' ? (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                           ↩ Refunded to Wallet
                         </span>
                       ) : (
@@ -794,7 +749,7 @@ export const OrdersPage: React.FC = () => {
                 </div>
 
                 {/* ------------------------------------------------ */}
-                {/* Bottom Row: Price & View Details Button (Image 3) */}
+                {/* Bottom Row: Price & View Details Button          */}
                 {/* ------------------------------------------------ */}
                 <div className="pt-2 border-t border-oj-border/50 dark:border-oj-dark-border/50 flex items-center justify-between gap-3">
                   <div className="font-heading font-black text-lg sm:text-xl text-oj-midnight dark:text-white tracking-tight">
@@ -804,7 +759,7 @@ export const OrdersPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => toggleExpand(item.id)}
-                    className="px-4 py-2 rounded-xl bg-oj-midnight hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5"
+                    className="px-4 py-2 rounded-btn bg-oj-primary hover:bg-oj-primary-hover text-white text-xs font-bold transition-all shadow-glow-primary/40 flex items-center gap-1.5"
                   >
                     <span>{isExpanded ? 'Hide Details' : 'View Details'}</span>
                     <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
@@ -829,29 +784,29 @@ export const OrdersPage: React.FC = () => {
                       <div className="space-y-4">
                         {/* Refunded Notice Card */}
                         {item.fulfillmentStatus === 'refunded' && (
-                          <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
+                          <div className="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 flex items-start gap-2.5">
                             <span className="text-base leading-none">↩</span>
                             <div>
-                              <p className="font-bold text-amber-950 dark:text-amber-100">Order Refunded to NGN Wallet</p>
-                              <p className="text-[11px] text-amber-800 dark:text-amber-300 mt-0.5">
+                              <p className="font-bold text-slate-900 dark:text-white">Order Refunded to NGN Wallet</p>
+                              <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5">
                                 100% of {formatPrice(item.totalNgn)} was credited back to your account wallet. You can use your balance to purchase an in-stock alternative.
                               </p>
                             </div>
                           </div>
                         )}
 
-                        {/* Processing / Awaiting Supplier Card */}
+                        {/* Processing / Awaiting Supplier Card (Ojalogs Blue Styling) */}
                         {item.fulfillmentStatus === 'processing' && (
-                          <div className="p-4 rounded-xl bg-gradient-to-br from-amber-50/80 via-white to-amber-50/30 dark:from-amber-950/30 dark:via-oj-dark-surface dark:to-amber-950/10 border border-amber-200/80 dark:border-amber-800/80 space-y-3">
+                          <div className="p-4 rounded-xl bg-blue-50/50 dark:bg-blue-950/30 border border-blue-200/70 dark:border-blue-900/60 space-y-3">
                             <div className="flex items-start gap-3">
-                              <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/20">
+                              <div className="w-9 h-9 rounded-xl bg-blue-100/60 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-200 dark:border-blue-800">
                                 <Clock className="w-5 h-5 animate-spin" />
                               </div>
                               <div className="space-y-0.5">
-                                <h4 className="font-heading font-black text-sm text-amber-950 dark:text-amber-100">
+                                <h4 className="font-heading font-black text-sm text-oj-midnight dark:text-white">
                                   Order Confirmed · Account Credentials Being Prepared
                                 </h4>
-                                <p className="text-xs text-amber-800 dark:text-amber-300">
+                                <p className="text-xs text-oj-muted dark:text-oj-dark-muted">
                                   Your payment of {formatPrice(item.totalNgn)} was verified. Our operations fleet is securing and verifying your account credentials and 2FA keys.
                                 </p>
                               </div>
@@ -863,8 +818,8 @@ export const OrdersPage: React.FC = () => {
                                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                                 <span>1. Paid</span>
                               </div>
-                              <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 font-bold flex items-center gap-1.5">
-                                <Clock className="w-3.5 h-3.5 text-amber-500 animate-spin shrink-0" />
+                              <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 font-bold flex items-center gap-1.5">
+                                <Clock className="w-3.5 h-3.5 text-blue-500 animate-spin shrink-0" />
                                 <span>2. Allocating</span>
                               </div>
                               <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800/50 text-slate-400 font-medium flex items-center gap-1.5">
@@ -872,11 +827,15 @@ export const OrdersPage: React.FC = () => {
                               </div>
                             </div>
 
+                            <div className="p-3 rounded-lg bg-white/80 dark:bg-oj-dark-surface/80 border border-blue-100 dark:border-blue-900/40 text-[11px] text-oj-muted dark:text-oj-dark-muted leading-relaxed">
+                              Order verified & confirmed. Our operations desk is preparing and verifying your login credentials from the provider fleet. They will appear here in your vault shortly. For priority dispatch, contact support on WhatsApp (07069659752).
+                            </div>
+
                             <a
                               href={`https://wa.me/2347069659752?text=${encodeURIComponent(`Hello Ojalogs Operations Desk, I placed order ${item.reference} for "${item.title}". Kindly expedite my credentials.`)}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2"
+                              className="w-full py-2.5 px-4 rounded-btn bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2"
                             >
                               <MessageCircle className="w-4 h-4" />
                               <span>Expedite on WhatsApp (07069659752)</span>
@@ -912,7 +871,7 @@ export const OrdersPage: React.FC = () => {
                                           Digital Delivery Vault
                                         </h4>
                                         <p className="text-[10px] text-oj-muted dark:text-oj-dark-muted">
-                                          AES-256 Encrypted Storage · Masked Credentials
+                                          Verified Secure Access · Sensitive details masked by default
                                         </p>
                                       </div>
                                     </div>
@@ -948,78 +907,60 @@ export const OrdersPage: React.FC = () => {
                                         <div key={fIdx} className="space-y-1">
                                           <div className="flex items-center gap-1.5 px-1">
                                             {field.type === 'uid' && <User className="w-3 h-3 text-oj-primary" />}
-                                            {field.type === 'password' && <Lock className="w-3 h-3 text-blue-500" />}
-                                            {field.type === '2fa' && <Shield className="w-3 h-3 text-oj-cyan" />}
-                                            {field.type === 'email' && <Mail className="w-3 h-3 text-sky-500" />}
-                                            <label className="text-[10px] font-extrabold uppercase tracking-wider text-oj-muted dark:text-slate-400">
+                                            {field.type === 'password' && <KeyRound className="w-3 h-3 text-amber-500" />}
+                                            {field.type === '2fa' && <ShieldCheck className="w-3 h-3 text-emerald-500" />}
+                                            <span className="text-[10px] font-mono font-bold tracking-wider text-oj-muted uppercase">
                                               {field.label}
-                                            </label>
+                                            </span>
                                           </div>
 
-                                          <div className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-oj-dark-surface-alt/70 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 shadow-xs">
-                                            <div className="min-w-0 flex-1 pr-1 overflow-hidden select-all">
-                                              {isPassword && !isRevealedPw ? (
-                                                <span className="font-mono text-sm tracking-widest text-slate-400 dark:text-slate-500 font-extrabold select-none block truncate">
-                                                  ••••••••••••
-                                                </span>
-                                              ) : (
-                                                <span className="font-mono text-xs sm:text-sm font-bold text-oj-midnight dark:text-white break-all select-all block leading-tight">
-                                                  {field.value}
-                                                </span>
-                                              )}
-                                            </div>
+                                          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-oj-surface-alt/60 dark:bg-oj-dark-surface-alt/60 border border-oj-border/80 dark:border-oj-dark-border/80">
+                                            <span className="flex-1 font-mono text-xs font-bold select-all text-oj-midnight dark:text-white truncate">
+                                              {isPassword && !isRevealedPw ? '••••••••••••••••' : field.value}
+                                            </span>
 
-                                            <div className="flex items-center gap-1.5 shrink-0">
+                                            <div className="flex items-center gap-1 shrink-0">
                                               {isPassword && (
                                                 <button
                                                   type="button"
                                                   onClick={() => togglePasswordVisibility(fieldKey)}
-                                                  className="h-7 w-7 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-oj-primary text-slate-500 hover:text-oj-primary flex items-center justify-center shrink-0 transition-all shadow-xs"
-                                                  title={isRevealedPw ? 'Mask secret' : 'Reveal secret'}
+                                                  className="p-1 rounded text-oj-muted hover:text-oj-primary transition-colors"
+                                                  title={isRevealedPw ? 'Mask' : 'Reveal'}
                                                 >
-                                                  {isRevealedPw ? <EyeOff className="w-3.5 h-3.5 text-oj-primary" /> : <Eye className="w-3.5 h-3.5" />}
+                                                  {isRevealedPw ? (
+                                                    <EyeOff className="w-3.5 h-3.5" />
+                                                  ) : (
+                                                    <Eye className="w-3.5 h-3.5" />
+                                                  )}
                                                 </button>
                                               )}
 
                                               <button
                                                 type="button"
                                                 onClick={() => handleCopy(field.value, fieldKey, field.label)}
-                                                className={`h-7 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 shrink-0 transition-all shadow-xs ${
-                                                  isCopied
-                                                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-300'
-                                                    : 'bg-white dark:bg-slate-800 hover:border-oj-primary text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
-                                                }`}
+                                                className="p-1 rounded text-oj-muted hover:text-oj-primary transition-colors"
+                                                title={`Copy ${field.label}`}
                                               >
                                                 {isCopied ? (
-                                                  <>
-                                                    <Check className="w-3 h-3 text-emerald-500" />
-                                                    <span>Copied!</span>
-                                                  </>
+                                                  <Check className="w-3.5 h-3.5 text-emerald-500" />
                                                 ) : (
-                                                  <>
-                                                    <Copy className="w-3 h-3 text-slate-500" />
-                                                    <span>Copy</span>
-                                                  </>
+                                                  <Copy className="w-3.5 h-3.5" />
                                                 )}
                                               </button>
                                             </div>
                                           </div>
 
-                                          {/* 2FA Helper Helper link */}
+                                          {/* 2FA Helper Live Button */}
                                           {field.type === '2fa' && (
-                                            <div className="flex items-center justify-between px-1 text-[11px] text-oj-muted dark:text-slate-400 pt-0.5">
-                                              <span className="flex items-center gap-1">
-                                                <Smartphone className="w-3 h-3 text-oj-cyan shrink-0" />
-                                                <span>Need 6-digit TOTP code?</span>
-                                              </span>
+                                            <div className="pt-1 flex items-center justify-between text-[11px] px-1">
+                                              <span className="text-oj-muted">Need a 6-digit verification code?</span>
                                               <a
-                                                href="https://2fa.live"
+                                                href={`https://2fa.live`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                onClick={() => handleCopy(field.value, `${fieldKey}_totp`, '2FA Secret')}
-                                                className="inline-flex items-center gap-1 font-bold text-amber-600 dark:text-amber-400 hover:underline"
+                                                className="inline-flex items-center gap-1 font-bold text-oj-primary dark:text-oj-cyan hover:underline"
                                               >
-                                                <span>Copy & open 2fa.live</span>
+                                                <span>Open 2FA.Live Helper</span>
                                                 <ExternalLink className="w-3 h-3" />
                                               </a>
                                             </div>
@@ -1029,25 +970,44 @@ export const OrdersPage: React.FC = () => {
                                     })}
                                   </div>
 
-                                  {/* Action Bar (Download .txt, Direct Platform Login, Print Receipt) */}
+                                  {/* Raw String Fallback */}
+                                  <div className="pt-2 border-t border-oj-border/60 dark:border-oj-dark-border/60">
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleRaw(itemKey)}
+                                      className="text-[11px] font-bold text-oj-muted hover:text-oj-midnight dark:hover:text-white flex items-center gap-1"
+                                    >
+                                      <span>{isRawOpen ? 'Hide Complete Raw String' : 'View Complete Raw String'}</span>
+                                      <ChevronDown className={`w-3 h-3 transition-transform ${isRawOpen ? 'rotate-180' : ''}`} />
+                                    </button>
+
+                                    {isRawOpen && (
+                                      <div className="mt-2 p-2.5 rounded-lg bg-oj-surface-alt dark:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border font-mono text-xs text-oj-midnight dark:text-white break-all select-all">
+                                        {parsed.raw}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Quick Action Toolbar */}
                                   <div className="pt-2 border-t border-oj-border dark:border-oj-dark-border flex items-center justify-between gap-2 flex-wrap text-xs">
-                                    <div className="flex items-center gap-2 flex-wrap">
+                                    <div className="flex items-center gap-2">
                                       <button
                                         type="button"
                                         onClick={() => handleDownloadTxt(item.originalOrder, item.accountItem, secretVal, sec.instruction)}
-                                        className="py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 border border-oj-border dark:border-slate-700 text-oj-midnight dark:text-white hover:border-oj-primary font-bold flex items-center gap-1.5 transition-all shadow-xs"
+                                        className="py-1.5 px-3 rounded-btn bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-primary hover:text-white border border-oj-border dark:border-oj-dark-border font-bold text-oj-midnight dark:text-white flex items-center gap-1.5 transition-all shadow-xs"
+                                        title="Download .txt"
                                       >
-                                        <Download className="w-3.5 h-3.5 text-oj-primary" />
-                                        <span>Download .TXT</span>
+                                        <Download className="w-3.5 h-3.5" />
+                                        <span>Download .txt</span>
                                       </button>
 
                                       <a
                                         href={getPlatformLoginUrl(item.title)}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 border border-oj-border dark:border-slate-700 text-oj-midnight dark:text-white hover:border-oj-primary font-bold flex items-center gap-1.5 transition-all shadow-xs"
+                                        className="py-1.5 px-3 rounded-btn bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-primary hover:text-white border border-oj-border dark:border-oj-dark-border font-bold text-oj-midnight dark:text-white flex items-center gap-1.5 transition-all shadow-xs"
                                       >
-                                        <ExternalLink className="w-3.5 h-3.5 text-amber-500" />
+                                        <ExternalLink className="w-3.5 h-3.5 text-oj-primary dark:text-oj-cyan" />
                                         <span>Direct Login</span>
                                       </a>
                                     </div>
@@ -1055,7 +1015,7 @@ export const OrdersPage: React.FC = () => {
                                     <button
                                       type="button"
                                       onClick={() => window.print()}
-                                      className="py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 border border-oj-border dark:border-slate-700 text-oj-muted hover:text-oj-midnight dark:hover:text-white font-bold flex items-center gap-1.5 transition-all shadow-xs"
+                                      className="py-1.5 px-3 rounded-btn bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border text-oj-muted hover:text-oj-midnight dark:hover:text-white font-bold flex items-center gap-1.5 transition-all shadow-xs"
                                       title="Print Receipt"
                                     >
                                       <Printer className="w-3.5 h-3.5" />
@@ -1119,7 +1079,7 @@ export const OrdersPage: React.FC = () => {
                           </div>
                           <div className="p-2.5 rounded-xl bg-white dark:bg-[#12161f] border border-oj-border dark:border-oj-dark-border">
                             <span className="text-[10px] text-oj-muted block">Status</span>
-                            <span className="font-bold text-amber-500 capitalize">
+                            <span className="font-bold text-oj-primary dark:text-oj-cyan capitalize">
                               {item.smmOrder.status.replace('_', ' ')}
                             </span>
                           </div>
@@ -1131,7 +1091,7 @@ export const OrdersPage: React.FC = () => {
                             type="button"
                             onClick={() => handleSyncSMM(item.smmOrder!.id)}
                             disabled={syncingSmmId === item.smmOrder.id}
-                            className="py-2 px-3 rounded-xl bg-white dark:bg-slate-800 border border-oj-border dark:border-slate-700 text-xs font-bold text-oj-midnight dark:text-white hover:border-oj-primary flex items-center gap-1.5 transition-all shadow-xs"
+                            className="py-2 px-3 rounded-btn bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border text-xs font-bold text-oj-midnight dark:text-white hover:border-oj-primary flex items-center gap-1.5 transition-all shadow-xs"
                           >
                             <RotateCw className={`w-3.5 h-3.5 ${syncingSmmId === item.smmOrder.id ? 'animate-spin text-oj-primary' : ''}`} />
                             <span>Check Live Progress</span>
@@ -1141,7 +1101,7 @@ export const OrdersPage: React.FC = () => {
                             href={`https://wa.me/2347069659752?text=${encodeURIComponent(`Hello Ojalogs Operations, checking status for SMM order ${item.reference} (${item.title}).`)}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="py-2 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 text-xs font-bold flex items-center gap-1.5 transition-all"
+                            className="py-2 px-3 rounded-btn bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 text-xs font-bold flex items-center gap-1.5 transition-all"
                           >
                             <MessageCircle className="w-3.5 h-3.5" />
                             <span>Support</span>
@@ -1158,7 +1118,7 @@ export const OrdersPage: React.FC = () => {
 
         {/* Empty State when zero orders match filter */}
         {filteredOrders.length === 0 && (
-          <div className="p-10 sm:p-14 text-center bg-white dark:bg-oj-dark-surface rounded-2xl border border-oj-border dark:border-oj-dark-border shadow-soft space-y-3">
+          <div className="p-10 sm:p-14 text-center bg-white dark:bg-oj-dark-surface rounded-card border border-oj-border dark:border-oj-dark-border shadow-soft space-y-3">
             <PackageCheck className="w-12 h-12 text-oj-muted/40 mx-auto" />
             <h3 className="font-heading font-black text-base text-oj-midnight dark:text-white">
               No orders found in this view
@@ -1171,7 +1131,7 @@ export const OrdersPage: React.FC = () => {
             {searchQuery ? (
               <button
                 onClick={() => setSearchQuery('')}
-                className="py-2 px-4 rounded-xl bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-xs font-bold text-oj-midnight dark:text-white"
+                className="py-2 px-4 rounded-btn bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-xs font-bold text-oj-midnight dark:text-white"
               >
                 Clear Search
               </button>
@@ -1179,13 +1139,13 @@ export const OrdersPage: React.FC = () => {
               <div className="flex items-center justify-center gap-2 pt-2">
                 <Link
                   to="/storefront"
-                  className="py-2 px-4 rounded-xl bg-oj-primary text-white text-xs font-bold shadow-soft hover:opacity-95 transition-all"
+                  className="py-2 px-4 rounded-btn bg-oj-primary text-white text-xs font-bold shadow-glow-primary hover:opacity-95 transition-all"
                 >
                   Explore Storefront
                 </Link>
                 <Link
                   to="/boost"
-                  className="py-2 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold shadow-soft hover:opacity-95 transition-all"
+                  className="py-2 px-4 rounded-btn bg-gradient-to-r from-oj-primary to-blue-600 text-white text-xs font-bold shadow-glow-primary hover:opacity-95 transition-all"
                 >
                   Social Boosts
                 </Link>
