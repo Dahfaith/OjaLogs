@@ -108,22 +108,22 @@ export class NumbersService {
     const price = rentalType === 'long_term_rental' ? unitPrice * 5 : unitPrice;
     let sessionRef = `req_num_${Math.floor(100000 + Math.random() * 900000)}`;
 
-    // Debit Wallet first to verify balance
-    walletService.debitWallet(
-      userId,
-      price,
-      'virtual_number_order',
-      `ref_oj_${Math.floor(1000000 + Math.random() * 9000000)}`,
-      `Virtual line allocated for ${service.name} (${country.name})`,
-      idempotencyKey
-    );
+    // Pre-flight balance verification (Fail before contacting telephony provider)
+    const currentBalance = walletService.getBalance(userId);
+    if (currentBalance < price) {
+      throw new AppError(
+        `Insufficient wallet balance. Required: ₦${price.toLocaleString()}, Available: ₦${currentBalance.toLocaleString()}. Please fund your wallet.`,
+        400,
+        'INSUFFICIENT_FUNDS'
+      );
+    }
 
     let phoneNumber = `${country.dialCode} ${Math.floor(1000000 + Math.random() * 9000000)}`;
 
     // Live TextPlug API Integration
     const textplug = telephonyRegistry.get('provider-textplug');
     const apiKey = (textplug?.apiKey || process.env.TEXTPLUG_API_KEY || '').trim();
-    if (apiKey && apiKey.length > 5) {
+    if (apiKey && apiKey.length > 5 && process.env.NODE_ENV !== 'test') {
       try {
         let tpServiceName = service.name;
         if (service.id === '1688' || service.name.startsWith('1688')) {
@@ -161,28 +161,31 @@ export class NumbersService {
         } else {
           const errText = await tpRes.text();
           console.warn(`[TEXTPLUG] Order rejected (HTTP ${tpRes.status}): ${errText}`);
-          if (process.env.NODE_ENV === 'production') {
-            let errorMsg = 'TextPlug Telephony: ';
-            try {
-              const parsed = JSON.parse(errText);
-              errorMsg += parsed.message || parsed.error || errText;
-            } catch {
-              errorMsg += errText;
-            }
-            // Auto refund wallet if line could not be acquired
-            walletService.creditWallet(userId, price, 'refund', `rf_auto_${Date.now()}`, `Auto-refund for unavailable line: ${service.name}`);
-            throw new AppError(errorMsg, 400, 'TELEPHONY_ORDER_FAILED');
+          let errorMsg = 'TextPlug Telephony: ';
+          try {
+            const parsed = JSON.parse(errText);
+            errorMsg += parsed.message || parsed.error || errText;
+          } catch {
+            errorMsg += errText;
           }
+          throw new AppError(errorMsg, 400, 'TELEPHONY_ORDER_FAILED');
         }
       } catch (err: any) {
         if (err instanceof AppError) throw err;
         console.warn(`[TEXTPLUG] Order network error: ${err.message}`);
-        if (process.env.NODE_ENV === 'production') {
-          walletService.creditWallet(userId, price, 'refund', `rf_auto_${Date.now()}`, `Auto-refund for connection failure: ${service.name}`);
-          throw new AppError(`Telephony provider network error: ${err.message}`, 502, 'TELEPHONY_NETWORK_ERROR');
-        }
+        throw new AppError(`Telephony provider network error: ${err.message}`, 502, 'TELEPHONY_NETWORK_ERROR');
       }
     }
+
+    // Debit Wallet only after telephony provider confirms line allocation
+    walletService.debitWallet(
+      userId,
+      price,
+      'virtual_number_order',
+      `ref_oj_${Math.floor(1000000 + Math.random() * 9000000)}`,
+      `Virtual line allocated for ${service.name} (${country.name})`,
+      idempotencyKey
+    );
 
     const durationSeconds = rentalType === 'long_term_rental' ? 86400 * 7 : 900; // 7 days vs 15 mins
 

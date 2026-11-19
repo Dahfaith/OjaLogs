@@ -662,6 +662,9 @@ export interface SMMOrder {
   sourceCostNgn: number;
   profitNgn: number;
   status: 'pending' | 'in_progress' | 'completed' | 'partial' | 'canceled' | 'refunded';
+  reconciliationRequired?: boolean;
+  providerError?: string;
+  refundDetails?: { refundedAt: string; refundedBy: string; reason: string };
   startCount: number;
   remains: number;
   createdAt: string;

@@ -299,6 +299,7 @@ export class SMMManagerService {
   ];
 
   private orders: SMMOrder[] = [];
+  private inFlightSmmOrders = new Set<string>();
 
   // ==========================================
   // Public Storefront Methods
@@ -466,119 +467,115 @@ export class SMMManagerService {
     const profitNgn = totalNgn - sourceCostNgn;
     const orderRef = `ord_smm_${Math.floor(100000 + Math.random() * 900000)}`;
 
-    // Debit Wallet
-    walletService.debitWallet(
-      userId,
-      totalNgn,
-      'order_payment',
-      `ref_oj_${Math.floor(1000000 + Math.random() * 9000000)}`,
-      `SMM Boost: ${service.name} (${cleanQty.toLocaleString()} units)`,
-      idempotencyKey,
-      orderRef
-    );
-
-    // Dispatch to Linkocial API
-    let upstreamRes: any;
-    try {
-      upstreamRes = await linkocialAdapter.placeOrder(
-        service.providerServiceId,
-        targetLink.trim(),
-        cleanQty
-      );
-
-      if (upstreamRes.error) {
-        throw new Error(upstreamRes.error);
-      }
-    } catch (smmErr: any) {
-      console.error(`[SMM_DISPATCH_FAIL] ${smmErr.message}. Auto-refunding customer...`);
-      try {
-        walletService.creditWallet(
-          userId,
-          totalNgn,
-          'refund',
-          `ref_oj_rf_${Math.floor(1000000 + Math.random() * 9000000)}`,
-          `Auto-refund: SMM Provider Maintenance (${orderRef})`,
-          `refund_${idempotencyKey}`,
-          customerEmail
-        );
-      } catch (rfErr: any) {
-        console.error(`[SMM_AUTO_REFUND_FAIL] ${rfErr.message}`);
-      }
-
-      try {
-        notificationService.recordAdminNotification({
-          id: `notif_smm_${Date.now()}`,
-          type: 'SECURITY_ALERT',
-          title: '🚨 SMM Upstream Balance / Order Rejection Alert',
-          message: `User ${customerEmail} ordered ${service.name} for ₦${totalNgn.toLocaleString()} (${orderRef}), but the upstream SMM provider rejected the order (${smmErr.message}). Wallet was auto-refunded. Please fund your SMM provider balance!`,
-          timestamp: new Date().toISOString(),
-          read: false,
-          userEmail: customerEmail
-        });
-      } catch {}
-
-      const rawMsg = smmErr.message || '';
-      let clientMsg = 'The SMM boost network node is currently undergoing routine maintenance. Your wallet was NOT charged. Please try again shortly or contact support on WhatsApp (07069659752).';
-
-      if (rawMsg.toLowerCase().includes('quantity') || rawMsg.toLowerCase().includes('min')) {
-        clientMsg = `Order quantity rejected by provider (${rawMsg}). Your wallet was NOT charged.`;
-      } else if (rawMsg.toLowerCase().includes('link')) {
-        clientMsg = `Target link format rejected by provider (${rawMsg}). Your wallet was NOT charged.`;
-      } else if (rawMsg.toLowerCase().includes('balance') || rawMsg.toLowerCase().includes('funds')) {
-        clientMsg = 'This SMM boost service is temporarily undergoing inventory replenishment. Your wallet was NOT charged. Please try again shortly.';
-      } else if (rawMsg.length > 0 && !rawMsg.includes('fetch failed')) {
-        clientMsg = `SMM boost order notice: ${rawMsg}. Your wallet was NOT charged.`;
-      }
-
-      throw new AppError(
-        clientMsg,
-        503,
-        'SMM_UNAVAILABLE'
-      );
+    // 0. Concurrency Protection (prevent concurrent double-checkout)
+    const lockKey = idempotencyKey || `${userId}_${serviceId}_${targetLink.trim()}`;
+    if (this.inFlightSmmOrders.has(lockKey)) {
+      throw new AppError('An SMM boost order is currently being processed. Please wait a moment.', 409, 'ORDER_IN_PROGRESS');
     }
+    this.inFlightSmmOrders.add(lockKey);
 
-    const newOrder: SMMOrder = {
-      id: `smm_ord_${Date.now()}`,
-      reference: orderRef,
-      userId,
-      customerEmail,
-      serviceId: service.id,
-      serviceName: service.name,
-      providerOrderId: upstreamRes.order ? String(upstreamRes.order) : undefined,
-      targetLink,
-      quantity,
-      totalNgn,
-      sourceCostNgn,
-      profitNgn,
-      status: 'in_progress',
-      startCount: 0,
-      remains: quantity,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+    try {
+      // 1. Pre-Checkout Wallet Balance Check (Fail before any transaction)
+      const currentBalance = walletService.getBalance(userId, customerEmail);
+      if (currentBalance < totalNgn) {
+        throw new AppError(
+          `Insufficient wallet balance. Required: ₦${totalNgn.toLocaleString()}, Available: ₦${currentBalance.toLocaleString()}. Please fund your wallet to complete this boost.`,
+          400,
+          'INSUFFICIENT_FUNDS'
+        );
+      }
 
-    this.orders.unshift(newOrder);
-    this.savePersistedOrders();
-
-    // Automated In-App Alert & Email notification
-    notificationService.recordOrderAlert(
-      {
-        reference: orderRef,
+      // 2. Debit Customer Wallet (exactly once)
+      walletService.debitWallet(
+        userId,
         totalNgn,
-        paymentMethod: 'wallet',
-        createdAt: newOrder.createdAt,
-        items: [
-          {
-            product: { title: service.name, serverCluster: 'Server 2' },
-            quantity,
-            unitPriceNgn: service.retailRateNgn
-          }
-        ]
-      },
-      customerEmail
-    ).catch(err => console.warn('[SMM_NOTIF_ERROR]', err.message));
+        'order_payment',
+        `ref_oj_${Math.floor(1000000 + Math.random() * 9000000)}`,
+        `SMM Boost: ${service.name} (${cleanQty.toLocaleString()} units)`,
+        idempotencyKey,
+        orderRef
+      );
 
-    return newOrder;
+      // 3. Dispatch to Linkocial API
+      let upstreamRes: any = null;
+      let upstreamError: string | null = null;
+      try {
+        upstreamRes = await linkocialAdapter.placeOrder(
+          service.providerServiceId,
+          targetLink.trim(),
+          cleanQty
+        );
+
+        if (upstreamRes?.error) {
+          upstreamError = upstreamRes.error;
+        }
+      } catch (smmErr: any) {
+        console.warn(`[SMM_DISPATCH_NOTICE] ${smmErr.message}. Preserving order in progress for manual reconciliation...`);
+        upstreamError = smmErr.message;
+      }
+
+      if (upstreamError) {
+        // Flag order for manual reconciliation. DO NOT automatically refund customer!
+        try {
+          notificationService.recordAdminNotification({
+            id: `notif_smm_${Date.now()}`,
+            type: 'SECURITY_ALERT',
+            title: '🚨 SMM Upstream Ambiguity - Reconciliation Required',
+            message: `User ${customerEmail} ordered ${service.name} for ₦${totalNgn.toLocaleString()} (${orderRef}), but the upstream SMM provider returned an error: ${upstreamError}. Customer payment is safely preserved in progress (NO auto-refund). Verify Linkocial dashboard balance before taking manual action.`,
+            timestamp: new Date().toISOString(),
+            read: false,
+            userEmail: customerEmail
+          });
+        } catch {}
+      }
+
+      const newOrder: SMMOrder = {
+        id: `smm_ord_${Date.now()}`,
+        reference: orderRef,
+        userId,
+        customerEmail,
+        serviceId: service.id,
+        serviceName: service.name,
+        providerOrderId: upstreamRes?.order ? String(upstreamRes.order) : undefined,
+        targetLink: targetLink.trim(),
+        quantity: cleanQty,
+        totalNgn,
+        sourceCostNgn,
+        profitNgn,
+        status: 'in_progress',
+        reconciliationRequired: !!upstreamError,
+        providerError: upstreamError || undefined,
+        startCount: 0,
+        remains: cleanQty,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      this.orders.unshift(newOrder);
+      this.savePersistedOrders();
+
+      // Automated In-App Alert & Email notification
+      notificationService.recordOrderAlert(
+        {
+          reference: orderRef,
+          totalNgn,
+          paymentMethod: 'wallet',
+          createdAt: newOrder.createdAt,
+          items: [
+            {
+              product: { title: service.name, serverCluster: 'Server 2' },
+              quantity: cleanQty,
+              unitPriceNgn: service.retailRateNgn
+            }
+          ]
+        },
+        customerEmail
+      ).catch(err => console.warn('[SMM_NOTIF_ERROR]', err.message));
+
+      return newOrder;
+    } finally {
+      this.inFlightSmmOrders.delete(lockKey);
+    }
   }
 
   async syncOrderStatus(orderId: string): Promise<SMMOrder> {
@@ -596,14 +593,19 @@ export class SMMManagerService {
           order.remains = 0;
         } else if (normalized.includes('canceled') || normalized.includes('cancelled')) {
           order.status = 'canceled';
-          // Auto-refund customer wallet upon upstream cancellation!
-          walletService.creditWallet(
-            order.userId,
-            order.totalNgn,
-            'refund',
-            `ref_smm_refund_${Date.now()}`,
-            `100% Refund for canceled SMM order (${order.reference})`
-          );
+          order.reconciliationRequired = true;
+          // Notify admin of canceled status. DO NOT auto-refund customer blindly!
+          try {
+            notificationService.recordAdminNotification({
+              id: `notif_smm_cancel_${Date.now()}`,
+              type: 'SECURITY_ALERT',
+              title: '⚠️ SMM Order Reported Canceled Upstream',
+              message: `Order ${order.reference} was reported canceled by upstream provider. Customer wallet was NOT auto-refunded. Review provider refund status and issue manual refund in Admin Console if appropriate.`,
+              timestamp: new Date().toISOString(),
+              read: false,
+              userEmail: order.customerEmail
+            });
+          } catch {}
         } else if (normalized.includes('partial')) {
           order.status = 'partial';
         } else {
@@ -616,6 +618,51 @@ export class SMMManagerService {
         this.savePersistedOrders();
       }
     }
+
+    return order;
+  }
+
+  refundSMMOrder(orderId: string, reason?: string, adminEmail?: string): SMMOrder {
+    const order = this.orders.find(o => o.id === orderId || o.reference === orderId);
+    if (!order) {
+      throw new AppError('SMM Order not found', 404, 'ORDER_NOT_FOUND');
+    }
+    if (order.status === 'refunded') {
+      return order;
+    }
+
+    order.status = 'refunded';
+    order.reconciliationRequired = false;
+    order.refundDetails = {
+      refundedAt: new Date().toISOString(),
+      refundedBy: adminEmail || 'admin@ojalogs.com.ng',
+      reason: reason || 'Authorized manual refund issued by operations administrator'
+    };
+
+    walletService.creditWallet(
+      order.userId,
+      order.totalNgn,
+      'refund',
+      `ref_smm_rf_${Date.now()}`,
+      reason || `Manual Admin Refund for SMM order (${order.reference})`,
+      undefined,
+      order.customerEmail
+    );
+
+    order.updatedAt = new Date().toISOString();
+    this.savePersistedOrders();
+
+    try {
+      notificationService.recordAdminNotification({
+        id: `notif_smm_manual_rf_${Date.now()}`,
+        type: 'SECURITY_ALERT',
+        title: '↩ SMM Manual Refund Issued by Admin',
+        message: `Admin ${adminEmail || 'admin@ojalogs.com.ng'} issued ₦${order.totalNgn.toLocaleString()} refund for SMM order ${order.reference}. Reason: ${reason || 'Manual authorization'}.`,
+        timestamp: new Date().toISOString(),
+        read: false,
+        userEmail: order.customerEmail
+      });
+    } catch {}
 
     return order;
   }

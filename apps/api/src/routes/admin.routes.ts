@@ -644,7 +644,8 @@ router.get('/orders', (req, res) => {
 router.post('/orders/:orderId/refund', (req, res) => {
   const orderId = Array.isArray(req.params.orderId) ? req.params.orderId[0] : req.params.orderId;
   const reason = req.body?.reason || 'Administrator initiated order refund';
-  const refunded = orderService.refundOrder(orderId, reason);
+  const adminEmail = (req as any).user?.email || req.body?.adminEmail || 'admin@ojalogs.com.ng';
+  const refunded = orderService.refundOrder(orderId, reason, adminEmail);
   res.json({
     success: true,
     data: refunded,
@@ -764,6 +765,18 @@ router.get('/smm/orders', (req, res) => {
   res.json({
     success: true,
     data: smmService.getOrders(),
+    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+  });
+});
+
+router.post('/smm/orders/:orderId/refund', (req, res) => {
+  const orderId = Array.isArray(req.params.orderId) ? req.params.orderId[0] : req.params.orderId;
+  const reason = req.body?.reason || 'Administrator initiated SMM order refund';
+  const adminEmail = (req as any).user?.email || req.body?.adminEmail || 'admin@ojalogs.com.ng';
+  const refunded = smmService.refundSMMOrder(orderId, reason, adminEmail);
+  res.json({
+    success: true,
+    data: refunded,
     meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
   });
 });

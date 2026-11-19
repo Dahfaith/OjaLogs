@@ -82,6 +82,7 @@ export class OrderService {
   private orders = new Map<string, Order[]>();
   private allOrders: (Order & { userId?: string })[] = [];
   private idempotencyMap = new Map<string, Order & { gatewayCheckoutUrl?: string }>();
+  private inFlightOrders = new Set<string>();
 
   constructor() {
     this.loadOrders();
@@ -208,7 +209,15 @@ export class OrderService {
       return this.idempotencyMap.get(idempotencyKey)!;
     }
 
-    const totalNgn = items.reduce((acc, item) => acc + item.unitPriceNgn * item.quantity, 0);
+    // 0b. Concurrency Protection (prevent concurrent double-checkout)
+    const lockKey = idempotencyKey || `${userId}_${items.map(it => it.productId).sort().join('_')}`;
+    if (this.inFlightOrders.has(lockKey)) {
+      throw new AppError('An order checkout is currently in progress. Please wait a moment.', 409, 'ORDER_IN_PROGRESS');
+    }
+    this.inFlightOrders.add(lockKey);
+
+    try {
+      const totalNgn = items.reduce((acc, item) => acc + item.unitPriceNgn * item.quantity, 0);
     const orderRef = `ord_oj_${Math.floor(1000 + Math.random() * 9000)}`;
     let gatewayCheckoutUrl: string | undefined;
 
@@ -250,7 +259,10 @@ export class OrderService {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.productId.replace(/^lp_/, ''));
       const isLogsPollSku = item.productId.startsWith('lp_') || isUuid;
 
-      if (!isTestMode && (isLogsPollSku || (logspollAdapter.getCredentials().isConfigured && !item.productId.startsWith('prod_')))) {
+      const shouldDispatchSupplier = (!isTestMode || process.env.TEST_SUPPLIER_DISPATCH === 'true') &&
+        (isLogsPollSku || (logspollAdapter.getCredentials().isConfigured && !item.productId.startsWith('prod_')));
+
+      if (shouldDispatchSupplier) {
         try {
           const avail = await logspollAdapter.validateProductAvailability(item.productId, item.quantity);
           if (!avail.purchasable) {
@@ -416,10 +428,19 @@ export class OrderService {
 
       // 1. Direct LogsPoll Upstream Dispatch for LogsPoll Products or configured accounts (in live mode)
       let upstreamError: string | null = null;
-      if (!isTestMode && (isLogsPollSku || (logspollAdapter.getCredentials().isConfigured && !item.productId.startsWith('prod_')))) {
+      let upstreamOrderId: string | number | undefined = undefined;
+      let upstreamReference: string | undefined = undefined;
+
+      const shouldDispatchSupplier = (!isTestMode || process.env.TEST_SUPPLIER_DISPATCH === 'true') &&
+        (isLogsPollSku || (logspollAdapter.getCredentials().isConfigured && !item.productId.startsWith('prod_')));
+
+      if (shouldDispatchSupplier) {
         try {
           console.log(`[ORDER_SERVICE] Dispatching live LogsPoll order for ${item.productId} (${item.title})...`);
           const lpRes = await logspollAdapter.orderProduct(item.productId, item.quantity, orderRef);
+          upstreamOrderId = lpRes.orderId;
+          upstreamReference = lpRes.reference;
+
           if (lpRes.success && lpRes.secretKey) {
             console.log(`[ORDER_SERVICE] ✓ Successfully ordered from LogsPoll: ${lpRes.orderId}`);
             provisioned = {
@@ -430,15 +451,18 @@ export class OrderService {
           } else {
             upstreamError = lpRes.error || null;
             console.warn(`[ORDER_SERVICE] LogsPoll upstream notice for ${item.productId}: ${upstreamError || 'Pending manual fulfillment'}`);
+            // Note: If orderId exists, the supplier accepted the order and debited balance! Never auto-refund.
+            hasPendingManualFulfillment = true;
           }
         } catch (lpErr: any) {
           upstreamError = lpErr.message;
           console.warn(`[ORDER_SERVICE] LogsPoll error notice: ${lpErr.message}`);
+          hasPendingManualFulfillment = true;
         }
       }
 
-      // 2. Dedicated Server API Adapter with metadata (if not already provisioned)
-      if (!provisioned) {
+      // 2. Dedicated Server API Adapter with metadata (if not already provisioned and no pending manual item)
+      if (!provisioned && !hasPendingManualFulfillment) {
         try {
           const adapter = serverApiRegistry.getAdapter(item.serverCluster);
           provisioned = await adapter.provisionSecret(item.productId, orderRef, {
@@ -447,27 +471,8 @@ export class OrderService {
             serverCluster: item.serverCluster
           });
         } catch (adapterErr: any) {
-          if (adapterErr?.code === 'SERVER_CLUSTER_MISMATCH') {
-            if (paymentMethod === 'wallet') {
-              try {
-                walletService.creditWallet(
-                  userId,
-                  totalNgn,
-                  'refund',
-                  `ref_oj_rf_${Math.floor(1000000 + Math.random() * 9000000)}`,
-                  `Auto-refund: Server Cluster Mismatch (${orderRef})`,
-                  `refund_${idempotencyKey}`,
-                  customerEmail
-                );
-              } catch {}
-            }
-            throw new AppError(
-              'This server cluster is temporarily undergoing routine restocking / maintenance. Your wallet was NOT charged. Please try again shortly or contact support on WhatsApp (07069659752).',
-              503,
-              'SERVER_RESTOCKING'
-            );
-          }
           console.warn(`[ORDER_SERVICE] Adapter notice for ${item.productId}: ${adapterErr.message}`);
+          hasPendingManualFulfillment = true;
         }
       }
 
@@ -522,74 +527,77 @@ export class OrderService {
           ]
         });
       } else {
-        // Upstream automated API failed or rejected: auto-refund customer wallet cleanly
-        if (paymentMethod === 'wallet') {
-          try {
-            walletService.creditWallet(
-              userId,
-              totalNgn,
-              'refund',
-              `ref_oj_rf_${Math.floor(1000000 + Math.random() * 9000000)}`,
-              `Auto-refund: Upstream Fulfillment (${orderRef})`,
-              `refund_${idempotencyKey}`,
-              customerEmail
-            );
-          } catch {}
-        }
+        // Upstream automated API is pending, unverified, restocking, or network-delayed:
+        // Hold order safely in "processing" state. Customer wallet is charged and payment is preserved!
+        // DO NOT automatically refund customer! Flag for operations review / manual dispatch.
+        hasPendingManualFulfillment = true;
 
+        orderItems.push({
+          id: `ord_item_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
+          product: {
+            id: item.productId,
+            slug: item.productId,
+            title: item.title,
+            category: 'Marketplace Good',
+            categoryId: 'general',
+            division: 'A',
+            serverCluster: item.serverCluster,
+            priceNgn: item.unitPriceNgn,
+            inStock: true,
+            stockCount: 50,
+            rating: 5.0,
+            verifiedResale: true,
+            coverImage: '',
+            summary: '',
+            descriptionHtml: '',
+            specifications: {
+              title: item.title,
+              supplierOrderId: upstreamOrderId,
+              supplierReference: upstreamReference
+            } as any,
+            deliveryFormat: 'Manual fulfillment / Supplier Extraction',
+            validityDuration: 'Standard',
+            region: 'Global'
+          },
+          quantity: item.quantity,
+          unitPriceNgn: item.unitPriceNgn,
+          totalNgn: item.unitPriceNgn * item.quantity,
+          deliveredSecrets: [
+            {
+              type: 'pending_fulfillment',
+              revealed: false,
+              value: 'PENDING_DISPATCH',
+              encryptedPayload: '',
+              instruction: 'Order verified & confirmed. Our operations desk is preparing and verifying your login credentials from the provider fleet. They will appear here in your vault shortly. For priority dispatch, contact support on WhatsApp (07069659752).'
+            } as any
+          ]
+        });
+
+        // Notify Super Admin of manual review / dispatch required
         try {
           notificationService.recordAdminNotification({
-            id: `notif_restock_${Date.now()}_${i}`,
+            id: `notif_pending_disp_${Date.now()}_${i}`,
             type: 'SECURITY_ALERT',
-            title: '⚠️ Product Fulfillment Rejection',
-            message: `Checkout attempt by ${customerEmail} for "${item.title}" (${orderRef}) halted safely. Reason: ${upstreamError || 'Upstream unavailable'}. Customer wallet was auto-refunded.`,
+            title: '⚠️ Fulfillment In Progress - Operations Review Required',
+            message: `User ${customerEmail} paid ₦${(item.unitPriceNgn * item.quantity).toLocaleString()} for "${item.title}" (${orderRef}). Supplier response: ${upstreamError || 'Pending extraction / unverified'}. Payment preserved in PROCESSING (NO auto-refund). Verify supplier ledger or dispatch manually in Admin Console.`,
             timestamp: new Date().toISOString(),
             read: false,
             userEmail: customerEmail
           });
         } catch {}
-
-        // Differentiate error messages accurately
-        const errLower = (upstreamError || '').toLowerCase();
-        if (errLower.includes('insufficient stock') || errLower.includes('0 available')) {
-          throw new AppError(
-            `This product is currently out of stock upstream. Your wallet was NOT charged.`,
-            400,
-            'OUT_OF_STOCK'
-          );
-        } else if (errLower.includes('cost is unverified') || errLower.includes('unverified')) {
-          throw new AppError(
-            `This product cannot be purchased right now because the supplier is verifying inventory. Your wallet was NOT charged.`,
-            400,
-            'SUPPLIER_UNVERIFIED'
-          );
-        } else if (errLower.includes('timeout') || errLower.includes('504') || errLower.includes('502')) {
-          throw new AppError(
-            `The supplier network temporarily timed out. Your wallet was NOT charged. Please try again shortly.`,
-            503,
-            'SUPPLIER_TEMPORARILY_UNAVAILABLE'
-          );
-        }
-
-        throw new AppError(
-          'This server cluster is temporarily undergoing routine restocking / maintenance. Your wallet was NOT charged. Please try again shortly or contact support on WhatsApp (07069659752).',
-          503,
-          'SERVER_RESTOCKING'
-        );
       }
     }
 
     const orderStatus: Order['status'] = paymentMethod === 'bach_direct'
       ? 'pending'
-      : hasPendingManualFulfillment
-      ? 'processing'
-      : 'completed';
+      : (hasPendingManualFulfillment ? 'processing' : 'completed');
 
-    const newOrder: Order & { userId?: string } = {
+    const newOrder: Order & { userId?: string; fulfillmentStatus?: string } = {
       id: `ord_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
       reference: orderRef,
       createdAt: new Date().toISOString(),
       status: orderStatus,
+      fulfillmentStatus: hasPendingManualFulfillment ? 'reconciliation_required' : 'completed',
       paymentMethod,
       totalNgn,
       items: orderItems,
@@ -615,6 +623,9 @@ export class OrderService {
     }
 
     return result;
+    } finally {
+      this.inFlightOrders.delete(lockKey);
+    }
   }
 
   getOrders(userId: string, userEmail?: string): Order[] {
@@ -675,7 +686,7 @@ export class OrderService {
     return this.allOrders.find(o => o.id === orderId || o.reference === orderId) || null;
   }
 
-  refundOrder(orderId: string, reason?: string): Order {
+  refundOrder(orderId: string, reason?: string, adminEmail?: string): Order {
     const order = this.allOrders.find(o => o.id === orderId || o.reference === orderId);
     if (!order) {
       throw new AppError('Order not found', 404, 'ORDER_NOT_FOUND');
@@ -685,8 +696,14 @@ export class OrderService {
     }
 
     order.status = 'refunded';
+    (order as any).fulfillmentStatus = 'refunded';
+    (order as any).refundDetails = {
+      refundedAt: new Date().toISOString(),
+      refundedBy: adminEmail || 'admin@ojalogs.com.ng',
+      reason: reason || 'Authorized manual refund issued by operations administrator'
+    };
 
-    // Credit customer wallet back
+    // Credit customer wallet back safely
     const uId = order.userId || order.customerEmail || 'default';
     if (order.paymentMethod === 'wallet' && order.totalNgn > 0) {
       walletService.creditWallet(
@@ -694,7 +711,7 @@ export class OrderService {
         order.totalNgn,
         'refund',
         `ref_rf_${Math.floor(1000000 + Math.random() * 9000000)}`,
-        reason || `Refund for Order ${order.reference}`,
+        reason || `Manual Admin Refund for Order ${order.reference}`,
         undefined,
         order.customerEmail
       );
@@ -702,6 +719,18 @@ export class OrderService {
 
     this.saveOrders();
     this.syncToSupabase().catch(() => {});
+
+    try {
+      notificationService.recordAdminNotification({
+        id: `notif_manual_refund_${Date.now()}`,
+        type: 'SECURITY_ALERT',
+        title: '↩ Manual Refund Issued by Admin',
+        message: `Administrator ${adminEmail || 'admin@ojalogs.com.ng'} issued ₦${order.totalNgn.toLocaleString()} refund for order ${order.reference}. Reason: ${reason || 'Manual authorization'}.`,
+        timestamp: new Date().toISOString(),
+        read: false,
+        userEmail: order.customerEmail
+      });
+    } catch {}
 
     return order;
   }
