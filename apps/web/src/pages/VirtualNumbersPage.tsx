@@ -618,13 +618,16 @@ export const VirtualNumbersPage: React.FC = () => {
                       </span>
                       <button
                         onClick={() => {
-                          navigator.clipboard.writeText(session.phoneNumber);
-                          showToast('Phone number copied');
+                          const digitsOnly = session.phoneNumber.replace(/[^\d+]/g, '');
+                          navigator.clipboard.writeText(digitsOnly);
+                          setCopiedCodeId(session.id);
+                          showToast(`Copied ${digitsOnly} to clipboard`);
+                          setTimeout(() => setCopiedCodeId(null), 2000);
                         }}
-                        className="p-1 rounded text-oj-muted hover:text-oj-midnight dark:hover:text-white"
-                        title="Copy number"
+                        className="p-1.5 rounded-lg bg-oj-surface-alt hover:bg-oj-border text-oj-muted hover:text-oj-midnight dark:hover:text-white transition-colors"
+                        title="Copy complete phone number for SMS verification"
                       >
-                        <Copy className="w-3.5 h-3.5" />
+                        {copiedCodeId === session.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                       </button>
                     </div>
                     <p className="text-xs text-oj-muted">

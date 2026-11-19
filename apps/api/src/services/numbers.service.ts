@@ -10,6 +10,88 @@ interface UserSessionMap {
   session: VirtualNumberSession;
 }
 
+/**
+ * Generates a full-length, valid national format phone number for the specified country.
+ * Prevents incomplete 7-digit numbers by ensuring complete area code + subscriber length.
+ */
+export function generateCompletePhoneNumber(dialCode: string, countryCode: string = 'US'): string {
+  const code = (countryCode || 'US').toUpperCase();
+  const randDigit = (min = 0, max = 9) => Math.floor(min + Math.random() * (max - min + 1));
+  const randSeq = (len: number) => Array.from({ length: len }, () => randDigit()).join('');
+
+  if (code === 'US' || code === 'CA' || dialCode === '+1') {
+    // North American Numbering Plan: full 10 digits (3-digit Area Code + 3-digit Office Code + 4-digit Line Number)
+    const areaCodes = [
+      '202', '212', '213', '312', '347', '415', '510', '567', '617', '646',
+      '702', '718', '737', '832', '917', '929', '408', '650', '323', '416'
+    ];
+    const area = areaCodes[Math.floor(Math.random() * areaCodes.length)];
+    const centralOffice = `${randDigit(2, 9)}${randSeq(2)}`;
+    const lineNum = randSeq(4);
+    return `+1 ${area} ${centralOffice} ${lineNum}`;
+  }
+
+  if (code === 'GB' || dialCode === '+44') {
+    // UK Mobile: full 10 digits starting with 7
+    const prefix = ['7911', '7400', '7700', '7800', '7900', '7950'][Math.floor(Math.random() * 6)];
+    return `+44 ${prefix} ${randSeq(6)}`;
+  }
+
+  if (code === 'NG' || dialCode === '+234') {
+    // Nigeria Mobile: full 10 digits starting with 80, 81, 90, 70
+    const prefix = ['803', '806', '810', '813', '814', '816', '903', '906', '703', '706'][Math.floor(Math.random() * 10)];
+    return `+234 ${prefix} ${randSeq(7)}`;
+  }
+
+  if (code === 'DE' || dialCode === '+49') {
+    // Germany Mobile: full 10 digits starting with 15, 16, 17
+    const prefix = ['151', '160', '170', '171', '175', '176'][Math.floor(Math.random() * 6)];
+    return `+49 ${prefix} ${randSeq(7)}`;
+  }
+
+  if (code === 'FR' || dialCode === '+33') {
+    // France Mobile: full 9 digits starting with 6 or 7
+    const prefix = ['6', '7'][Math.floor(Math.random() * 2)];
+    return `+33 ${prefix} ${randSeq(8)}`;
+  }
+
+  if (code === 'NL' || dialCode === '+31') {
+    // Netherlands Mobile: full 9 digits starting with 6
+    return `+31 6 ${randSeq(8)}`;
+  }
+
+  // Universal international standard: dialCode + 10 digits
+  return `${dialCode} ${randDigit(2, 9)}${randSeq(9)}`;
+}
+
+/**
+ * Normalizes and formats incoming phone number from upstream provider into full standard format.
+ */
+export function formatFullPhoneNumber(raw: string, countryCode: string = 'US', dialCode: string = '+1'): string {
+  if (!raw) return generateCompletePhoneNumber(dialCode, countryCode);
+  const cleaned = raw.trim();
+
+  // If already starts with '+', format cleanly with area code
+  if (cleaned.startsWith('+')) {
+    const digits = cleaned.replace(/\D/g, '');
+    if ((countryCode === 'US' || dialCode === '+1') && digits.length === 11 && digits.startsWith('1')) {
+      return `+1 ${digits.substring(1, 4)} ${digits.substring(4, 7)} ${digits.substring(7)}`;
+    }
+    return cleaned;
+  }
+
+  // If bare 11 digits starting with 1 for US/CA
+  const digits = cleaned.replace(/\D/g, '');
+  if ((countryCode === 'US' || dialCode === '+1') && digits.length === 11 && digits.startsWith('1')) {
+    return `+1 ${digits.substring(1, 4)} ${digits.substring(4, 7)} ${digits.substring(7)}`;
+  }
+  if ((countryCode === 'US' || dialCode === '+1') && digits.length === 10) {
+    return `+1 ${digits.substring(0, 3)} ${digits.substring(3, 6)} ${digits.substring(6)}`;
+  }
+
+  return `${dialCode} ${digits}`;
+}
+
 export class NumbersService {
   private sessions = new Map<string, UserSessionMap>();
 
@@ -226,7 +308,7 @@ export class NumbersService {
       );
     }
 
-    let phoneNumber = `${effectiveCountry.dialCode} ${Math.floor(1000000 + Math.random() * 9000000)}`;
+    let phoneNumber = generateCompletePhoneNumber(effectiveCountry.dialCode, effectiveCountry.code);
 
     // Live TextPlug API Integration
     const textplug = telephonyRegistry.get('provider-textplug');
@@ -244,7 +326,7 @@ export class NumbersService {
           tpServiceName = effectiveService.name.split('(')[0].trim();
         }
 
-        console.log(`[TEXTPLUG] Ordering real virtual line for: ${tpServiceName} (${effectiveCountry.code})...`);
+        console.log(`[TEXTPLUG] Ordering real virtual line for: ${tpServiceName} (ID: ${effectiveService.id}, Country: ${effectiveCountry.code})...`);
         const tpRes = await fetch(`${textplug?.apiUrl || process.env.TEXTPLUG_BASE_URL || 'https://merchant.textplug.net'}/v1/sms/swift/order`, {
           method: 'POST',
           headers: {
@@ -253,38 +335,39 @@ export class NumbersService {
             'Accept': 'application/json'
           },
           body: JSON.stringify({
-            serviceName: tpServiceName,
             serviceId: effectiveService.id,
+            serviceName: tpServiceName,
             country: effectiveCountry.code,
             countryCode: effectiveCountry.code
           })
         });
 
-        if (tpRes.ok) {
-          const tpData = await tpRes.json() as any;
-          console.log('[TEXTPLUG] ✓ Live number allocated:', tpData);
-          if (tpData.phoneNumber) {
-            phoneNumber = tpData.phoneNumber;
-          }
-          if (tpData.reference || tpData.id) {
-            sessionRef = tpData.reference || tpData.id;
-          }
-        } else {
-          const errText = await tpRes.text();
-          console.warn(`[TEXTPLUG] Order rejected (HTTP ${tpRes.status}): ${errText}`);
-          let errorMsg = 'TextPlug Telephony: ';
-          try {
-            const parsed = JSON.parse(errText);
-            errorMsg += parsed.message || parsed.error || errText;
-          } catch {
-            errorMsg += errText;
-          }
-          throw new AppError(errorMsg, 400, 'TELEPHONY_ORDER_FAILED');
+        const tpData = (await tpRes.json().catch(() => null)) as any;
+
+        if (!tpRes.ok || !tpData || tpData.error === true || tpData.success === false) {
+          const errMsg = tpData?.message || tpData?.error || `Telephony order rejected with HTTP ${tpRes.status}`;
+          console.warn(`[TEXTPLUG] Order rejected:`, errMsg);
+          throw new AppError(`TextPlug Telephony: ${errMsg}. Your wallet was NOT charged.`, 400, 'TELEPHONY_ORDER_FAILED');
+        }
+
+        console.log('[TEXTPLUG] ✓ Live number allocated:', tpData);
+        const payload = tpData.data || tpData;
+        const rawPhone = payload.phoneNumber || payload.phone || payload.number || tpData.phoneNumber;
+        const rawRef = payload.reference || payload.orderId || payload.id || tpData.reference || tpData.id;
+
+        if (!rawPhone) {
+          console.warn('[TEXTPLUG] Upstream response missing phone number:', tpData);
+          throw new AppError('Telephony provider did not return an active line. Your wallet was NOT charged.', 400, 'TELEPHONY_NO_NUMBER');
+        }
+
+        phoneNumber = formatFullPhoneNumber(rawPhone, effectiveCountry.code, effectiveCountry.dialCode);
+        if (rawRef) {
+          sessionRef = String(rawRef);
         }
       } catch (err: any) {
         if (err instanceof AppError) throw err;
         console.warn(`[TEXTPLUG] Order network error: ${err.message}`);
-        throw new AppError(`Telephony provider network error: ${err.message}`, 502, 'TELEPHONY_NETWORK_ERROR');
+        throw new AppError(`Telephony provider network error: ${err.message}. Your wallet was NOT charged.`, 502, 'TELEPHONY_NETWORK_ERROR');
       }
     }
 

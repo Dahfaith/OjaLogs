@@ -138,6 +138,8 @@ async function runNumbersPricingTests() {
     750
   );
   assert(session && session.phoneNumber.length > 5, `Allocated phone line: ${session.phoneNumber}`);
+  const cleanDigits = session.phoneNumber.replace(/\D/g, '');
+  assert(cleanDigits.length === 11 && cleanDigits.startsWith('1'), `Phone number is complete with full 10-digit NANP format (got ${cleanDigits.length} digits: ${session.phoneNumber})`);
   const balAfterTwitter = walletService.getBalance(userId);
   assert(balAfterTwitter === 1070 - 750, `Wallet debited exactly ₦750: New balance ₦${balAfterTwitter} (expected ₦320)`);
 
