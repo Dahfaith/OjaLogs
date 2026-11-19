@@ -15,7 +15,7 @@ function getLogsPollMargin(): number {
   return 1.20; // Default 20%
 }
 
-function resolveProductImage(title: string, category: string = '', description: string = ''): string {
+export function resolveProductImage(title: string, category: string = '', description: string = ''): string {
   const t = title.toLowerCase();
   const c = category.toLowerCase();
   const d = description.toLowerCase();
@@ -73,7 +73,36 @@ function resolveProductImage(title: string, category: string = '', description: 
     return 'https://images.unsplash.com/photo-1512499617640-c74ae3a79d37?auto=format&fit=crop&w=600&q=80';
   }
 
-  // 3. EMAIL PROVIDERS
+  // 3. SOCIAL MEDIA PLATFORMS (PRIORITY 3 - Takes precedence over bundled recovery email mentions)
+  if (matchTitle(/\b(threads?)\b/i) || t.includes('thread')) {
+    return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80';
+  }
+  if (
+    matchTitle(/\b(twitter|twitters|aged\s*x|fresh\s*x|all[-\s]*new\s*x|new\s*x|x\.com|x\s*\(twitter\)|twitter\s*\(x\)|twitter\s*account|twitter\s*accounts|x\s*account|x\s*accounts|x\s*token)\b/i) ||
+    t.includes('all-new x') || t.includes('all new x') || t.includes('twitter') || t.includes('aged x')
+  ) {
+    return 'https://images.unsplash.com/photo-1611605698335-8b1569810432?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(instagram|instagram\s*account|aged\s*creator|\big\b)/i) || t.includes('instagram')) {
+    return 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(facebook|facebooks|bm50|bm250|business\s*manager|facebook\s*account|facebook\s*accounts|\bfb\b)/i) || t.includes('facebook')) {
+    return 'https://images.unsplash.com/photo-1611162618071-b39a2ec055fb?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(tiktok|tiktoks|tik\s*tok)\b/i) || t.includes('tiktok')) {
+    return 'https://images.unsplash.com/photo-1611605698323-b1e99cfd37ea?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(reddit)\b/i) || t.includes('reddit')) {
+    return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(snapchat)\b/i) || t.includes('snapchat')) {
+    return 'https://images.unsplash.com/photo-1611605698335-8b1569810432?auto=format&fit=crop&w=600&q=80';
+  }
+  if (matchTitle(/\b(discord)\b/i) || t.includes('discord')) {
+    return 'https://images.unsplash.com/photo-1618401471353-b98aedd04e11?auto=format&fit=crop&w=600&q=80';
+  }
+
+  // 4. EMAIL PROVIDERS
   if (matchTitle(/\b(outlook|hotmail)\b/i)) {
     return 'https://images.unsplash.com/photo-1629654297299-c8506221ca97?auto=format&fit=crop&w=600&q=80';
   }
@@ -87,7 +116,7 @@ function resolveProductImage(title: string, category: string = '', description: 
     return 'https://images.unsplash.com/photo-1596526131083-e8c633c948d2?auto=format&fit=crop&w=600&q=80';
   }
 
-  // 4. AI & DEVELOPER TOOLS
+  // 5. AI & DEVELOPER TOOLS
   if (matchTitle(/\b(chatgpt|openai|gpt-4|claude|anthropic|midjourney|capcut|gemini|kling|ai\s*tool)\b/i)) {
     return 'https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&w=600&q=80';
   }
@@ -95,7 +124,7 @@ function resolveProductImage(title: string, category: string = '', description: 
     return 'https://images.unsplash.com/photo-1618401471353-b98aedd04e11?auto=format&fit=crop&w=600&q=80';
   }
 
-  // 5. VPN & PROXIES
+  // 6. VPN & PROXIES
   if (matchTitle(/\b(vpn|nord|surfshark|expressvpn|cyberghost)\b/i)) {
     return 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=600&q=80';
   }
@@ -103,7 +132,7 @@ function resolveProductImage(title: string, category: string = '', description: 
     return 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=600&q=80';
   }
 
-  // 6. STREAMING & MEDIA
+  // 7. STREAMING & MEDIA
   if (matchTitle(/\b(netflix)\b/i)) {
     return 'https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?auto=format&fit=crop&w=600&q=80';
   }
@@ -112,32 +141,6 @@ function resolveProductImage(title: string, category: string = '', description: 
   }
   if (matchTitle(/\b(youtube|yt\s*sub)\b/i)) {
     return 'https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?auto=format&fit=crop&w=600&q=80';
-  }
-
-  // 7. SOCIAL MEDIA PLATFORMS (STRICT regex - Threads precedes Instagram)
-  if (matchTitle(/\b(threads?)\b/i) || t.includes('thread')) {
-    return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80';
-  }
-  if (matchTitle(/\b(twitter|aged\s*x|x\.com|x\s*\(twitter\)|twitter\s*account)\b/i)) {
-    return 'https://images.unsplash.com/photo-1611605698335-8b1569810432?auto=format&fit=crop&w=600&q=80';
-  }
-  if (matchTitle(/\b(instagram|instagram\s*account|aged\s*creator|\big\b)/i)) {
-    return 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=600&q=80';
-  }
-  if (matchTitle(/\b(facebook|bm50|business\s*manager|facebook\s*account|\bfb\b)/i)) {
-    return 'https://images.unsplash.com/photo-1611162618071-b39a2ec055fb?auto=format&fit=crop&w=600&q=80';
-  }
-  if (matchTitle(/\b(tiktok|tik\s*tok)\b/i)) {
-    return 'https://images.unsplash.com/photo-1611605698323-b1e99cfd37ea?auto=format&fit=crop&w=600&q=80';
-  }
-  if (matchTitle(/\b(reddit)\b/i)) {
-    return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80';
-  }
-  if (matchTitle(/\b(snapchat)\b/i)) {
-    return 'https://images.unsplash.com/photo-1611605698335-8b1569810432?auto=format&fit=crop&w=600&q=80';
-  }
-  if (matchTitle(/\b(discord)\b/i)) {
-    return 'https://images.unsplash.com/photo-1618401471353-b98aedd04e11?auto=format&fit=crop&w=600&q=80';
   }
 
   // 8. SECONDARY FALLBACK: Match Category if Title gave no match
@@ -182,7 +185,9 @@ function resolveServerCluster(title: string, categoryId: string, upstreamServer?
   if (
     cat === 'social-media' ||
     cat === 'email' ||
-    /\b(facebook|instagram|twitter|tiktok|threads|reddit|snapchat|telegram|gmail|mail|fb|ig)\b/i.test(t)
+    /\b(facebook|instagram|twitter|tiktok|threads|reddit|snapchat|telegram|gmail|mail|fb|ig|all[-\s]*new\s*x|aged\s*x|x\.com)\b/i.test(t) ||
+    t.includes('all-new x') ||
+    t.includes('all new x')
   ) {
     return 'Server 2';
   }

@@ -108,7 +108,24 @@ export function resolveProductCategory(
     return { category: 'Prepaid & Gift Cards', categoryId: 'gift-cards' };
   }
 
-  // 2. EMAIL & MESSAGING SERVICES (PRIORITY 2 - Email accounts must never be generic social media)
+  // 2. SOCIAL MEDIA ACCOUNTS (PRIORITY 2 - Primary social media platform takes precedence over bundled recovery emails)
+  if (
+    matchTitle(/\b(threads?)\b/i) || t.includes('thread') ||
+    matchTitle(/\b(instagram|\big\b|ig\s*account|ig\s*accounts)\b/i) || t.includes('instagram') ||
+    matchTitle(/\b(facebook|\bfb\b|bm50|bm250|business\s*manager|fb\s*account|facebook\s*account|facebook\s*accounts)\b/i) || t.includes('facebook') ||
+    matchTitle(/\b(tiktok|tiktoks|tik\s*tok)\b/i) || t.includes('tiktok') || t.includes('tik tok') ||
+    matchTitle(/\b(twitter|twitters|aged\s*x|fresh\s*x|all[-\s]*new\s*x|new\s*x|x\.com|x\s*\(twitter\)|twitter\s*\(x\)|twitter\s*account|twitter\s*accounts|x\s*account|x\s*accounts|x\s*token)\b/i) ||
+    t.includes('all-new x') || t.includes('all new x') || t.includes('twitter') || t.includes('x.com') || t.includes('aged x') ||
+    matchTitle(/\b(snapchat|snap\s*account)\b/i) || t.includes('snapchat') ||
+    matchTitle(/\b(reddit|reddit\s*account)\b/i) || t.includes('reddit') ||
+    matchTitle(/\b(linkedin|linkedin\s*account)\b/i) || t.includes('linkedin') ||
+    matchTitle(/\b(pinterest|pinterest\s*account)\b/i) || t.includes('pinterest') ||
+    matchTitle(/\b(discord)\b/i) || t.includes('discord')
+  ) {
+    return { category: 'Social Media Accounts', categoryId: 'social-media' };
+  }
+
+  // 3. EMAIL & MESSAGING SERVICES
   if (
     matchTitle(/\b(gmail|google\s*mail|gsuite|google\s*workspace)\b/i) ||
     matchTitle(/\b(outlook|hotmail|live\.com|msn\.com)\b/i) ||
@@ -118,83 +135,68 @@ export function resolveProductCategory(
     return { category: 'Email & Messaging Services', categoryId: 'email' };
   }
 
-  // 3. VPN SUBSCRIPTIONS
+  // 4. VPN SUBSCRIPTIONS
   if (
     matchTitle(/\b(vpn|nordvpn|nord\s*vpn|surfshark|expressvpn|cyberghost|protonvpn|windscribe|mullvad|ipvanish)\b/i)
   ) {
     return { category: 'VPN Subscriptions', categoryId: 'vpn' };
   }
 
-  // 4. PROXIES & NETWORK IPS
+  // 5. PROXIES & NETWORK IPS
   if (
     matchTitle(/\b(proxy|proxies|residential|rotating\s*ip|socks5|http\s*proxy|datacenter\s*ip|ipv4|ipv6|mobile\s*proxy|lte\s*proxy)\b/i)
   ) {
     return { category: 'Proxies & Network IPs', categoryId: 'proxies' };
   }
 
-  // 5. ESIM PROFILES & DATA
+  // 6. ESIM PROFILES & DATA
   if (
     matchTitle(/\b(esim|e-sim|roaming|travel\s*data|data\s*sim|mobile\s*data)\b/i)
   ) {
     return { category: 'eSIM Profiles & Data', categoryId: 'esim' };
   }
 
-  // 6. AI SUBSCRIPTIONS & APIS
+  // 7. AI SUBSCRIPTIONS & APIS
   if (
     matchTitle(/\b(chatgpt|openai|gpt-4|gpt-3|claude|anthropic|midjourney|kling|runway|elevenlabs|gemini|perplexity|cursor|copilot|deepseek|ai\s*tool|ai\s*sub)\b/i)
   ) {
     return { category: 'AI Subscriptions & APIs', categoryId: 'ai-tools' };
   }
 
-  // 7. STREAMING & ENTERTAINMENT
+  // 8. STREAMING & ENTERTAINMENT
   if (
     matchTitle(/\b(netflix|spotify|youtube\s*premium|yt\s*premium|disney\+|hulu|apple\s*tv|hbo\s*max|tidal|deezer|crunchyroll)\b/i)
   ) {
     return { category: 'Streaming & Entertainment', categoryId: 'streaming' };
   }
 
-  // 8. TELEPHONY & VIRTUAL NUMBERS
+  // 9. TELEPHONY & VIRTUAL NUMBERS
   if (
     matchTitle(/\b(google\s*voice|gvoice|\bgv\b|textnow|talkatone|virtual\s*number|phone\s*rental|sms\s*verification|receive\s*sms|one-time\s*sms)\b/i)
   ) {
     return { category: 'Virtual Phone Numbers', categoryId: 'virtual-numbers' };
   }
 
-  // 9. SOFTWARE LICENSES & KEYS
+  // 10. SOFTWARE LICENSES & KEYS
   if (
     matchTitle(/\b(windows\s*10|windows\s*11|windows\s*server|office\s*365|ms\s*office|activation\s*key|license\s*key|retail\s*key|github|jetbrains|adobe|canva\s*pro|antivirus|kaspersky)\b/i)
   ) {
     return { category: 'Software Licenses & Keys', categoryId: 'software' };
   }
 
-  // 10. CLOUD & DOMAIN HOSTING
+  // 11. CLOUD & DOMAIN HOSTING
   if (
     matchTitle(/\b(cloud|vps|digitalocean|aws|azure|google\s*cloud|linode|vultr|domain|hosting|cpanel|rdp)\b/i)
   ) {
     return { category: 'Cloud & Domain Hosting', categoryId: 'cloud-hosting' };
   }
 
-  // 11. SOCIAL MEDIA ACCOUNTS (Strict title matching)
-  if (
-    matchTitle(/\b(threads?)\b/i) || t.includes('thread') ||
-    matchTitle(/\b(instagram|\big\b|ig\s*account)\b/i) ||
-    matchTitle(/\b(facebook|\bfb\b|bm50|business\s*manager|fb\s*account)\b/i) ||
-    matchTitle(/\b(tiktok|tik\s*tok)\b/i) ||
-    matchTitle(/\b(twitter|aged\s*x|x\.com|x\s*\(twitter\)|twitter\s*account)\b/i) ||
-    matchTitle(/\b(telegram|tdata|\.session|\btg\b)\b/i) ||
-    matchTitle(/\b(snapchat|snap)\b/i) ||
-    matchTitle(/\b(reddit)\b/i) ||
-    matchTitle(/\b(linkedin)\b/i) ||
-    matchTitle(/\b(pinterest)\b/i) ||
-    matchTitle(/\b(discord)\b/i) ||
-    matchTitle(/\b(followers|pva\b|aged\s*account|account\s*with\s*2fa)\b/i)
-  ) {
-    return { category: 'Social Media Accounts', categoryId: 'social-media' };
-  }
-
   // 12. SECONDARY CHECK: Check rawCategory (Upstream Category Metadata)
   if (matchCategory(/\b(mastercard|visa|card|gift\s*card|prepaid)\b/i)) {
     return { category: 'Prepaid & Gift Cards', categoryId: 'gift-cards' };
+  }
+  if (matchCategory(/\b(facebook|twitter|instagram|tiktok|threads|snapchat|reddit|linkedin|pinterest|social)\b/i)) {
+    return { category: 'Social Media Accounts', categoryId: 'social-media' };
   }
   if (matchCategory(/\b(gmail|google\s*mail|outlook|hotmail|yahoo|proton|email|mail)\b/i)) {
     return { category: 'Email & Messaging Services', categoryId: 'email' };

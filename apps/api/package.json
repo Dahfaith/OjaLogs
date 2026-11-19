@@ -15,7 +15,8 @@
     "test:audit": "tsx test/fulfillment_audit.test.ts",
     "test:numbers": "tsx test/numbers_pricing_sync.test.ts",
     "test:safety": "tsx test/refund_safety.test.ts",
-    "test": "tsx test/api.test.ts && tsx test/bach.test.ts && tsx test/e2e_phase5.test.ts && tsx test/smm.test.ts && tsx test/fulfillment_audit.test.ts && tsx test/refund_safety.test.ts && tsx test/numbers_pricing_sync.test.ts"
+    "test:brand": "tsx test/brand_classification.test.ts",
+    "test": "tsx test/api.test.ts && tsx test/bach.test.ts && tsx test/e2e_phase5.test.ts && tsx test/smm.test.ts && tsx test/fulfillment_audit.test.ts && tsx test/refund_safety.test.ts && tsx test/numbers_pricing_sync.test.ts && tsx test/brand_classification.test.ts"
   },
   "dependencies": {
     "@ojalogs/shared": "workspace:*",

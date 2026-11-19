@@ -68,7 +68,7 @@ export class Server2ApiAdapter implements IServerApiAdapter {
     const combined = `${titleLower} ${skuLower}`;
 
     const isFacebook = combined.includes('facebook') || combined.includes('fb') || combined.includes('bm50');
-    const isTwitter = combined.includes('twitter') || combined.includes('x-') || combined.includes('aged x');
+    const isTwitter = combined.includes('twitter') || combined.includes('x-') || combined.includes('aged x') || combined.includes('all-new x') || combined.includes('all new x');
     const isTikTok = combined.includes('tiktok') || combined.includes('tik tok');
     const isCloud = combined.includes('aws') || combined.includes('digitalocean') || combined.includes('vps');
 

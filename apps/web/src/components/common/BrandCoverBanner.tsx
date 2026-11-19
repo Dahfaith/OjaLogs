@@ -614,7 +614,163 @@ export function getBrandConfig(
     }
 
     // -------------------------------------------------------------
-    // PRIORITY 3: EMAIL SERVICES
+    // PRIORITY 3: SOCIAL MEDIA PLATFORMS (STRICT REGEX & HIERARCHY)
+    // -------------------------------------------------------------
+    // Evaluated BEFORE Email Services so that accounts bundling recovery
+    // emails (e.g. "Facebook with Hotmail", "All-New X with Outlook")
+    // render their authentic Social Media brand cover banner instead of
+    // the bundled recovery email service!
+
+    // RULE A: THREADS MUST PRECEDE INSTAGRAM!
+    // Threads accounts almost always specify "Instagram", "Instagram Login", "Instagram linked",
+    // or "2FA Instagram" because Threads authenticates through Meta's Instagram service.
+    // ANY product mentioning "thread" or "threads" is categorized as Threads.
+    if (
+      /\b(threads?)\b/i.test(target) ||
+      target.includes('thread')
+    ) {
+      return {
+        key: 'threads',
+        platformName: 'Threads',
+        gradientClass: 'from-[#0a0a0a] via-[#171717] to-[#000000]',
+        accentColor: '#ffffff',
+        renderLogo: () => <ThreadsLogo />
+      };
+    }
+
+    // RULE B: INSTAGRAM ACCOUNTS
+    // Strictly requires explicit 'instagram' or standalone word '\big\b'
+    // NEVER match bare substring 'insta' to prevent 'instant delivery' collisions!
+    if (
+      /\b(instagram|instagrams|aged\s*creator|ig\s*account|ig\s*accounts|\big\b)\b/i.test(target) ||
+      target.includes('instagram') ||
+      target.includes('instagram account') ||
+      target.includes('instagram followers') ||
+      target.includes('russian instagram') ||
+      target.includes('brazil instagram')
+    ) {
+      return {
+        key: 'instagram',
+        platformName: 'Instagram',
+        gradientClass: 'from-[#4c1d95] via-[#a21caf] to-[#e11d48]',
+        accentColor: '#f43f5e',
+        renderLogo: () => <InstagramIcon className="w-8 h-8" />
+      };
+    }
+
+    // RULE C: FACEBOOK ACCOUNTS & ASSETS
+    if (
+      /\b(facebook|facebooks|bm50|bm250|business\s*manager|facebook\s*account|facebook\s*accounts|fb\s*account|fb\s*accounts|\bfb\b)\b/i.test(target) ||
+      target.includes('facebook') ||
+      target.includes('bm50') ||
+      target.includes('bm250') ||
+      target.includes('business manager')
+    ) {
+      return {
+        key: 'facebook',
+        platformName: 'Facebook',
+        gradientClass: 'from-[#0c2340] via-[#1d4ed8] to-[#172554]',
+        accentColor: '#3b82f6',
+        renderLogo: () => <FacebookIcon className="w-8 h-8 text-[#1877f2]" />
+      };
+    }
+
+    // RULE D: TIKTOK
+    if (
+      /\b(tiktok|tiktoks|tik\s*tok)\b/i.test(target) ||
+      target.includes('tiktok') ||
+      target.includes('tik tok')
+    ) {
+      return {
+        key: 'tiktok',
+        platformName: 'TikTok',
+        gradientClass: 'from-[#09090b] via-[#18181b] to-[#020617]',
+        accentColor: '#22d3ee',
+        renderLogo: () => <TikTokIcon className="w-8 h-8 text-black" />
+      };
+    }
+
+    // RULE E: X / TWITTER
+    if (
+      /\b(twitter|twitters|aged\s*x|fresh\s*x|all[-\s]*new\s*x|new\s*x|x\.com|x\s*\(twitter\)|twitter\s*\(x\)|twitter\s*account|twitter\s*accounts|x\s*account|x\s*accounts|x\s*token|x\s*tokens|x\s*profile|x\s*profiles)\b/i.test(target) ||
+      target.includes('twitter') ||
+      target.includes('aged x') ||
+      target.includes('fresh x') ||
+      target.includes('all-new x') ||
+      target.includes('all new x') ||
+      target.includes('x.com') ||
+      target.includes('x (twitter)') ||
+      target.includes('twitter (x)') ||
+      target.includes('twitter/x') ||
+      target.includes('x/twitter')
+    ) {
+      return {
+        key: 'twitter',
+        platformName: 'X / Twitter',
+        gradientClass: 'from-[#0b0f19] via-[#111827] to-[#030712]',
+        accentColor: '#38bdf8',
+        renderLogo: () => <TwitterXIcon className="w-8 h-8 text-slate-950" />
+      };
+    }
+
+    // RULE F: SNAPCHAT
+    if (
+      /\b(snapchat|snapchats|snap\s*account|snap\s*accounts|\bsnap\b)\b/i.test(target) ||
+      target.includes('snapchat')
+    ) {
+      return {
+        key: 'snapchat',
+        platformName: 'Snapchat',
+        gradientClass: 'from-[#2e2b05] via-[#4d4809] to-[#1c1a03]',
+        accentColor: '#fffc00',
+        renderLogo: () => <SnapchatLogo />
+      };
+    }
+
+    // RULE G: REDDIT
+    if (
+      /\b(reddit|reddits|reddit\s*account|reddit\s*accounts|karma\s*account)\b/i.test(target) ||
+      target.includes('reddit')
+    ) {
+      return {
+        key: 'reddit',
+        platformName: 'Reddit',
+        gradientClass: 'from-[#2b0c03] via-[#ff4500] to-[#1a0701]',
+        accentColor: '#ff4500',
+        renderLogo: () => <RedditLogo />
+      };
+    }
+
+    // RULE H: LINKEDIN
+    if (
+      /\b(linkedin|linkedins|linkedin\s*account|linkedin\s*accounts)\b/i.test(target) ||
+      target.includes('linkedin')
+    ) {
+      return {
+        key: 'linkedin',
+        platformName: 'LinkedIn',
+        gradientClass: 'from-[#001c3d] via-[#0a66c2] to-[#001026]',
+        accentColor: '#0a66c2',
+        renderLogo: () => <LinkedInLogo />
+      };
+    }
+
+    // RULE I: PINTEREST
+    if (
+      /\b(pinterest|pinterests|pinterest\s*account|pinterest\s*accounts)\b/i.test(target) ||
+      target.includes('pinterest')
+    ) {
+      return {
+        key: 'pinterest',
+        platformName: 'Pinterest',
+        gradientClass: 'from-[#290005] via-[#bd081c] to-[#190003]',
+        accentColor: '#bd081c',
+        renderLogo: () => <PinterestLogo />
+      };
+    }
+
+    // -------------------------------------------------------------
+    // PRIORITY 4: EMAIL SERVICES
     // -------------------------------------------------------------
     if (target.includes('gmail') || target.includes('google mail')) {
       return {
@@ -667,7 +823,7 @@ export function getBrandConfig(
     }
 
     // -------------------------------------------------------------
-    // PRIORITY 4: AI & DEVELOPER TOOLS
+    // PRIORITY 5: AI & DEVELOPER TOOLS
     // -------------------------------------------------------------
     if (target.includes('chatgpt') || target.includes('chat gpt') || target.includes('openai') || target.includes('gpt-4') || target.includes('gpt 4') || target.includes('dall-e')) {
       return {
@@ -816,150 +972,6 @@ export function getBrandConfig(
         gradientClass: 'from-[#1c1917] via-[#292524] to-[#0c0a09]',
         accentColor: '#f59e0b',
         renderLogo: () => <CryptoLogo />
-      };
-    }
-
-    // -------------------------------------------------------------
-    // PRIORITY 7: SOCIAL MEDIA PLATFORMS (STRICT REGEX & HIERARCHY)
-    // -------------------------------------------------------------
-    // RULE A: THREADS MUST PRECEDE INSTAGRAM!
-    // Threads accounts almost always specify "Instagram", "Instagram Login", "Instagram linked",
-    // or "2FA Instagram" because Threads authenticates through Meta's Instagram service.
-    // ANY product mentioning "thread" or "threads" is categorized as Threads.
-    if (
-      /\b(threads?)\b/i.test(target) ||
-      target.includes('thread')
-    ) {
-      return {
-        key: 'threads',
-        platformName: 'Threads',
-        gradientClass: 'from-[#0a0a0a] via-[#171717] to-[#000000]',
-        accentColor: '#ffffff',
-        renderLogo: () => <ThreadsLogo />
-      };
-    }
-
-    // RULE B: INSTAGRAM ACCOUNTS
-    // Strictly requires explicit 'instagram' or standalone word '\big\b'
-    // NEVER match bare substring 'insta' to prevent 'instant delivery' collisions!
-    if (
-      /\b(instagram|instagrams|aged\s*creator|ig\s*account|ig\s*accounts|\big\b)\b/i.test(target) ||
-      target.includes('instagram account') ||
-      target.includes('instagram followers') ||
-      target.includes('russian instagram') ||
-      target.includes('brazil instagram')
-    ) {
-      return {
-        key: 'instagram',
-        platformName: 'Instagram',
-        gradientClass: 'from-[#4c1d95] via-[#a21caf] to-[#e11d48]',
-        accentColor: '#f43f5e',
-        renderLogo: () => <InstagramIcon className="w-8 h-8" />
-      };
-    }
-
-    // RULE C: FACEBOOK ACCOUNTS & ASSETS
-    if (
-      /\b(facebook|facebooks|bm50|bm250|business\s*manager|facebook\s*account|facebook\s*accounts|fb\s*account|fb\s*accounts|\bfb\b)\b/i.test(target) ||
-      target.includes('facebook') ||
-      target.includes('bm50') ||
-      target.includes('bm250') ||
-      target.includes('business manager')
-    ) {
-      return {
-        key: 'facebook',
-        platformName: 'Facebook',
-        gradientClass: 'from-[#0c2340] via-[#1d4ed8] to-[#172554]',
-        accentColor: '#3b82f6',
-        renderLogo: () => <FacebookIcon className="w-8 h-8 text-[#1877f2]" />
-      };
-    }
-
-    // RULE D: TIKTOK
-    if (
-      /\b(tiktok|tiktoks|tik\s*tok)\b/i.test(target) ||
-      target.includes('tiktok') ||
-      target.includes('tik tok')
-    ) {
-      return {
-        key: 'tiktok',
-        platformName: 'TikTok',
-        gradientClass: 'from-[#09090b] via-[#18181b] to-[#020617]',
-        accentColor: '#22d3ee',
-        renderLogo: () => <TikTokIcon className="w-8 h-8 text-black" />
-      };
-    }
-
-    // RULE E: X / TWITTER
-    if (
-      /\b(twitter|twitters|aged\s*x|x\.com|x\s*\(twitter\)|twitter\s*account|twitter\s*accounts|x\s*account|x\s*accounts)\b/i.test(target) ||
-      target.includes('twitter') ||
-      target.includes('aged x') ||
-      target.includes('x.com') ||
-      target.includes('x (twitter)')
-    ) {
-      return {
-        key: 'twitter',
-        platformName: 'X / Twitter',
-        gradientClass: 'from-[#0b0f19] via-[#111827] to-[#030712]',
-        accentColor: '#38bdf8',
-        renderLogo: () => <TwitterXIcon className="w-8 h-8 text-slate-950" />
-      };
-    }
-
-    // RULE F: SNAPCHAT
-    if (
-      /\b(snapchat|snapchats|snap\s*account|snap\s*accounts|\bsnap\b)\b/i.test(target) ||
-      target.includes('snapchat')
-    ) {
-      return {
-        key: 'snapchat',
-        platformName: 'Snapchat',
-        gradientClass: 'from-[#2e2b05] via-[#4d4809] to-[#1c1a03]',
-        accentColor: '#fffc00',
-        renderLogo: () => <SnapchatLogo />
-      };
-    }
-
-    // RULE G: REDDIT
-    if (
-      /\b(reddit|reddits|reddit\s*account|reddit\s*accounts|karma\s*account)\b/i.test(target) ||
-      target.includes('reddit')
-    ) {
-      return {
-        key: 'reddit',
-        platformName: 'Reddit',
-        gradientClass: 'from-[#2b0c03] via-[#ff4500] to-[#1a0701]',
-        accentColor: '#ff4500',
-        renderLogo: () => <RedditLogo />
-      };
-    }
-
-    // RULE H: LINKEDIN
-    if (
-      /\b(linkedin|linkedins|linkedin\s*account|linkedin\s*accounts)\b/i.test(target) ||
-      target.includes('linkedin')
-    ) {
-      return {
-        key: 'linkedin',
-        platformName: 'LinkedIn',
-        gradientClass: 'from-[#001c3d] via-[#0a66c2] to-[#001026]',
-        accentColor: '#0a66c2',
-        renderLogo: () => <LinkedInLogo />
-      };
-    }
-
-    // RULE I: PINTEREST
-    if (
-      /\b(pinterest|pinterests|pinterest\s*account|pinterest\s*accounts)\b/i.test(target) ||
-      target.includes('pinterest')
-    ) {
-      return {
-        key: 'pinterest',
-        platformName: 'Pinterest',
-        gradientClass: 'from-[#290005] via-[#bd081c] to-[#190003]',
-        accentColor: '#bd081c',
-        renderLogo: () => <PinterestLogo />
       };
     }
 
