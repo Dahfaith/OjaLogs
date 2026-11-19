@@ -369,27 +369,39 @@ export function getServicePriceForCountry(
 
   // Ensure minimum loss-protection floor per brand
   const sn = (service.name || '').toLowerCase();
-  if (sn.includes('plenty') || sn.includes('fish') || sn.includes('pof')) {
+  const sid = (service.id || '').toLowerCase();
+  const match = (term: string) => sn.includes(term) || sid.includes(term);
+
+  if (match('plenty') || match('fish') || match('pof')) {
     const pofMin: Record<string, number> = { US: 950, GB: 1150, NG: 850, CA: 1050, DE: 1250, FR: 1200, NL: 1180 };
     basePrice = Math.max(basePrice, pofMin[code] || 950);
-  } else if (sn.includes('whatsapp')) {
+  } else if (match('whatsapp')) {
     const waMin: Record<string, number> = { US: 4850, GB: 5200, NG: 2200, CA: 4950, DE: 5400, FR: 5300, NL: 5150 };
     basePrice = Math.max(basePrice, waMin[code] || 4850);
-  } else if (sn.includes('telegram')) {
+  } else if (match('telegram')) {
     const tgMin: Record<string, number> = { US: 3650, GB: 3950, NG: 1800, CA: 3750, DE: 4100, FR: 4000, NL: 3900 };
     basePrice = Math.max(basePrice, tgMin[code] || 3650);
-  } else if (sn.includes('facebook') || sn.includes('instagram')) {
+  } else if (match('facebook') || match('instagram')) {
     const metaMin: Record<string, number> = { US: 1350, GB: 1550, NG: 950, CA: 1400, DE: 1600, FR: 1580, NL: 1500 };
     basePrice = Math.max(basePrice, metaMin[code] || 1350);
-  } else if (sn.includes('google')) {
+  } else if (match('google') || match('gmail')) {
     const gMin: Record<string, number> = { US: 1950, GB: 2200, NG: 1100, CA: 2050, DE: 2350, FR: 2300, NL: 2250 };
     basePrice = Math.max(basePrice, gMin[code] || 1950);
-  } else if (sn.includes('1688') || sn.includes('hinge')) {
+  } else if (match('binance')) {
+    const binMin: Record<string, number> = { US: 1850, GB: 2100, NG: 1500, CA: 1950, DE: 2250, FR: 2200, NL: 2150 };
+    basePrice = Math.max(basePrice, binMin[code] || 1850);
+  } else if (match('netflix')) {
+    const netMin: Record<string, number> = { US: 1050, GB: 1250, NG: 950, CA: 1150, DE: 1350, FR: 1300, NL: 1250 };
+    basePrice = Math.max(basePrice, netMin[code] || 1050);
+  } else if (match('1688') || match('hinge')) {
     const midMin: Record<string, number> = { US: 850, GB: 950, NG: 800, CA: 880, DE: 1000, FR: 980, NL: 950 };
     basePrice = Math.max(basePrice, midMin[code] || 850);
-  } else if (sn.includes('tinder') || sn.includes('bumble') || sn.includes('twitter')) {
+  } else if (match('tinder') || match('bumble') || match('twitter') || match('x.com') || match('x-twitter') || /\b(twitter|x)\b/i.test(sn)) {
     const tinMin: Record<string, number> = { US: 750, GB: 850, NG: 850, CA: 800, DE: 900, FR: 880, NL: 860 };
     basePrice = Math.max(basePrice, tinMin[code] || 750);
+  } else if (match('openai') || match('chatgpt') || match('tiktok')) {
+    const lowMin: Record<string, number> = { US: 550, GB: 650, NG: 500, CA: 580, DE: 700, FR: 680, NL: 650 };
+    basePrice = Math.max(basePrice, lowMin[code] || 550);
   }
 
   basePrice = Math.max(basePrice, 450);

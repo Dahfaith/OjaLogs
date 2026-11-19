@@ -21,6 +21,64 @@ router.get('/options', async (req, res) => {
   });
 });
 
+// Single Source of Truth: Authoritative Quote Endpoint (publicly verifiable)
+const QuoteSchema = z.object({
+  serviceId: z.string().min(1),
+  countryCode: z.string().optional().default('US'),
+  rentalType: z.enum(['one_time_sms', 'long_term_rental']).optional().default('one_time_sms')
+});
+
+router.post('/quote', validateBody(QuoteSchema), (req, res, next) => {
+  try {
+    const { serviceId, countryCode, rentalType } = req.body;
+    const quote = numbersService.calculateAuthoritativePrice(serviceId, countryCode, rentalType);
+    res.json({
+      success: true,
+      data: {
+        serviceId: quote.service.id,
+        serviceName: quote.service.name,
+        countryCode: quote.country.code,
+        countryName: quote.country.name,
+        rentalType,
+        unitPriceNgn: quote.unitPriceNgn,
+        totalPriceNgn: quote.totalPriceNgn,
+        currency: quote.currency
+      },
+      meta: { request_id: `quote_${Date.now()}`, timestamp: new Date().toISOString() }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/quote', (req, res, next) => {
+  try {
+    const serviceId = String(req.query.serviceId || req.query.service || '');
+    const countryCode = String(req.query.countryCode || req.query.country || 'US');
+    const rentalType = req.query.rentalType === 'long_term_rental' ? 'long_term_rental' : 'one_time_sms';
+    if (!serviceId) {
+      return res.status(400).json({ success: false, error: 'serviceId is required' });
+    }
+    const quote = numbersService.calculateAuthoritativePrice(serviceId, countryCode, rentalType);
+    res.json({
+      success: true,
+      data: {
+        serviceId: quote.service.id,
+        serviceName: quote.service.name,
+        countryCode: quote.country.code,
+        countryName: quote.country.name,
+        rentalType,
+        unitPriceNgn: quote.unitPriceNgn,
+        totalPriceNgn: quote.totalPriceNgn,
+        currency: quote.currency
+      },
+      meta: { request_id: `quote_${Date.now()}`, timestamp: new Date().toISOString() }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // All routes below require customer authentication
 router.use(authMiddleware);
 
@@ -51,18 +109,20 @@ const RequestNumberSchema = z.object({
     successRate: z.number().optional().default(98)
   }).passthrough(),
   rentalType: z.enum(['one_time_sms', 'long_term_rental']).default('one_time_sms'),
-  idempotencyKey: z.string().min(1)
+  idempotencyKey: z.string().min(1),
+  expectedPrice: z.number().optional()
 });
 
 router.post('/request', numberRequestLimiter, idempotencyMiddleware, validateBody(RequestNumberSchema), async (req, res, next) => {
   try {
-    const { country, service, rentalType, idempotencyKey } = req.body;
+    const { country, service, rentalType, idempotencyKey, expectedPrice } = req.body;
     const session = await numbersService.requestNumber(
       req.user!.id,
       country,
       service,
       rentalType,
-      idempotencyKey
+      idempotencyKey,
+      expectedPrice
     );
 
     res.status(201).json({

@@ -276,6 +276,26 @@ class ApiClient {
     return this.request('/numbers/options');
   }
 
+  async getNumberQuote(
+    serviceId: string,
+    countryCode: string = 'US',
+    rentalType: 'one_time_sms' | 'long_term_rental' = 'one_time_sms'
+  ): Promise<{
+    serviceId: string;
+    serviceName: string;
+    countryCode: string;
+    countryName: string;
+    rentalType: 'one_time_sms' | 'long_term_rental';
+    unitPriceNgn: number;
+    totalPriceNgn: number;
+    currency: string;
+  }> {
+    return this.request('/numbers/quote', {
+      method: 'POST',
+      body: JSON.stringify({ serviceId, countryCode, rentalType })
+    });
+  }
+
   async getNumbers(): Promise<VirtualNumberSession[]> {
     return this.request<VirtualNumberSession[]>('/numbers');
   }
@@ -283,12 +303,13 @@ class ApiClient {
   async requestNumber(
     country: CountryOption,
     service: ServiceOption,
-    rentalType: 'one_time_sms' | 'long_term_rental' = 'one_time_sms'
+    rentalType: 'one_time_sms' | 'long_term_rental' = 'one_time_sms',
+    expectedPrice?: number
   ): Promise<VirtualNumberSession> {
     const idempotencyKey = `idem_num_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     return this.request<VirtualNumberSession>('/numbers/request', {
       method: 'POST',
-      body: JSON.stringify({ country, service, rentalType, idempotencyKey })
+      body: JSON.stringify({ country, service, rentalType, idempotencyKey, expectedPrice })
     });
   }
 

@@ -134,7 +134,7 @@ async function runTests() {
   const preCancelBalance = walletService.getBalance(userId);
   const cancelRes = await numbersService.cancelAndRefund(userId, session2.id);
   assert(cancelRes.cancelled === true, 'Session cancelled');
-  assert(walletService.getBalance(userId) === preCancelBalance + 1450, '100% refund credited back to wallet');
+  assert(walletService.getBalance(userId) === preCancelBalance + session2.priceNgn, '100% refund credited back to wallet');
 
   console.log('\n========================================');
   console.log(`🏁 TEST RESULTS: ${passed} PASSED, ${failed} FAILED`);

@@ -95,7 +95,13 @@ interface AppContextType {
 
   // Virtual Numbers
   activeNumbers: VirtualNumberSession[];
-  requestNumber: (countryCode: string, serviceId: string, rentalType?: 'one_time_sms' | 'long_term_rental') => Promise<VirtualNumberSession>;
+  requestNumber: (
+    countryCode: string,
+    serviceId: string,
+    rentalType?: 'one_time_sms' | 'long_term_rental',
+    selectedService?: ServiceOption,
+    expectedPrice?: number
+  ) => Promise<VirtualNumberSession>;
   cancelNumber: (sessionId: string) => Promise<void>;
   simulateIncomingSms: (sessionId: string) => Promise<void>;
 
@@ -1038,37 +1044,89 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const requestNumber = async (
     countryCode: string,
     serviceId: string,
-    rentalType: 'one_time_sms' | 'long_term_rental' = 'one_time_sms'
+    rentalType: 'one_time_sms' | 'long_term_rental' = 'one_time_sms',
+    selectedService?: ServiceOption,
+    expectedPrice?: number
   ): Promise<VirtualNumberSession> => {
-    const country = mockCountries.find(c => c.code === countryCode) || mockCountries[0];
-    const service = mockServices.find(s => s.id === serviceId) || mockServices[0];
-    const price = getServicePriceForCountry(service, countryCode, rentalType);
+    // 1. Resolve Country
+    const country = mockCountries.find(c => c.code === countryCode) || {
+      code: countryCode,
+      name: countryCode === 'US' ? 'United States' : countryCode,
+      flag: countryCode === 'US' ? '🇺🇸' : '🌐',
+      dialCode: countryCode === 'US' ? '+1' : '+',
+      availableNumbers: 100
+    };
 
-    if (wallet.balanceNgn < price) {
-      throw new Error(`Insufficient wallet funds. Number costs ${formatPrice(price)}. Current balance: ${formatPrice(wallet.balanceNgn)}`);
+    // 2. Resolve Service: never default blindly to mockServices[0] (WhatsApp)
+    const fallbackService: ServiceOption = selectedService || mockServices.find(s => s.id === serviceId) || {
+      id: serviceId,
+      name: serviceId.toUpperCase(),
+      category: 'Messaging',
+      icon: '💬',
+      priceNgn: 750,
+      popular: true,
+      successRate: 98
+    };
+
+    // 3. Authoritative Quote from Server (Single Source of Truth)
+    let authoritativePrice: number;
+    let quoteService = fallbackService;
+    let quoteCountry = country;
+
+    try {
+      const quoteRes: any = await apiClient.getNumberQuote(serviceId, countryCode, rentalType);
+      const quoteData = quoteRes?.data || quoteRes;
+      if (quoteData && typeof quoteData.totalPriceNgn === 'number') {
+        authoritativePrice = quoteData.totalPriceNgn;
+        if (quoteData.serviceName) {
+          quoteService = {
+            ...fallbackService,
+            id: quoteData.serviceId || serviceId,
+            name: quoteData.serviceName
+          };
+        }
+        if (quoteData.countryName) {
+          quoteCountry = {
+            ...country,
+            code: quoteData.countryCode || countryCode,
+            name: quoteData.countryName
+          };
+        }
+      } else {
+        authoritativePrice = getServicePriceForCountry(fallbackService, countryCode, rentalType);
+      }
+    } catch {
+      authoritativePrice = getServicePriceForCountry(fallbackService, countryCode, rentalType);
     }
 
+    // 4. Pre-flight wallet balance check with authoritative price
+    if (wallet.balanceNgn < authoritativePrice) {
+      throw new Error(`Insufficient wallet funds. Number costs ${formatPrice(authoritativePrice)}. Current balance: ${formatPrice(wallet.balanceNgn)}`);
+    }
+
+    // 5. Checkout Protection: pass authoritativePrice as expectedPrice to backend
     let session: VirtualNumberSession;
     try {
       const countryAwareService: ServiceOption = {
-        ...service,
-        priceNgn: getServicePriceForCountry(service, countryCode, 'one_time_sms')
+        ...quoteService,
+        priceNgn: authoritativePrice
       };
-      session = await apiClient.requestNumber(country, countryAwareService, rentalType);
+      session = await apiClient.requestNumber(quoteCountry, countryAwareService, rentalType, expectedPrice ?? authoritativePrice);
     } catch (err: any) {
       console.error('[REQUEST_NUMBER_ERROR]', err);
       throw new Error(err.message || 'Telephony allocation failed. Please verify provider connectivity.');
     }
 
-    const newBalance = wallet.balanceNgn - price;
+    // 6. Deduct and update ledger with exact authoritative price
+    const newBalance = wallet.balanceNgn - authoritativePrice;
     const debitTx: LedgerTransaction = {
       id: `ldg_${Date.now()}`,
       reference: `ref_oj_${Math.floor(1000000 + Math.random() * 9000000)}`,
       type: 'debit',
       category: 'virtual_number_order',
-      amountNgn: price,
+      amountNgn: authoritativePrice,
       balanceAfterNgn: newBalance,
-      description: `Virtual line allocated for ${service.name} (${country.name})`,
+      description: `Virtual line allocated for ${quoteService.name} (${quoteCountry.name})`,
       status: 'successful',
       timestamp: new Date().toISOString()
     };

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { SEO } from '../components/common/SEO';
 import { apiClient } from '../lib/apiClient';
@@ -14,6 +15,7 @@ import {
   Check,
   CheckCircle2,
   AlertTriangle,
+  AlertCircle,
   XCircle,
   MessageSquare,
   Zap,
@@ -74,7 +76,44 @@ export const VirtualNumbersPage: React.FC = () => {
 
   const selectedCountry = countries.find(c => c.code === selectedCountryCode) || countries[0] || mockCountries[0];
   const selectedService = services.find(s => s.id === selectedServiceId) || services[0] || mockServices[0];
-  const price = getServicePriceForCountry(selectedService, selectedCountryCode, rentalType);
+
+  // Single Source of Truth: Authoritative price state synchronized with server quotes
+  const [authoritativePrice, setAuthoritativePrice] = useState<number>(() => {
+    return getServicePriceForCountry(selectedService, selectedCountryCode, rentalType);
+  });
+  const [isPriceQuoting, setIsPriceQuoting] = useState<boolean>(false);
+  const [priceChangedAlert, setPriceChangedAlert] = useState<string | null>(null);
+
+  // Dynamic Price Synchronization: Recalculate & re-quote when Country, Service, or Rental Type changes
+  useEffect(() => {
+    let isMounted = true;
+    setIsPriceQuoting(true);
+    setPriceChangedAlert(null);
+
+    // 1. Immediate optimistic calculation from shared pricing formula
+    const instantPrice = getServicePriceForCountry(selectedService, selectedCountryCode, rentalType);
+    setAuthoritativePrice(instantPrice);
+
+    // 2. Fetch authoritative quote from backend endpoint with race protection
+    apiClient.getNumberQuote(selectedService.id, selectedCountryCode, rentalType)
+      .then((res: any) => {
+        if (!isMounted) return;
+        const data = res?.data || res;
+        if (data && typeof data.totalPriceNgn === 'number') {
+          setAuthoritativePrice(data.totalPriceNgn);
+        }
+      })
+      .catch((err) => {
+        console.warn('[QUOTE_FETCH_NOTICE]', err);
+      })
+      .finally(() => {
+        if (isMounted) setIsPriceQuoting(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedCountryCode, selectedService.id, rentalType]);
 
   const filteredServices = services.filter(s => {
     if (selectedCategoryFilter !== 'all') {
@@ -99,11 +138,29 @@ export const VirtualNumbersPage: React.FC = () => {
       return;
     }
 
+    if (wallet.balanceNgn < authoritativePrice) {
+      showToast(`Insufficient wallet funds. Number costs ${formatPrice(authoritativePrice)}. Current balance: ${formatPrice(wallet.balanceNgn)}`);
+      return;
+    }
+
     setIsRequesting(true);
+    setPriceChangedAlert(null);
     try {
-      await requestNumber(selectedCountryCode, selectedServiceId, rentalType);
+      await requestNumber(selectedCountryCode, selectedService.id, rentalType, selectedService, authoritativePrice);
     } catch (err: any) {
-      showToast(err.message || 'Failed to allocate virtual line');
+      const errMsg = err.message || 'Failed to allocate virtual line';
+      if (errMsg.includes('PRICE_CHANGED') || errMsg.includes('price has updated')) {
+        setPriceChangedAlert(errMsg);
+        // Refresh authoritative price quote immediately
+        try {
+          const freshQuote: any = await apiClient.getNumberQuote(selectedService.id, selectedCountryCode, rentalType);
+          const data = freshQuote?.data || freshQuote;
+          if (data && typeof data.totalPriceNgn === 'number') {
+            setAuthoritativePrice(data.totalPriceNgn);
+          }
+        } catch {}
+      }
+      showToast(errMsg);
     } finally {
       setIsRequesting(false);
     }
@@ -229,8 +286,9 @@ export const VirtualNumbersPage: React.FC = () => {
               2. Select Service or Platform ({services.length} Total Services)
             </label>
             {selectedService && (
-              <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                Selected: {selectedService.name.split('/')[0].trim()} · {formatPrice(price)}
+              <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                <span>Selected: {selectedService.name.split('/')[0].trim()} · {formatPrice(authoritativePrice)}</span>
+                {isPriceQuoting && <span className="text-[10px] opacity-75">⋯</span>}
               </span>
             )}
           </div>
@@ -284,7 +342,7 @@ export const VirtualNumbersPage: React.FC = () => {
 
               <div className="flex items-center gap-2.5 shrink-0">
                 <span className="text-xs font-mono font-extrabold text-emerald-600 dark:text-emerald-400">
-                  {formatPrice(getServicePriceForCountry(selectedService, selectedCountryCode, rentalType))}
+                  {formatPrice(authoritativePrice)}
                 </span>
                 <ChevronDown className={`w-4 h-4 text-oj-muted transition-transform duration-200 ${isServiceDropdownOpen ? 'rotate-180 text-oj-primary' : ''}`} />
               </div>
@@ -441,13 +499,46 @@ export const VirtualNumbersPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Price Update Notice if upstream changed */}
+        {priceChangedAlert && (
+          <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">Authoritative Price Notice</p>
+              <p className="text-[11px] mt-0.5">{priceChangedAlert}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Insufficient Balance Notice */}
+        {user && wallet.balanceNgn < authoritativePrice && (
+          <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-xs text-rose-800 dark:text-rose-200 flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold">Insufficient Wallet Balance</p>
+                <p className="text-[11px] mt-0.5 text-rose-700 dark:text-rose-300">
+                  This virtual line requires <strong>{formatPrice(authoritativePrice)}</strong>. Your current balance is <strong>{formatPrice(wallet.balanceNgn)}</strong>.
+                  Please add at least <strong>{formatPrice(authoritativePrice - wallet.balanceNgn)}</strong> to allocate this number.
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/wallet"
+              className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] whitespace-nowrap shrink-0 transition-colors shadow-sm"
+            >
+              Fund Wallet
+            </Link>
+          </div>
+        )}
+
         {/* Summary & Request Button */}
         <div className="pt-3 border-t border-oj-border dark:border-oj-dark-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <span className="text-xs text-oj-muted block">Total Wallet Charge</span>
             <div className="flex items-baseline gap-2">
               <span className="font-heading font-extrabold text-xl text-oj-midnight dark:text-white">
-                {formatPrice(price)}
+                {formatPrice(authoritativePrice)}
               </span>
               <span className="text-xs text-oj-muted">
                 {user ? `(Wallet Balance: ${formatPrice(wallet.balanceNgn)})` : '(Sign in required to allocate)'}
@@ -469,11 +560,17 @@ export const VirtualNumbersPage: React.FC = () => {
           ) : (
             <button
               onClick={handleRequest}
-              disabled={isRequesting || wallet.balanceNgn < price}
+              disabled={isRequesting || isPriceQuoting || wallet.balanceNgn < authoritativePrice}
               className="py-3 px-6 rounded-btn bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white text-xs font-bold shadow-glow-primary flex items-center justify-center gap-2 transition-all disabled:opacity-50"
             >
               <Zap className="w-4 h-4 fill-white" />
-              <span>{isRequesting ? 'Allocating line...' : 'Allocate Virtual Number'}</span>
+              <span>
+                {isRequesting
+                  ? 'Allocating line...'
+                  : isPriceQuoting
+                    ? 'Verifying Price...'
+                    : `Allocate Virtual Number (${formatPrice(authoritativePrice)})`}
+              </span>
             </button>
           )}
         </div>

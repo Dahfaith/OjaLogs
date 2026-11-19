@@ -92,23 +92,131 @@ export class NumbersService {
     return count;
   }
 
+  /**
+   * Authoritative lookup of a service across live and cached catalog.
+   * Handles semantic mapping (e.g. 'twitter' <-> 'x-twitter' <-> 'X.com / Twitter').
+   */
+  findService(serviceIdOrName: string): ServiceOption | undefined {
+    if (!serviceIdOrName) return undefined;
+    const all = this.getServices();
+    const target = serviceIdOrName.trim().toLowerCase();
+    const cleanTarget = target.replace(/[^a-z0-9]/g, '');
+
+    // 1. Exact ID match
+    let match = all.find(s => s.id.toLowerCase() === target);
+    if (match) return match;
+
+    // 2. Exact Name match
+    match = all.find(s => s.name.toLowerCase() === target);
+    if (match) return match;
+
+    // 3. Clean alphanumeric match on ID
+    match = all.find(s => s.id.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanTarget);
+    if (match) return match;
+
+    // 4. Clean alphanumeric match on Name
+    match = all.find(s => s.name.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanTarget);
+    if (match) return match;
+
+    // 5. Semantic / Brand match (e.g. 'twitter' or 'x-twitter' or 'x.com')
+    if (target.includes('twitter') || target === 'x' || target.includes('x.com') || target === 'x-twitter') {
+      match = all.find(s => {
+        const sn = s.name.toLowerCase();
+        const sid = s.id.toLowerCase();
+        return sn.includes('twitter') || sid.includes('twitter') || sid === 'x-twitter' || sn.includes('x.com');
+      });
+      if (match) return match;
+    }
+
+    if (target.includes('whatsapp')) {
+      match = all.find(s => s.name.toLowerCase().includes('whatsapp') || s.id.toLowerCase().includes('whatsapp'));
+      if (match) return match;
+    }
+
+    if (target.includes('telegram')) {
+      match = all.find(s => s.name.toLowerCase().includes('telegram') || s.id.toLowerCase().includes('telegram'));
+      if (match) return match;
+    }
+
+    // 6. Substring match
+    match = all.find(s => s.name.toLowerCase().includes(target) || s.id.toLowerCase().includes(target));
+    if (match) return match;
+
+    return undefined;
+  }
+
+  /**
+   * Authoritative server-side pricing engine for any service, country, and rental type.
+   * Guarantees Single Source of Truth for both quotes and checkout execution.
+   */
+  calculateAuthoritativePrice(
+    serviceIdOrName: string,
+    countryCode: string = 'US',
+    rentalType: 'one_time_sms' | 'long_term_rental' = 'one_time_sms'
+  ): {
+    service: ServiceOption;
+    country: CountryOption;
+    unitPriceNgn: number;
+    totalPriceNgn: number;
+    currency: 'NGN';
+  } {
+    const service = this.findService(serviceIdOrName);
+    if (!service) {
+      throw new AppError(`Virtual number service "${serviceIdOrName}" is not available. Please choose a listed service.`, 404, 'SERVICE_NOT_FOUND');
+    }
+
+    const country = this.getCountries().find(c => c.code.toUpperCase() === (countryCode || 'US').toUpperCase()) ||
+      this.getCountries()[0] ||
+      { code: 'US', name: 'United States', dialCode: '+1', flag: '🇺🇸', availableNumbers: 100 };
+
+    const unitPriceNgn = getServicePriceForCountry(service, country.code, 'one_time_sms');
+    const totalPriceNgn = rentalType === 'long_term_rental' ? unitPriceNgn * 5 : unitPriceNgn;
+
+    return {
+      service,
+      country,
+      unitPriceNgn,
+      totalPriceNgn,
+      currency: 'NGN'
+    };
+  }
+
   async requestNumber(
     userId: string,
     country: CountryOption,
     service: ServiceOption,
     rentalType: 'one_time_sms' | 'long_term_rental' = 'one_time_sms',
-    idempotencyKey: string
+    idempotencyKey: string,
+    expectedPrice?: number
   ): Promise<VirtualNumberSession> {
-    // Profit & Loss Safeguard: Compute exact country-specific protected price
-    let unitPrice = service.priceNgn || 450;
-    if (process.env.NODE_ENV !== 'test') {
-      unitPrice = getServicePriceForCountry(service, country.code);
+    // 1. Authoritative Pricing Calculation (Single Source of Truth)
+    let price: number;
+    let effectiveService = service;
+    let effectiveCountry = country;
+
+    try {
+      const quote = this.calculateAuthoritativePrice(service.id || service.name, country.code, rentalType);
+      effectiveService = quote.service;
+      effectiveCountry = quote.country;
+      price = quote.totalPriceNgn;
+    } catch (qErr) {
+      // Fallback calculation using shared authoritative math
+      const unitPrice = getServicePriceForCountry(service, country.code);
+      price = rentalType === 'long_term_rental' ? unitPrice * 5 : unitPrice;
     }
 
-    const price = rentalType === 'long_term_rental' ? unitPrice * 5 : unitPrice;
+    // 2. Checkout Protection: Prevent silent charges or stale price drift
+    if (typeof expectedPrice === 'number' && expectedPrice > 0 && Math.abs(expectedPrice - price) > 0) {
+      throw new AppError(
+        `The price for ${effectiveService.name} (${effectiveCountry.name}) has updated to ₦${price.toLocaleString()} (was ₦${expectedPrice.toLocaleString()}). Please confirm the new rate.`,
+        409,
+        'PRICE_CHANGED'
+      );
+    }
+
     let sessionRef = `req_num_${Math.floor(100000 + Math.random() * 900000)}`;
 
-    // Pre-flight balance verification (Fail before contacting telephony provider)
+    // 3. Pre-flight balance verification (Fail before contacting telephony provider)
     const currentBalance = walletService.getBalance(userId);
     if (currentBalance < price) {
       throw new AppError(
@@ -118,23 +226,25 @@ export class NumbersService {
       );
     }
 
-    let phoneNumber = `${country.dialCode} ${Math.floor(1000000 + Math.random() * 9000000)}`;
+    let phoneNumber = `${effectiveCountry.dialCode} ${Math.floor(1000000 + Math.random() * 9000000)}`;
 
     // Live TextPlug API Integration
     const textplug = telephonyRegistry.get('provider-textplug');
     const apiKey = (textplug?.apiKey || process.env.TEXTPLUG_API_KEY || '').trim();
     if (apiKey && apiKey.length > 5 && process.env.NODE_ENV !== 'test') {
       try {
-        let tpServiceName = service.name;
-        if (service.id === '1688' || service.name.startsWith('1688')) {
+        let tpServiceName = effectiveService.name || service.name;
+        if (effectiveService.id === '1688' || effectiveService.name.startsWith('1688')) {
           tpServiceName = '1688';
-        } else if (service.name.includes('/')) {
-          tpServiceName = service.name.split('/')[0].trim();
-        } else if (service.name.includes('(')) {
-          tpServiceName = service.name.split('(')[0].trim();
+        } else if (effectiveService.id === 'x-twitter' || effectiveService.name.toLowerCase().includes('twitter')) {
+          tpServiceName = 'X.com / Twitter';
+        } else if (effectiveService.name.includes('/')) {
+          tpServiceName = effectiveService.name.split('/')[0].trim();
+        } else if (effectiveService.name.includes('(')) {
+          tpServiceName = effectiveService.name.split('(')[0].trim();
         }
 
-        console.log(`[TEXTPLUG] Ordering real virtual line for: ${tpServiceName} (${country.code})...`);
+        console.log(`[TEXTPLUG] Ordering real virtual line for: ${tpServiceName} (${effectiveCountry.code})...`);
         const tpRes = await fetch(`${textplug?.apiUrl || process.env.TEXTPLUG_BASE_URL || 'https://merchant.textplug.net'}/v1/sms/swift/order`, {
           method: 'POST',
           headers: {
@@ -144,8 +254,9 @@ export class NumbersService {
           },
           body: JSON.stringify({
             serviceName: tpServiceName,
-            country: country.code,
-            countryCode: country.code
+            serviceId: effectiveService.id,
+            country: effectiveCountry.code,
+            countryCode: effectiveCountry.code
           })
         });
 
@@ -183,7 +294,7 @@ export class NumbersService {
       price,
       'virtual_number_order',
       `ref_oj_${Math.floor(1000000 + Math.random() * 9000000)}`,
-      `Virtual line allocated for ${service.name} (${country.name})`,
+      `Virtual line allocated for ${effectiveService.name} (${effectiveCountry.name})`,
       idempotencyKey
     );
 
@@ -192,8 +303,8 @@ export class NumbersService {
     // Dispatch real-time telephony lease alert to admin
     notificationService.recordTelephonyAlert(
       userId.includes('@') ? userId : 'customer@ojalogs.com',
-      country.name,
-      service.name,
+      effectiveCountry.name,
+      effectiveService.name,
       phoneNumber,
       price,
       sessionRef
@@ -202,8 +313,8 @@ export class NumbersService {
     const session: VirtualNumberSession = {
       id: `num_ses_${Date.now()}`,
       reference: sessionRef,
-      country,
-      service,
+      country: effectiveCountry,
+      service: effectiveService,
       phoneNumber,
       rentalType,
       status: 'active',
