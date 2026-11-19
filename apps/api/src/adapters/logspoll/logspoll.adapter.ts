@@ -37,6 +37,7 @@ export interface LogsPollOrderResult {
 export class LogsPollAdapter {
   private apiKey: string;
   private baseUrl: string;
+  private productCache = new Map<string, { product: LogsPollProduct; expiresAt: number }>();
 
   constructor(apiKey?: string, baseUrl?: string) {
     this.apiKey = (apiKey || process.env.LOGSPOLL_API_KEY || env.LOGSPOLL_API_KEY || '').trim();
@@ -48,6 +49,7 @@ export class LogsPollAdapter {
     if (baseUrl) {
       this.baseUrl = baseUrl.replace(/\/+$/, '');
     }
+    this.productCache.clear();
   }
 
   getCredentials() {
@@ -236,6 +238,11 @@ export class LogsPollAdapter {
           };
         });
 
+        // Seed short-term in-memory product cache for ultra-fast checkout pre-validation
+        records.forEach((item: LogsPollProduct) => {
+          this.productCache.set(item.id, { product: item, expiresAt: Date.now() + 60 * 1000 });
+        });
+
         return {
           records,
           total,
@@ -262,14 +269,22 @@ export class LogsPollAdapter {
   }
 
   async fetchProduct(productId: string): Promise<LogsPollProduct | null> {
-    const cleanId = productId.replace(/^lp_/, '');
+    const cleanId = productId.replace(/^lp_/, '').trim();
+    
+    // Check in-memory availability cache first (0ms latency)
+    const cached = this.productCache.get(cleanId);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.product;
+    }
+
     try {
       const resp = await fetch(`${this.baseUrl}/products/${cleanId}`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
           ...(this.apiKey ? { 'Authorization': `Bearer ${this.apiKey}` } : {})
-        }
+        },
+        signal: AbortSignal.timeout(6000)
       });
 
       if (resp.ok) {
@@ -282,7 +297,7 @@ export class LogsPollAdapter {
               : (p.priceNgn || p.price || 0)
           );
           const serverNum = Number(p.server_number || 2);
-          return {
+          const prod: LogsPollProduct = {
             id: String(p.id || cleanId),
             slug: p.slug || `lp-${String(cleanId).slice(0, 8)}`,
             title: String(p.name || p.title || 'Digital Product').replace(/^"+|"+$/g, '').trim(),
@@ -294,6 +309,8 @@ export class LogsPollAdapter {
             deliveryFormat: p.delivery_type || p.deliveryFormat || 'Credentials / 2FA Token',
             description: p.description || ''
           };
+          this.productCache.set(cleanId, { product: prod, expiresAt: Date.now() + 60 * 1000 });
+          return prod;
         }
       }
     } catch (err: any) {
@@ -387,7 +404,8 @@ export class LogsPollAdapter {
               quantity
             }
           ]
-        })
+        }),
+        signal: AbortSignal.timeout(8000)
       });
 
       if (resp.ok || resp.status === 201) {
@@ -405,9 +423,9 @@ export class LogsPollAdapter {
         if (!credentials && orderId) {
           try {
             // Attempt targeted fetch of the specific order
-            for (let attempt = 0; attempt < 3; attempt++) {
+            for (let attempt = 0; attempt < 2; attempt++) {
               if (attempt > 0) {
-                await new Promise(r => setTimeout(r, 800));
+                await new Promise(r => setTimeout(r, 500));
               }
 
               // First try direct single order lookup
@@ -418,7 +436,8 @@ export class LogsPollAdapter {
                   headers: {
                     'Authorization': `Bearer ${this.apiKey}`,
                     'Accept': 'application/json'
-                  }
+                  },
+                  signal: AbortSignal.timeout(3500)
                 });
                 if (singleResp.ok) {
                   const sData = await singleResp.json() as any;
@@ -433,7 +452,8 @@ export class LogsPollAdapter {
                   headers: {
                     'Authorization': `Bearer ${this.apiKey}`,
                     'Accept': 'application/json'
-                  }
+                  },
+                  signal: AbortSignal.timeout(3500)
                 });
 
                 if (ordResp.ok) {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, Trash2, ShieldCheck, ArrowRight, Wallet, CreditCard, Sparkles, AlertCircle, Clock } from 'lucide-react';
+import { X, Trash2, ShieldCheck, ArrowRight, Wallet, CreditCard, Sparkles, AlertCircle, Clock, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { BrandCoverBanner } from '../common/BrandCoverBanner';
@@ -281,18 +281,34 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                   </div>
                 ) : (
                   <div className="space-y-2 pt-1">
+                    {isProcessing && (
+                      <div className="flex items-center gap-2 p-2.5 rounded-xl bg-oj-primary/10 dark:bg-oj-primary/20 border border-oj-primary/30 text-oj-primary dark:text-blue-400 text-xs font-semibold animate-pulse">
+                        <Loader2 className="w-4 h-4 animate-spin shrink-0 text-oj-primary dark:text-blue-400" />
+                        <span>Connecting to server cluster & securing digital vault...</span>
+                      </div>
+                    )}
+
                     <button
                       disabled={isProcessing || hasOutOfStock}
                       onClick={handleWalletCheckout}
                       className="w-full py-3 px-4 rounded-btn bg-gradient-to-r from-oj-primary to-blue-600 hover:from-blue-600 hover:to-oj-primary text-white text-xs font-bold shadow-glow-primary flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                     >
-                      <Wallet className="w-4 h-4" />
-                      <span>
-                        {hasManualFulfillment
-                          ? 'Pay with NGN Wallet (Manual Fulfillment)'
-                          : 'Pay with NGN Wallet (Instant Delivery)'}
-                      </span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      {isProcessing ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Securing Digital Delivery...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Wallet className="w-4 h-4" />
+                          <span>
+                            {hasManualFulfillment
+                              ? 'Pay with NGN Wallet (Manual Fulfillment)'
+                              : 'Pay with NGN Wallet (Instant Delivery)'}
+                          </span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </>
+                      )}
                     </button>
 
                     <button
