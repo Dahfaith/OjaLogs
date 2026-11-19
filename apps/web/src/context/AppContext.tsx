@@ -87,6 +87,8 @@ interface AppContextType {
   
   // Orders
   orders: Order[];
+  refreshOrders: () => Promise<void>;
+  reloadOrders: () => Promise<void>;
   checkoutWithWallet: () => Promise<Order>;
   checkoutWithGateway: () => Promise<Order>;
   revealSecret: (orderId: string, itemId: string) => Promise<void>;
@@ -1198,6 +1200,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         fundWallet,
         refreshWallet,
         orders,
+        refreshOrders,
+        reloadOrders: refreshOrders,
         checkoutWithWallet,
         checkoutWithGateway,
         revealSecret,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   PackageCheck,
@@ -21,15 +21,18 @@ import {
   HelpCircle,
   ChevronDown,
   ChevronUp,
-  Info,
   MessageCircle,
   Clock,
   X,
   RotateCw,
-  Zap
+  Zap,
+  Sparkles,
+  Camera,
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BrandCoverBanner } from '../components/common/BrandCoverBanner';
 import { WhatsAppSupportModal } from '../components/support/WhatsAppSupportModal';
 import { SEO } from '../components/common/SEO';
 import { SMMOrder } from '@ojalogs/shared';
@@ -56,8 +59,6 @@ function parseSecretValue(secret: string): { isStructured: boolean; fields: Pars
       // Part 1: Typically UID or Username or Email
       if (parts[0].includes('@')) {
         fields.push({ label: 'LOGIN EMAIL', value: parts[0], type: 'email' });
-      } else if (/^\d{6,25}$/.test(parts[0])) {
-        fields.push({ label: 'USERNAME', value: parts[0], type: 'uid' });
       } else {
         fields.push({ label: 'USERNAME', value: parts[0], type: 'uid' });
       }
@@ -136,19 +137,48 @@ function parseSecretValue(secret: string): { isStructured: boolean; fields: Pars
   };
 }
 
+interface UnifiedOrderItem {
+  id: string;
+  orderId: string;
+  reference: string;
+  createdAt: string;
+  kind: 'account' | 'smm' | 'telephony';
+  serverCluster: string;
+  title: string;
+  category: string;
+  quantity: number;
+  totalNgn: number;
+  paymentMethod: string;
+  paymentStatus: 'paid' | 'pending';
+  fulfillmentStatus: 'completed' | 'processing' | 'refunded' | 'cancelled';
+  // Associated payloads
+  accountItem?: any;
+  smmOrder?: SMMOrder;
+  originalOrder: any;
+}
+
 export const OrdersPage: React.FC = () => {
-  const { orders, showToast, formatPrice, currency, user, setIsAuthModalOpen, setIsSupportOpen } = useApp();
-  const [activeTab, setActiveTab] = useState<'all' | 'completed' | 'pending'>('all');
-  const [orderTypeFilter, setOrderTypeFilter] = useState<'all' | 'vault' | 'smm'>('all');
+  const { orders, showToast, formatPrice, currency, user, setIsAuthModalOpen, reloadOrders } = useApp();
+  
+  // Status Filter Tabs (Matches LogsPoll: All Orders, Completed, Pending, Failed / Cancelled)
+  const [statusTab, setStatusTab] = useState<'all' | 'completed' | 'pending' | 'failed'>('all');
+  
+  // Secondary Category Filter Chips
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'account' | 'smm'>('all');
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({});
   const [guidesOpen, setGuidesOpen] = useState<Record<string, boolean>>({});
   const [rawOpen, setRawOpen] = useState<Record<string, boolean>>({});
   const [selectedHelpOrder, setSelectedHelpOrder] = useState<any | null>(null);
-  const [orderComplaintMessage, setOrderComplaintMessage] = useState('');
   const [syncingSmmId, setSyncingSmmId] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Accordion Expand/Collapse Map for Cards
+  const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
+
+  // SMM Orders State
   const [smmOrders, setSmmOrders] = useState<SMMOrder[]>(() => {
     try {
       const saved = localStorage.getItem('oj_smm_user_orders');
@@ -157,19 +187,34 @@ export const OrdersPage: React.FC = () => {
     return [];
   });
 
-  useEffect(() => {
+  const fetchLiveSMMOrders = () => {
     if (!user) return;
-    let isMounted = true;
     apiClient.getSMMOrders()
       .then(data => {
-        if (data && Array.isArray(data) && isMounted) {
+        if (data && Array.isArray(data)) {
           setSmmOrders(data);
           try { localStorage.setItem('oj_smm_user_orders', JSON.stringify(data)); } catch {}
         }
       })
       .catch(() => {});
-    return () => { isMounted = false; };
+  };
+
+  useEffect(() => {
+    fetchLiveSMMOrders();
   }, [user]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      if (typeof reloadOrders === 'function') await reloadOrders();
+      await fetchLiveSMMOrders();
+      showToast('Orders & Vault updated!');
+    } catch {
+      showToast('Orders synchronized.');
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 500);
+    }
+  };
 
   const handleSyncSMM = async (orderId: string) => {
     setSyncingSmmId(orderId);
@@ -187,36 +232,6 @@ export const OrdersPage: React.FC = () => {
       setSyncingSmmId(null);
     }
   };
-
-  const completedOrders = orders.filter(o => o.status === 'completed');
-  const pendingOrders = orders.filter(o => o.status === 'pending' || o.status === 'processing');
-
-  const filteredOrders = orders.filter(order => {
-    if (activeTab === 'completed' && order.status !== 'completed') return false;
-    if (activeTab === 'pending' && order.status !== 'pending' && order.status !== 'processing') return false;
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchesRef = order.reference.toLowerCase().includes(q);
-      const matchesProduct = order.items.some(i => i.product.title.toLowerCase().includes(q));
-      if (!matchesRef && !matchesProduct) return false;
-    }
-    return true;
-  });
-
-  const filteredSmmOrders = smmOrders.filter(order => {
-    if (activeTab === 'completed' && order.status !== 'completed') return false;
-    if (activeTab === 'pending' && order.status !== 'in_progress' && order.status !== 'pending') return false;
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchesRef = order.reference.toLowerCase().includes(q);
-      const matchesService = order.serviceName.toLowerCase().includes(q);
-      const matchesLink = order.targetLink.toLowerCase().includes(q);
-      if (!matchesRef && !matchesService && !matchesLink) return false;
-    }
-    return true;
-  });
 
   const handleCopy = (text: string, id: string, label: string = 'Credentials') => {
     navigator.clipboard.writeText(text);
@@ -237,14 +252,181 @@ export const OrdersPage: React.FC = () => {
     setRawOpen(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const toggleExpand = (itemId: string) => {
+    setExpandedOrders(prev => ({ ...prev, [itemId]: !prev[itemId] }));
+  };
+
+  // -------------------------------------------------------------
+  // Build Unified Stream of All Orders (Chronologically Sorted)
+  // -------------------------------------------------------------
+  const unifiedOrders = useMemo<UnifiedOrderItem[]>(() => {
+    const list: UnifiedOrderItem[] = [];
+
+    // 1. Digital Account Orders
+    orders.forEach(order => {
+      let fStatus: UnifiedOrderItem['fulfillmentStatus'] = 'completed';
+      if (order.status === 'processing' || order.status === 'pending') {
+        fStatus = 'processing';
+      } else if (order.status === 'refunded') {
+        fStatus = 'refunded';
+      } else if (order.status === 'cancelled') {
+        fStatus = 'cancelled';
+      }
+
+      order.items.forEach((item, idx) => {
+        list.push({
+          id: `${order.id}_${item.id || idx}`,
+          orderId: order.id,
+          reference: order.reference,
+          createdAt: order.createdAt,
+          kind: 'account',
+          serverCluster: item.product?.serverCluster || 'Server 2',
+          title: item.product?.title || 'Digital Account Product',
+          category: item.product?.category || 'Marketplace Item',
+          quantity: item.quantity || 1,
+          totalNgn: item.totalNgn || order.totalNgn,
+          paymentMethod: order.paymentMethod === 'wallet' ? 'NGN Wallet' : 'BACH Gateway',
+          paymentStatus: order.status === 'pending' && order.paymentMethod === 'bach_direct' ? 'pending' : 'paid',
+          fulfillmentStatus: fStatus,
+          accountItem: item,
+          originalOrder: order
+        });
+      });
+    });
+
+    // 2. SMM Boost Orders
+    smmOrders.forEach(smm => {
+      let fStatus: UnifiedOrderItem['fulfillmentStatus'] = 'completed';
+      if (smm.status === 'in_progress' || smm.status === 'pending') {
+        fStatus = 'processing';
+      } else if (smm.status === 'refunded') {
+        fStatus = 'refunded';
+      } else if (smm.status === 'canceled' || smm.status === 'partial') {
+        fStatus = smm.status === 'partial' ? 'processing' : 'cancelled';
+      }
+
+      list.push({
+        id: `smm_${smm.id}`,
+        orderId: smm.id,
+        reference: smm.reference,
+        createdAt: smm.createdAt,
+        kind: 'smm',
+        serverCluster: 'SMM Boost',
+        title: smm.serviceName || 'Social Media Boost Campaign',
+        category: 'Social Media Engagement',
+        quantity: smm.quantity,
+        totalNgn: smm.totalNgn,
+        paymentMethod: 'NGN Wallet',
+        paymentStatus: 'paid',
+        fulfillmentStatus: fStatus,
+        smmOrder: smm,
+        originalOrder: smm
+      });
+    });
+
+    // Sort strictly newest first
+    return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [orders, smmOrders]);
+
+  // Overall Counts for Primary Tabs (Mathematically exact: Completed + Pending + Failed === All)
+  const counts = useMemo(() => {
+    let completed = 0;
+    let pending = 0;
+    let failed = 0;
+
+    unifiedOrders.forEach(item => {
+      if (item.fulfillmentStatus === 'completed') completed++;
+      else if (item.fulfillmentStatus === 'processing') pending++;
+      else if (item.fulfillmentStatus === 'refunded' || item.fulfillmentStatus === 'cancelled') failed++;
+    });
+
+    return {
+      all: unifiedOrders.length,
+      completed,
+      pending,
+      failed
+    };
+  }, [unifiedOrders]);
+
+  // Category counts
+  const categoryCounts = useMemo(() => {
+    const account = unifiedOrders.filter(i => i.kind === 'account').length;
+    const smm = unifiedOrders.filter(i => i.kind === 'smm').length;
+    return { all: unifiedOrders.length, account, smm };
+  }, [unifiedOrders]);
+
+  // Filtered orders list
+  const filteredOrders = useMemo(() => {
+    return unifiedOrders.filter(item => {
+      // 1. Status Filter Tab
+      if (statusTab === 'completed' && item.fulfillmentStatus !== 'completed') return false;
+      if (statusTab === 'pending' && item.fulfillmentStatus !== 'processing') return false;
+      if (statusTab === 'failed' && item.fulfillmentStatus !== 'refunded' && item.fulfillmentStatus !== 'cancelled') return false;
+
+      // 2. Category Filter Chip
+      if (categoryFilter !== 'all' && item.kind !== categoryFilter) return false;
+
+      // 3. Search query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchesRef = item.reference.toLowerCase().includes(q);
+        const matchesTitle = item.title.toLowerCase().includes(q);
+        const matchesCluster = item.serverCluster.toLowerCase().includes(q);
+        const matchesLink = item.smmOrder?.targetLink?.toLowerCase().includes(q);
+        if (!matchesRef && !matchesTitle && !matchesCluster && !matchesLink) return false;
+      }
+
+      return true;
+    });
+  }, [unifiedOrders, statusTab, categoryFilter, searchQuery]);
+
+  // Helper to get brand icon and styling
+  const getBrandVisual = (title: string, kind: string) => {
+    const t = title.toLowerCase();
+    if (kind === 'smm') {
+      return {
+        icon: Zap,
+        bgClass: 'bg-amber-500/10 text-amber-500 border-amber-500/20 dark:bg-amber-500/20'
+      };
+    }
+    if (t.includes('outlook') || t.includes('microsoft') || t.includes('hotmail') || t.includes('email') || t.includes('mail')) {
+      return {
+        icon: Mail,
+        bgClass: 'bg-blue-500/10 text-blue-600 border-blue-500/20 dark:bg-blue-500/20 dark:text-blue-400'
+      };
+    }
+    if (t.includes('instagram') || t.includes('threads')) {
+      return {
+        icon: Camera,
+        bgClass: 'bg-gradient-to-br from-purple-500/15 via-pink-500/15 to-orange-500/15 text-pink-600 border-pink-500/20 dark:text-pink-400'
+      };
+    }
+    if (t.includes('twitter') || t.includes(' x ') || t.startsWith('x ')) {
+      return {
+        icon: Lock,
+        bgClass: 'bg-slate-900/10 text-slate-900 border-slate-900/20 dark:bg-white/10 dark:text-white dark:border-white/20'
+      };
+    }
+    if (t.includes('facebook') || t.includes('fb') || t.includes('meta')) {
+      return {
+        icon: Shield,
+        bgClass: 'bg-blue-600/10 text-blue-600 border-blue-600/20 dark:bg-blue-600/20 dark:text-blue-400'
+      };
+    }
+    return {
+      icon: KeyRound,
+      bgClass: 'bg-oj-primary/10 text-oj-primary border-oj-primary/20 dark:bg-oj-cyan/15 dark:text-oj-cyan'
+    };
+  };
+
   const handleDownloadTxt = (order: any, item: any, secretVal: string, instruction?: string) => {
     const parsed = parseSecretValue(secretVal);
     let content = `=======================================================\n`;
     content += `OJALOGS DIGITAL DELIVERY VAULT & RECEIPT\n`;
     content += `=======================================================\n\n`;
     content += `Order Reference:   ${order.reference}\n`;
-    content += `Product:           ${item.product.title}\n`;
-    content += `Server Cluster:    ${item.product.serverCluster || 'Server 2'}\n`;
+    content += `Product:           ${item.product?.title || item.title}\n`;
+    content += `Server Cluster:    ${item.product?.serverCluster || 'Server 2'}\n`;
     content += `Purchase Date:     ${new Date(order.createdAt).toLocaleString()}\n`;
     content += `Payment Method:    ${order.paymentMethod === 'wallet' ? 'NGN Wallet' : 'BACH Gateway'}\n`;
     content += `Amount Paid:       NGN ${item.totalNgn || order.totalNgn}\n\n`;
@@ -280,7 +462,7 @@ export const OrdersPage: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `ojalogs-${order.reference}-${item.id.slice(-6)}.txt`;
+    link.download = `ojalogs-${order.reference}-${item.id?.slice(-6) || 'receipt'}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -294,7 +476,7 @@ export const OrdersPage: React.FC = () => {
     if (!parsed.isStructured) return parsed.raw;
 
     const lines = [
-      `[OJALOGS ORDER ${order.reference}] - ${item.product.title}`,
+      `[OJALOGS ORDER ${order.reference}] - ${item.product?.title || item.title}`,
       ...parsed.fields.map(f => `${f.label}: ${f.value}`),
       `Raw: ${parsed.raw}`
     ];
@@ -305,8 +487,9 @@ export const OrdersPage: React.FC = () => {
     const t = title.toLowerCase();
     if (t.includes('facebook') || t.includes('fb') || t.includes('meta')) return 'https://facebook.com';
     if (t.includes('instagram')) return 'https://instagram.com';
-    if (t.includes('twitter') || t.includes('x.com')) return 'https://x.com';
+    if (t.includes('twitter') || t.includes(' x ') || t.startsWith('x ')) return 'https://x.com';
     if (t.includes('tiktok')) return 'https://tiktok.com';
+    if (t.includes('outlook') || t.includes('microsoft') || t.includes('hotmail')) return 'https://outlook.live.com';
     if (t.includes('gmail') || t.includes('google')) return 'https://mail.google.com';
     if (t.includes('telegram') || t.includes('tg')) return 'https://web.telegram.org';
     return 'https://facebook.com';
@@ -315,7 +498,7 @@ export const OrdersPage: React.FC = () => {
   if (!user) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-16 pb-24 md:pb-12 text-center space-y-6">
-        <SEO title="Customer Orders & Vault" noindex={true} />
+        <SEO title="My Orders & Vault" noindex={true} />
         <div className="w-16 h-16 rounded-2xl bg-oj-primary/10 text-oj-primary dark:bg-oj-primary/20 dark:text-oj-cyan mx-auto flex items-center justify-center border border-oj-primary/20 shadow-soft">
           <PackageCheck className="w-8 h-8" />
         </div>
@@ -346,554 +529,398 @@ export const OrdersPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-3 sm:px-4 py-5 sm:py-6 space-y-6 pb-28 md:pb-12 overflow-x-hidden">
-      <SEO title="Customer Orders & Vault" noindex={true} />
-      {/* Page Header */}
-      <div>
-        <div className="flex items-center gap-2.5 mb-1">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-oj-primary to-blue-600 text-white flex items-center justify-center shadow-md shadow-oj-primary/20">
-            <PackageCheck className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="font-heading font-extrabold text-xl sm:text-2xl text-oj-midnight dark:text-white tracking-tight">
-              Customer Orders & Vault
-            </h1>
-            <p className="text-[11px] sm:text-xs text-oj-muted dark:text-oj-dark-muted">
-              Access and copy your delivered digital accounts, license keys, and purchase receipts.
-            </p>
-          </div>
+    <div className="max-w-3xl mx-auto px-3.5 sm:px-6 py-6 sm:py-8 space-y-6 pb-28 md:pb-16 overflow-x-hidden">
+      <SEO title="My Orders & Vault" noindex={true} />
+
+      {/* ============================================================== */}
+      {/* 1. Header Section (Directly aligned with LogsPoll Reference)   */}
+      {/* ============================================================== */}
+      <div className="space-y-1">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] sm:text-xs font-mono font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+            ORDER RECONCILIATION & FULFILLMENT
+          </span>
+
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="p-1.5 rounded-lg text-oj-muted hover:text-oj-midnight dark:hover:text-white hover:bg-oj-surface-alt transition-all flex items-center gap-1 text-[11px] font-bold"
+            title="Refresh Orders"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-oj-primary' : ''}`} />
+            <span className="hidden sm:inline">Refresh</span>
+          </button>
         </div>
+
+        <h1 className="font-heading font-black text-2xl sm:text-3xl text-oj-midnight dark:text-white tracking-tight">
+          My Orders
+        </h1>
+        <p className="text-xs sm:text-sm text-oj-muted dark:text-oj-dark-muted max-w-xl leading-relaxed">
+          Track payment reconciliation, automated processing, and order fulfillment status.
+        </p>
       </div>
 
-      {/* Order Category Pills: All Orders / Digital Accounts Vault / SMM Social Boosts */}
+      {/* ============================================================== */}
+      {/* 2. Primary Status Filter Tabs (Matches LogsPoll in Image 3)     */}
+      {/* ============================================================== */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
         <button
-          onClick={() => setOrderTypeFilter('all')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
-            orderTypeFilter === 'all'
-              ? 'bg-oj-midnight dark:bg-white text-white dark:text-oj-midnight shadow-md'
+          onClick={() => setStatusTab('all')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+            statusTab === 'all'
+              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md font-extrabold'
               : 'bg-white dark:bg-oj-dark-surface text-oj-muted hover:text-oj-midnight dark:hover:text-white border border-oj-border dark:border-oj-dark-border'
           }`}
         >
-          <PackageCheck className="w-3.5 h-3.5" />
-          <span>All Orders ({orders.length + smmOrders.length})</span>
+          <span>All Orders</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-black ${
+            statusTab === 'all' ? 'bg-white/25 text-white' : 'bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-oj-muted'
+          }`}>
+            {counts.all}
+          </span>
         </button>
 
         <button
-          onClick={() => setOrderTypeFilter('vault')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
-            orderTypeFilter === 'vault'
-              ? 'bg-oj-primary text-white shadow-md'
+          onClick={() => setStatusTab('completed')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+            statusTab === 'completed'
+              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md font-extrabold'
               : 'bg-white dark:bg-oj-dark-surface text-oj-muted hover:text-oj-midnight dark:hover:text-white border border-oj-border dark:border-oj-dark-border'
           }`}
         >
-          <KeyRound className="w-3.5 h-3.5" />
-          <span>Digital Accounts ({orders.length})</span>
+          <span>Completed</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-black ${
+            statusTab === 'completed' ? 'bg-white/25 text-white' : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400'
+          }`}>
+            {counts.completed}
+          </span>
         </button>
 
         <button
-          onClick={() => setOrderTypeFilter('smm')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
-            orderTypeFilter === 'smm'
-              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md'
+          onClick={() => setStatusTab('pending')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+            statusTab === 'pending'
+              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md font-extrabold'
               : 'bg-white dark:bg-oj-dark-surface text-oj-muted hover:text-oj-midnight dark:hover:text-white border border-oj-border dark:border-oj-dark-border'
           }`}
         >
-          <Zap className="w-3.5 h-3.5 text-amber-400" />
-          <span>Social Boosts SMM ({smmOrders.length})</span>
+          <span>Pending</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-black ${
+            statusTab === 'pending' ? 'bg-white/25 text-white' : 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400'
+          }`}>
+            {counts.pending}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setStatusTab('failed')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+            statusTab === 'failed'
+              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md font-extrabold'
+              : 'bg-white dark:bg-oj-dark-surface text-oj-muted hover:text-oj-midnight dark:hover:text-white border border-oj-border dark:border-oj-dark-border'
+          }`}
+        >
+          <span>Failed / Cancelled</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-black ${
+            statusTab === 'failed' ? 'bg-white/25 text-white' : 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
+          }`}>
+            {counts.failed}
+          </span>
         </button>
       </div>
 
-      {/* Tabs & Search */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        {/* Status Tabs */}
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-oj-surface-alt/70 dark:bg-oj-dark-surface-alt/70 border border-oj-border dark:border-oj-dark-border w-full sm:w-fit overflow-x-auto scrollbar-none">
+      {/* ============================================================== */}
+      {/* 3. Search Bar (Exact LogsPoll layout)                           */}
+      {/* ============================================================== */}
+      <div className="relative">
+        <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-oj-muted" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search by order ref or product..."
+          className="w-full text-xs pl-10 pr-9 py-2.5 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border text-oj-midnight dark:text-white placeholder:text-oj-muted/70 focus:outline-none focus:border-amber-500 shadow-soft transition-all"
+        />
+        {searchQuery && (
           <button
-            onClick={() => setActiveTab('all')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
-              activeTab === 'all'
-                ? 'bg-white dark:bg-oj-dark-surface text-oj-primary dark:text-oj-cyan shadow-sm font-extrabold'
-                : 'text-oj-muted hover:text-oj-midnight dark:hover:text-white'
-            }`}
+            onClick={() => setSearchQuery('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-oj-muted hover:text-oj-midnight dark:hover:text-white"
           >
-            All ({orderTypeFilter === 'smm' ? smmOrders.length : orderTypeFilter === 'vault' ? orders.length : (orders.length + smmOrders.length)})
+            <X className="w-3.5 h-3.5" />
           </button>
-          <button
-            onClick={() => setActiveTab('completed')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
-              activeTab === 'completed'
-                ? 'bg-white dark:bg-oj-dark-surface text-emerald-600 dark:text-emerald-400 shadow-sm font-extrabold'
-                : 'text-oj-muted hover:text-oj-midnight dark:hover:text-white'
-            }`}
-          >
-            Completed ({orderTypeFilter === 'smm' ? smmOrders.filter(o => o.status === 'completed').length : orderTypeFilter === 'vault' ? completedOrders.length : (completedOrders.length + smmOrders.filter(o => o.status === 'completed').length)})
-          </button>
-          <button
-            onClick={() => setActiveTab('pending')}
-            className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
-              activeTab === 'pending'
-                ? 'bg-white dark:bg-oj-dark-surface text-amber-600 dark:text-amber-400 shadow-sm font-extrabold'
-                : 'text-oj-muted hover:text-oj-midnight dark:hover:text-white'
-            }`}
-          >
-            Pending ({orderTypeFilter === 'smm' ? smmOrders.filter(o => o.status !== 'completed' && o.status !== 'canceled').length : orderTypeFilter === 'vault' ? pendingOrders.length : (pendingOrders.length + smmOrders.filter(o => o.status !== 'completed' && o.status !== 'canceled').length)})
-          </button>
-        </div>
-
-        {/* Search */}
-        <div className="relative w-full sm:w-64">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-oj-muted" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by order ref, service or product..."
-            className="w-full text-xs pl-8 pr-3 py-2 rounded-xl bg-oj-surface-alt dark:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border text-oj-midnight dark:text-white focus:outline-none focus:border-oj-primary transition-all"
-          />
-        </div>
+        )}
       </div>
 
-      {/* Orders List */}
-      <div className="space-y-5">
-        {/* 1. SMM Boost Orders (Shown when in 'all' or 'smm' filter) */}
-        {(orderTypeFilter === 'all' || orderTypeFilter === 'smm') && filteredSmmOrders.length > 0 && (
-          <div className="space-y-4">
-            {orderTypeFilter === 'all' && (
-              <div className="flex items-center justify-between pb-1 border-b border-oj-border/60 dark:border-oj-dark-border/60">
-                <span className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5 uppercase tracking-wider">
-                  <Zap className="w-3.5 h-3.5" />
-                  Social Boosts Orders ({filteredSmmOrders.length})
-                </span>
-                <Link to="/boost" className="text-xs text-oj-primary hover:underline font-semibold">
-                  + New Boost
-                </Link>
-              </div>
-            )}
-            {filteredSmmOrders.map((smmOrder) => (
-              <div
-                key={smmOrder.id}
-                className="rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft overflow-hidden"
-              >
-                <div className="p-4 sm:p-5 bg-oj-surface-alt/40 dark:bg-oj-dark-surface-alt/40 border-b border-oj-border dark:border-oj-dark-border flex flex-wrap items-center justify-between gap-3">
-                  <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono font-extrabold text-sm sm:text-base text-oj-midnight dark:text-white">
-                        {smmOrder.reference}
-                      </span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 flex items-center gap-1">
-                        <Zap className="w-3 h-3 text-amber-500" />
-                        SMM Boost
-                      </span>
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                        smmOrder.status === 'completed'
-                          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-                          : smmOrder.status === 'canceled'
-                          ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
-                          : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
-                      }`}>
-                        {smmOrder.status.toUpperCase()}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-oj-muted font-medium">
-                      Placed on {new Date(smmOrder.createdAt).toLocaleDateString()} at {new Date(smmOrder.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · Method: {currency} Wallet
-                    </p>
-                  </div>
+      {/* ============================================================== */}
+      {/* 4. Secondary Category Filter Chips (Unified without 0 silos)   */}
+      {/* ============================================================== */}
+      <div className="flex items-center gap-2 text-xs overflow-x-auto pb-1 scrollbar-none">
+        <span className="text-[11px] text-oj-muted font-bold mr-1 shrink-0">Filter By:</span>
+        <button
+          onClick={() => setCategoryFilter('all')}
+          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all shrink-0 ${
+            categoryFilter === 'all'
+              ? 'bg-oj-midnight dark:bg-white text-white dark:text-oj-midnight font-extrabold'
+              : 'text-oj-muted hover:text-oj-midnight dark:hover:text-white'
+          }`}
+        >
+          All Items ({categoryCounts.all})
+        </button>
 
-                  <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-                    <span className="font-mono font-black text-base sm:text-lg text-emerald-600 dark:text-emerald-400">
-                      {formatPrice(smmOrder.totalNgn)}
-                    </span>
+        <button
+          onClick={() => setCategoryFilter('account')}
+          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all shrink-0 flex items-center gap-1 ${
+            categoryFilter === 'account'
+              ? 'bg-oj-primary text-white font-extrabold'
+              : 'text-oj-muted hover:text-oj-midnight dark:hover:text-white'
+          }`}
+        >
+          <KeyRound className="w-3 h-3" />
+          <span>Digital Accounts ({categoryCounts.account})</span>
+        </button>
+
+        <button
+          onClick={() => setCategoryFilter('smm')}
+          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all shrink-0 flex items-center gap-1 ${
+            categoryFilter === 'smm'
+              ? 'bg-amber-500 text-white font-extrabold'
+              : 'text-oj-muted hover:text-oj-midnight dark:hover:text-white'
+          }`}
+        >
+          <Zap className="w-3 h-3 text-amber-300" />
+          <span>Social Boosts SMM ({categoryCounts.smm})</span>
+        </button>
+      </div>
+
+      {/* ============================================================== */}
+      {/* 5. Unified Orders Stream (Direct Card Match to Image 3)        */}
+      {/* ============================================================== */}
+      <div className="space-y-4">
+        {filteredOrders.map((item, index) => {
+          const isExpanded = expandedOrders[item.id] !== undefined 
+            ? expandedOrders[item.id] 
+            : (item.fulfillmentStatus === 'processing' || index === 0);
+          
+          const visual = getBrandVisual(item.title, item.kind);
+          const VisualIcon = visual.icon;
+
+          return (
+            <div
+              key={item.id}
+              className="rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft overflow-hidden transition-all hover:border-amber-500/40"
+            >
+              {/* Card Container Padding */}
+              <div className="p-4 sm:p-5 space-y-4">
+                {/* ------------------------------------------------ */}
+                {/* Top Row: Server Cluster & Ref (Matches LogsPoll) */}
+                {/* ------------------------------------------------ */}
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                    {item.serverCluster}
+                  </span>
+
+                  <div className="flex items-center gap-1.5 text-xs font-mono text-oj-muted dark:text-oj-dark-muted">
+                    <span className="font-semibold select-all">Ref: {item.reference}</span>
                     <button
-                      onClick={() => handleSyncSMM(smmOrder.id)}
-                      disabled={syncingSmmId === smmOrder.id}
-                      className="p-2 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border hover:border-oj-primary text-oj-muted hover:text-oj-midnight dark:hover:text-white transition-all shadow-sm"
-                      title="Check Live Provider Progress"
+                      type="button"
+                      onClick={() => handleCopy(item.reference, `ref_${item.id}`, 'Order reference')}
+                      className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-oj-muted hover:text-oj-midnight dark:hover:text-white transition-colors"
+                      title="Copy Order Reference"
                     >
-                      <RotateCw className={`w-4 h-4 ${syncingSmmId === smmOrder.id ? 'animate-spin text-oj-primary' : ''}`} />
+                      {copiedId === `ref_${item.id}` ? (
+                        <Check className="w-3.5 h-3.5 text-emerald-500" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5" />
+                      )}
                     </button>
                   </div>
                 </div>
 
-                <div className="p-4 sm:p-5 space-y-3">
-                  <div>
-                    <h4 className="font-heading font-bold text-sm text-oj-midnight dark:text-white">
-                      {smmOrder.serviceName}
-                    </h4>
-                    <div className="mt-1 flex items-center gap-2 text-xs">
-                      <span className="text-oj-muted">Target Link:</span>
-                      <a
-                        href={smmOrder.targetLink}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="font-mono text-oj-primary hover:underline flex items-center gap-1 max-w-md truncate"
-                      >
-                        <span className="truncate">{smmOrder.targetLink}</span>
-                        <ExternalLink className="w-3 h-3 shrink-0" />
-                      </a>
-                    </div>
+                {/* ------------------------------------------------ */}
+                {/* Middle Row: Icon + Date + Product Title + Status */}
+                {/* ------------------------------------------------ */}
+                <div className="flex items-start gap-3.5">
+                  {/* Brand Visual Icon Box */}
+                  <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0 border shadow-xs ${visual.bgClass}`}>
+                    <VisualIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-oj-border/50 dark:border-oj-dark-border/50 text-xs">
-                    <div className="p-2.5 rounded-xl bg-oj-surface-alt/50 dark:bg-oj-dark-surface-alt/50">
-                      <span className="text-[10px] text-oj-muted block">Quantity</span>
-                      <span className="font-mono font-extrabold text-oj-midnight dark:text-white">
-                        {smmOrder.quantity.toLocaleString()}
+                  {/* Title & Metadata */}
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-[11px] text-oj-muted dark:text-oj-dark-muted font-medium">
+                      <Clock className="w-3 h-3 text-oj-muted/70 shrink-0" />
+                      <span>
+                        {new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {' · '}
+                        {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-oj-surface-alt/50 dark:bg-oj-dark-surface-alt/50">
-                      <span className="text-[10px] text-oj-muted block">Start Count</span>
-                      <span className="font-mono font-extrabold text-oj-midnight dark:text-white">
-                        {smmOrder.startCount?.toLocaleString() || '0'}
-                      </span>
-                    </div>
-                    <div className="p-2.5 rounded-xl bg-oj-surface-alt/50 dark:bg-oj-dark-surface-alt/50">
-                      <span className="text-[10px] text-oj-muted block">Remains</span>
-                      <span className="font-mono font-extrabold text-oj-midnight dark:text-white">
-                        {smmOrder.remains !== undefined ? smmOrder.remains.toLocaleString() : 'In Delivery'}
-                      </span>
-                    </div>
-                    <div className="p-2.5 rounded-xl bg-oj-surface-alt/50 dark:bg-oj-dark-surface-alt/50">
-                      <span className="text-[10px] text-oj-muted block">Status</span>
-                      <span className="font-bold text-oj-primary dark:text-oj-cyan capitalize">
-                        {smmOrder.status.replace('_', ' ')}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
 
-        {/* 2. Digital Accounts & Vault Orders (Shown when in 'all' or 'vault' filter) */}
-        {(orderTypeFilter === 'all' || orderTypeFilter === 'vault') && (
-          <div className="space-y-4">
-            {orderTypeFilter === 'all' && filteredSmmOrders.length > 0 && filteredOrders.length > 0 && (
-              <div className="flex items-center justify-between pb-1 border-b border-oj-border/60 dark:border-oj-dark-border/60 pt-2">
-                <span className="text-xs font-bold text-oj-primary dark:text-oj-cyan flex items-center gap-1.5 uppercase tracking-wider">
-                  <KeyRound className="w-3.5 h-3.5" />
-                  Digital Accounts & Vault ({filteredOrders.length})
-                </span>
-                <Link to="/storefront" className="text-xs text-oj-primary hover:underline font-semibold">
-                  + Storefront
-                </Link>
-              </div>
-            )}
-            {filteredOrders.map((order) => (
-            <div
-              key={order.id}
-              className="rounded-2xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border shadow-soft overflow-hidden"
-            >
-              {/* Order Card Top Bar */}
-              <div className="p-4 sm:p-5 bg-oj-surface-alt/40 dark:bg-oj-dark-surface-alt/40 border-b border-oj-border dark:border-oj-dark-border flex flex-wrap items-center justify-between gap-3">
-                <div className="space-y-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono font-extrabold text-sm sm:text-base text-oj-midnight dark:text-white">
-                      {order.reference}
-                    </span>
-                    {order.status === 'completed' ? (
+                    <h3 className="font-heading font-black text-sm sm:text-base text-oj-midnight dark:text-white leading-snug line-clamp-2">
+                      {item.title}
+                    </h3>
+
+                    {/* Dual Status Pills (Matches LogsPoll in Image 3) */}
+                    <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                      {/* 1. Payment Pill */}
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        Completed
+                        <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                        <span>Paid</span>
                       </span>
-                    ) : order.status === 'processing' || order.status === 'pending' ? (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 dark:border-blue-800 flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-blue-500 animate-spin" />
-                        Fulfillment In Progress
-                      </span>
-                    ) : order.status === 'refunded' ? (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-                        ↩ Refunded to Wallet
-                      </span>
-                    ) : (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                        {order.status}
-                      </span>
-                    )}
+
+                      {/* 2. Fulfillment Pill */}
+                      {item.fulfillmentStatus === 'completed' ? (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                          <span>Delivered</span>
+                        </span>
+                      ) : item.fulfillmentStatus === 'processing' ? (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-800 flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-amber-500 animate-spin" />
+                          <span>Delivery Awaiting Supplier</span>
+                        </span>
+                      ) : item.fulfillmentStatus === 'refunded' ? (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                          ↩ Refunded to Wallet
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
+                          ❌ Failed / Cancelled
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-[11px] text-oj-muted font-medium">
-                    Placed on {new Date(order.createdAt).toLocaleDateString()} at {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · Method: {order.paymentMethod === 'wallet' ? `${currency} Wallet` : 'BACH Gateway'}
-                  </p>
                 </div>
 
-                <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-                  <span className="font-mono font-black text-base sm:text-lg text-oj-midnight dark:text-white">
-                    {formatPrice(order.totalNgn)}
-                  </span>
+                {/* ------------------------------------------------ */}
+                {/* Bottom Row: Price & View Details Button (Image 3) */}
+                {/* ------------------------------------------------ */}
+                <div className="pt-2 border-t border-oj-border/50 dark:border-oj-dark-border/50 flex items-center justify-between gap-3">
+                  <div className="font-heading font-black text-lg sm:text-xl text-oj-midnight dark:text-white tracking-tight">
+                    {formatPrice(item.totalNgn)}
+                  </div>
+
                   <button
-                    onClick={() => window.print()}
-                    className="p-2 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border hover:border-oj-primary text-oj-muted hover:text-oj-midnight dark:hover:text-white transition-all shadow-sm"
-                    title="Print / Save Invoice"
+                    type="button"
+                    onClick={() => toggleExpand(item.id)}
+                    className="px-4 py-2 rounded-xl bg-oj-midnight hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5"
                   >
-                    <Printer className="w-4 h-4" />
+                    <span>{isExpanded ? 'Hide Details' : 'View Details'}</span>
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                   </button>
                 </div>
               </div>
 
-              {/* Order Items List */}
-              <div className="p-3.5 sm:p-5 space-y-4">
-                {order.items.map((item) => {
-                  const portalUrl = getPlatformLoginUrl(item.product.title);
-
-                  return (
-                    <div
-                      key={item.id}
-                      className="p-4 sm:p-5 rounded-2xl bg-oj-surface-alt/30 dark:bg-oj-dark-surface-alt/30 border border-oj-border/80 dark:border-oj-dark-border/80 space-y-4"
-                    >
-                      {/* Product Header Row */}
-                      <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <BrandCoverBanner
-                            product={item.product}
-                            title={item.product.title}
-                            category={item.product.category}
-                            className="w-12 h-12 rounded-xl shrink-0 shadow-sm"
-                            showSubtitle={false}
-                          />
-                          <div className="min-w-0">
-                            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-oj-primary dark:text-oj-cyan block mb-0.5">
-                              {item.product.serverCluster || 'SERVER 2'}
-                            </span>
-                            <p className="text-xs sm:text-sm font-bold text-oj-midnight dark:text-white leading-snug line-clamp-2">
-                              {item.product.title}
-                            </p>
-                            <p className="text-[11px] text-oj-muted font-mono mt-0.5">
-                              Qty: {item.quantity} · {formatPrice(item.totalNgn)}
-                            </p>
+              {/* ============================================================== */}
+              {/* Collapsible Digital Vault / Fulfillment Details Area           */}
+              {/* ============================================================== */}
+              <AnimatePresence>
+                {isExpanded && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="border-t border-oj-border dark:border-oj-dark-border bg-oj-surface-alt/40 dark:bg-oj-dark-surface-alt/30 p-4 sm:p-5 space-y-4"
+                  >
+                    {/* CASE A: Digital Account Orders */}
+                    {item.kind === 'account' && item.accountItem && (
+                      <div className="space-y-4">
+                        {/* Refunded Notice Card */}
+                        {item.fulfillmentStatus === 'refunded' && (
+                          <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
+                            <span className="text-base leading-none">↩</span>
+                            <div>
+                              <p className="font-bold text-amber-950 dark:text-amber-100">Order Refunded to NGN Wallet</p>
+                              <p className="text-[11px] text-amber-800 dark:text-amber-300 mt-0.5">
+                                100% of {formatPrice(item.totalNgn)} was credited back to your account wallet. You can use your balance to purchase an in-stock alternative.
+                              </p>
+                            </div>
                           </div>
-                        </div>
-
-                        {order.status === 'refunded' ? (
-                          <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2.5 py-1 rounded-lg border border-amber-200 dark:border-amber-800 shrink-0">
-                            ↩ Refunded to Wallet
-                          </span>
-                        ) : order.status === 'cancelled' ? (
-                          <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 shrink-0">
-                            ✕ Cancelled
-                          </span>
-                        ) : order.status === 'processing' || order.status === 'pending' ? (
-                          <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-2.5 py-1 rounded-lg border border-blue-200 dark:border-blue-800 shrink-0 flex items-center gap-1">
-                            <Clock className="w-3 h-3 animate-spin" />
-                            <span>Fulfillment In Progress</span>
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800 shrink-0">
-                            ✓ Dispatched
-                          </span>
                         )}
-                      </div>
 
-                      {/* Digital Delivery Vault Container (Exact match to reference screenshots) */}
-                      {item.deliveredSecrets && item.deliveredSecrets.length > 0 && (
-                        <div className="space-y-3">
-                          {item.deliveredSecrets.map((sec, idx) => {
-                            const secretVal = sec.value || '';
-                            const parsed = parseSecretValue(secretVal);
-                            const itemKey = `${order.id}_${item.id}_${idx}`;
-                            const isGuideOpen = guidesOpen[itemKey] !== false; // default open
-                            const isRawOpen = !!rawOpen[itemKey];
+                        {/* Processing / Awaiting Supplier Card */}
+                        {item.fulfillmentStatus === 'processing' && (
+                          <div className="p-4 rounded-xl bg-gradient-to-br from-amber-50/80 via-white to-amber-50/30 dark:from-amber-950/30 dark:via-oj-dark-surface dark:to-amber-950/10 border border-amber-200/80 dark:border-amber-800/80 space-y-3">
+                            <div className="flex items-start gap-3">
+                              <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/20">
+                                <Clock className="w-5 h-5 animate-spin" />
+                              </div>
+                              <div className="space-y-0.5">
+                                <h4 className="font-heading font-black text-sm text-amber-950 dark:text-amber-100">
+                                  Order Confirmed · Account Credentials Being Prepared
+                                </h4>
+                                <p className="text-xs text-amber-800 dark:text-amber-300">
+                                  Your payment of {formatPrice(item.totalNgn)} was verified. Our operations fleet is securing and verifying your account credentials and 2FA keys.
+                                </p>
+                              </div>
+                            </div>
 
-                            const isFacebook = item.product.title.toLowerCase().includes('facebook') || item.product.title.toLowerCase().includes('fb');
-                            const isInstagram = item.product.title.toLowerCase().includes('instagram');
-                            const isTwitter = item.product.title.toLowerCase().includes('twitter') || item.product.title.toLowerCase().includes('x');
-                            const isEmail = item.product.title.toLowerCase().includes('gmail') || item.product.title.toLowerCase().includes('email');
-                            const platformName = isFacebook ? 'FACEBOOK' : isInstagram ? 'INSTAGRAM' : isTwitter ? 'TWITTER (X)' : isEmail ? 'EMAIL' : 'DIGITAL';
+                            {/* 3-Step Milestone Progression */}
+                            <div className="grid grid-cols-3 gap-2 pt-1 text-[11px]">
+                              <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1.5">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                <span>1. Paid</span>
+                              </div>
+                              <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 font-bold flex items-center gap-1.5">
+                                <Clock className="w-3.5 h-3.5 text-amber-500 animate-spin shrink-0" />
+                                <span>2. Allocating</span>
+                              </div>
+                              <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800/50 text-slate-400 font-medium flex items-center gap-1.5">
+                                <span>3. Vault Reveal</span>
+                              </div>
+                            </div>
 
-                            return (
-                              <div
-                                key={idx}
-                                className="rounded-2xl bg-white dark:bg-[#12161f] border border-oj-border dark:border-oj-dark-border p-4 sm:p-6 shadow-md space-y-4"
-                              >
-                                {/* Vault Header */}
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 rounded-xl bg-oj-primary/10 dark:bg-oj-cyan/10 text-oj-primary dark:text-oj-cyan border border-oj-primary/20 flex items-center justify-center shrink-0">
-                                    <Shield className="w-5 h-5" />
-                                  </div>
-                                  <div>
-                                    <h3 className="font-heading font-black text-base sm:text-lg text-oj-midnight dark:text-white">
-                                      Digital Delivery Vault
-                                    </h3>
-                                    <p className="text-[11px] sm:text-xs text-oj-muted dark:text-oj-dark-muted">
-                                      Verified Secure Access · Sensitive details masked by default
-                                    </p>
-                                  </div>
-                                </div>
+                            <a
+                              href={`https://wa.me/2347069659752?text=${encodeURIComponent(`Hello Ojalogs Operations Desk, I placed order ${item.reference} for "${item.title}". Kindly expedite my credentials.`)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2"
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                              <span>Expedite on WhatsApp (07069659752)</span>
+                            </a>
+                          </div>
+                        )}
 
-                                {order.status === 'refunded' && (
-                                  <div className="p-3.5 rounded-xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
-                                    <span className="text-base">↩</span>
-                                    <div>
-                                      <p className="font-bold">Order Refunded to NGN Wallet</p>
-                                      <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-0.5">
-                                        This order was refunded back to your account wallet. For inquiries, reach out to 24/7 WhatsApp Desk: <strong>07069659752</strong>.
-                                      </p>
-                                    </div>
-                                  </div>
-                                )}
+                        {/* Delivered Digital Vault (When Completed) */}
+                        {item.accountItem.deliveredSecrets && item.accountItem.deliveredSecrets.length > 0 && (
+                          <div className="space-y-4">
+                            {item.accountItem.deliveredSecrets.map((sec: any, secIdx: number) => {
+                              const secretVal = sec.value || '';
+                              if (secretVal === 'PENDING_DISPATCH') return null;
 
-                                {secretVal === 'PENDING_DISPATCH' || (sec.type as any) === 'pending_fulfillment' || order.status === 'processing' ? (
-                                  <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-blue-50/80 via-white to-blue-50/40 dark:from-blue-950/40 dark:via-oj-dark-surface dark:to-blue-950/20 border border-blue-200/80 dark:border-blue-800/80 shadow-soft space-y-3.5">
-                                    <div className="flex items-start sm:items-center gap-3">
-                                      <div className="w-10 h-10 rounded-xl bg-blue-600/10 dark:bg-blue-400/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-600/20">
-                                        <Clock className="w-5 h-5 animate-spin" />
+                              const parsed = parseSecretValue(secretVal);
+                              const itemKey = `${item.id}_sec_${secIdx}`;
+                              const isGuideOpen = guidesOpen[itemKey] !== false;
+                              const isRawOpen = !!rawOpen[itemKey];
+
+                              return (
+                                <div
+                                  key={secIdx}
+                                  className="rounded-xl bg-white dark:bg-[#12161f] border border-oj-border dark:border-oj-dark-border p-4 sm:p-5 shadow-sm space-y-4"
+                                >
+                                  {/* Vault Header */}
+                                  <div className="flex items-center justify-between gap-2 pb-2 border-b border-oj-border dark:border-oj-dark-border">
+                                    <div className="flex items-center gap-2.5">
+                                      <div className="w-8 h-8 rounded-lg bg-oj-primary/10 text-oj-primary dark:bg-oj-cyan/15 dark:text-oj-cyan flex items-center justify-center shrink-0">
+                                        <Shield className="w-4 h-4" />
                                       </div>
                                       <div>
-                                        <h4 className="font-heading font-black text-sm sm:text-base text-blue-950 dark:text-blue-100">
-                                          Order Confirmed · Account Credentials Being Prepared
+                                        <h4 className="font-heading font-black text-sm text-oj-midnight dark:text-white">
+                                          Digital Delivery Vault
                                         </h4>
-                                        <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
-                                          Your payment of {formatPrice(item.totalNgn)} was verified. Our operations fleet is securing and verifying your account credentials and 2FA keys.
+                                        <p className="text-[10px] text-oj-muted dark:text-oj-dark-muted">
+                                          AES-256 Encrypted Storage · Masked Credentials
                                         </p>
                                       </div>
                                     </div>
 
-                                    <div className="p-3 rounded-xl bg-white/80 dark:bg-black/30 border border-blue-100 dark:border-blue-900/60 text-xs text-blue-900 dark:text-blue-200 font-medium">
-                                      {sec.instruction || 'Credentials will automatically appear in this vault upon verification.'}
-                                    </div>
-
-                                    <div className="flex flex-wrap items-center gap-2 pt-1">
-                                      <a
-                                        href={`https://wa.me/2347069659752?text=${encodeURIComponent(`Hello Ojalogs Priority Desk, I placed Order #${order.reference} for "${item.product.title}". Please expedite credential dispatch.`)}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm flex items-center gap-2 transition-all active:scale-[0.98]"
-                                      >
-                                        <span>💬 Expedite on WhatsApp (07069659752)</span>
-                                      </a>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <>
-                                    {/* Top Action Buttons (Usage Guide, Download .txt, Copy All) */}
-                                    <div className="flex flex-wrap items-center gap-2 pt-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleGuide(itemKey)}
-                                    className="py-2 px-3.5 rounded-xl bg-oj-primary/10 dark:bg-oj-primary/20 hover:bg-oj-primary/15 dark:hover:bg-oj-primary/30 text-oj-primary dark:text-oj-cyan border border-oj-primary/20 text-xs font-bold flex items-center gap-1.5 transition-all"
-                                  >
-                                    <Info className="w-3.5 h-3.5 text-oj-primary dark:text-oj-cyan" />
-                                    <span>{isGuideOpen ? 'Hide Guide' : 'Usage Guide'}</span>
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDownloadTxt(order, item, secretVal, sec.instruction)}
-                                    className="py-2 px-3.5 rounded-xl bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-border dark:hover:bg-oj-dark-border text-oj-midnight dark:text-white border border-oj-border dark:border-oj-dark-border text-xs font-bold flex items-center gap-1.5 transition-all"
-                                  >
-                                    <Download className="w-3.5 h-3.5 text-oj-muted" />
-                                    <span>Download .txt</span>
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCopy(getCopyAllText(order, item, secretVal), `all_${itemKey}`, 'All credentials')}
-                                    className="py-2 px-4 rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-oj-cyan hover:from-blue-700 hover:to-blue-600 text-white text-xs font-extrabold shadow-md shadow-blue-500/20 flex items-center gap-1.5 transition-all active:scale-[0.98]"
-                                  >
-                                    {copiedId === `all_${itemKey}` ? (
-                                      <>
-                                        <Check className="w-3.5 h-3.5 text-white" />
-                                        <span>Copied All!</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Copy className="w-3.5 h-3.5" />
-                                        <span>Copy All</span>
-                                      </>
-                                    )}
-                                  </button>
-                                </div>
-
-                                {/* How to Use Guide Box (Expandable / Collapsible with Ojalogs brand blue theme) */}
-                                <AnimatePresence>
-                                  {isGuideOpen && (
-                                    <motion.div
-                                      initial={{ opacity: 0, height: 0 }}
-                                      animate={{ opacity: 1, height: 'auto' }}
-                                      exit={{ opacity: 0, height: 0 }}
-                                      transition={{ duration: 0.2 }}
-                                      className="border-l-4 border-oj-primary bg-blue-50/60 dark:bg-oj-midnight/50 rounded-r-2xl p-4 sm:p-5 border-y border-r border-blue-200/60 dark:border-blue-900/40 space-y-3"
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-4 h-4 rounded-full bg-oj-primary text-white flex items-center justify-center text-[10px] font-bold shrink-0">
-                                          !
-                                        </div>
-                                        <h4 className="font-heading font-black text-xs sm:text-sm text-oj-midnight dark:text-white uppercase tracking-tight">
-                                          HOW TO USE YOUR PURCHASED {platformName} ACCOUNT
-                                        </h4>
-                                      </div>
-
-                                      <div className="space-y-2.5 text-xs text-oj-midnight/90 dark:text-slate-200">
-                                        <div className="flex items-start gap-2.5">
-                                          <span className="w-5 h-5 rounded-full bg-oj-primary text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
-                                            1
-                                          </span>
-                                          <p className="leading-relaxed">
-                                            Navigate to <a href={portalUrl} target="_blank" rel="noopener noreferrer" className="font-bold underline text-oj-primary dark:text-oj-cyan">{portalUrl}</a> using a dedicated browser profile or anti-detect browser with residential proxy.
-                                          </p>
-                                        </div>
-
-                                        <div className="flex items-start gap-2.5">
-                                          <span className="w-5 h-5 rounded-full bg-oj-primary text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
-                                            2
-                                          </span>
-                                          <p className="leading-relaxed">
-                                            Log in using the <strong>User ID (UID) / Username</strong> and <strong>Password</strong> provided below.
-                                          </p>
-                                        </div>
-
-                                        <div className="flex items-start gap-2.5">
-                                          <span className="w-5 h-5 rounded-full bg-oj-primary text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
-                                            3
-                                          </span>
-                                          <p className="leading-relaxed">
-                                            When 2FA is prompted, generate the 6-digit code via <a href="https://2fa.live" target="_blank" rel="noopener noreferrer" className="font-bold underline text-oj-primary dark:text-oj-cyan">https://2fa.live</a> using the <strong>2FA Secret Key</strong>.
-                                          </p>
-                                        </div>
-
-                                        <div className="flex items-start gap-2.5">
-                                          <span className="w-5 h-5 rounded-full bg-oj-primary text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
-                                            4
-                                          </span>
-                                          <p className="leading-relaxed">
-                                            If access token or session cookies were provided, import them into your automation software or cookie extension.
-                                          </p>
-                                        </div>
-
-                                        <div className="flex items-start gap-2.5">
-                                          <span className="w-5 h-5 rounded-full bg-oj-primary text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
-                                            5
-                                          </span>
-                                          <p className="leading-relaxed">
-                                            Warm up the account naturally by browsing before engaging in marketplace or advertising activities.
-                                          </p>
-                                        </div>
-                                      </div>
-
-                                      <div className="pt-2 border-t border-blue-200/60 dark:border-blue-900/50 text-[11px] text-oj-muted dark:text-slate-400 flex items-center gap-1.5">
-                                        <span>🔒</span>
-                                        <span>For maximum security, always access accounts from clean browser profiles or residential proxies. Never share credentials.</span>
-                                      </div>
-                                    </motion.div>
-                                  )}
-                                </AnimatePresence>
-
-                                {/* Credentials & Access Section Card */}
-                                <div className="rounded-2xl bg-oj-surface-alt/60 dark:bg-oj-dark-surface-alt/60 border border-oj-border dark:border-oj-dark-border p-4 sm:p-5 space-y-4">
-                                  {/* Sub-Header */}
-                                  <div className="flex items-center justify-between gap-2 pb-2 border-b border-oj-border dark:border-oj-dark-border">
-                                    <div className="flex items-center gap-2">
-                                      <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider bg-oj-primary/10 text-oj-primary dark:text-oj-cyan border border-oj-primary/20">
-                                        CREDENTIALS & ACCESS
-                                      </span>
-                                      <span className="text-xs font-bold text-oj-midnight dark:text-white hidden sm:inline">
-                                        Account Credentials
-                                      </span>
-                                    </div>
-
                                     <button
                                       type="button"
-                                      onClick={() => handleCopy(getCopyAllText(order, item, secretVal), `sub_all_${itemKey}`, 'Account credentials')}
-                                      className="py-1.5 px-3 rounded-xl bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border hover:border-oj-primary text-xs font-bold text-oj-midnight dark:text-white flex items-center gap-1.5 transition-all shadow-sm"
+                                      onClick={() => handleCopy(getCopyAllText(item.originalOrder, item.accountItem, secretVal), `sub_all_${itemKey}`, 'Account credentials')}
+                                      className="py-1 px-2.5 rounded-lg bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-primary hover:text-white border border-oj-border dark:border-oj-dark-border text-xs font-bold text-oj-midnight dark:text-white flex items-center gap-1.5 transition-all shadow-xs"
                                     >
                                       {copiedId === `sub_all_${itemKey}` ? (
                                         <>
@@ -903,14 +930,14 @@ export const OrdersPage: React.FC = () => {
                                       ) : (
                                         <>
                                           <Copy className="w-3.5 h-3.5" />
-                                          <span>Copy Account</span>
+                                          <span>Copy All</span>
                                         </>
                                       )}
                                     </button>
                                   </div>
 
                                   {/* Fields Breakdown */}
-                                  <div className="space-y-3">
+                                  <div className="space-y-2.5">
                                     {parsed.fields.map((field, fIdx) => {
                                       const fieldKey = `${itemKey}_${fIdx}`;
                                       const isPassword = field.isSensitive || field.type === 'password' || field.type === '2fa';
@@ -918,23 +945,21 @@ export const OrdersPage: React.FC = () => {
                                       const isCopied = copiedId === fieldKey;
 
                                       return (
-                                        <div key={fIdx} className="space-y-1.5">
+                                        <div key={fIdx} className="space-y-1">
                                           <div className="flex items-center gap-1.5 px-1">
-                                            {field.type === 'uid' && <User className="w-3.5 h-3.5 text-oj-primary" />}
-                                            {field.type === 'password' && <Lock className="w-3.5 h-3.5 text-blue-500" />}
-                                            {field.type === '2fa' && <Shield className="w-3.5 h-3.5 text-oj-cyan" />}
-                                            {field.type === 'email' && <Mail className="w-3.5 h-3.5 text-sky-500" />}
-                                            {field.type === 'key' && <KeyRound className="w-3.5 h-3.5 text-emerald-500" />}
-                                            {field.type === 'token' && <FileText className="w-3.5 h-3.5 text-indigo-500" />}
+                                            {field.type === 'uid' && <User className="w-3 h-3 text-oj-primary" />}
+                                            {field.type === 'password' && <Lock className="w-3 h-3 text-blue-500" />}
+                                            {field.type === '2fa' && <Shield className="w-3 h-3 text-oj-cyan" />}
+                                            {field.type === 'email' && <Mail className="w-3 h-3 text-sky-500" />}
                                             <label className="text-[10px] font-extrabold uppercase tracking-wider text-oj-muted dark:text-slate-400">
                                               {field.label}
                                             </label>
                                           </div>
 
-                                          <div className="px-3 py-2.5 rounded-xl bg-white dark:bg-oj-dark-surface border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shadow-xs">
+                                          <div className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-oj-dark-surface-alt/70 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 shadow-xs">
                                             <div className="min-w-0 flex-1 pr-1 overflow-hidden select-all">
                                               {isPassword && !isRevealedPw ? (
-                                                <span className="font-mono text-base tracking-widest text-slate-400 dark:text-slate-500 font-extrabold select-none block truncate">
+                                                <span className="font-mono text-sm tracking-widest text-slate-400 dark:text-slate-500 font-extrabold select-none block truncate">
                                                   ••••••••••••
                                                 </span>
                                               ) : (
@@ -944,36 +969,35 @@ export const OrdersPage: React.FC = () => {
                                               )}
                                             </div>
 
-                                            <div className="flex items-center gap-2 shrink-0">
+                                            <div className="flex items-center gap-1.5 shrink-0">
                                               {isPassword && (
                                                 <button
                                                   type="button"
                                                   onClick={() => togglePasswordVisibility(fieldKey)}
-                                                  className="h-8 w-8 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 hover:border-oj-primary dark:hover:border-oj-cyan text-slate-500 hover:text-oj-primary dark:text-slate-400 dark:hover:text-oj-cyan flex items-center justify-center shrink-0 transition-all shadow-xs"
+                                                  className="h-7 w-7 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-oj-primary text-slate-500 hover:text-oj-primary flex items-center justify-center shrink-0 transition-all shadow-xs"
                                                   title={isRevealedPw ? 'Mask secret' : 'Reveal secret'}
-                                                  aria-label={isRevealedPw ? 'Mask secret' : 'Reveal secret'}
                                                 >
-                                                  {isRevealedPw ? <EyeOff className="w-4 h-4 text-oj-primary dark:text-oj-cyan" /> : <Eye className="w-4 h-4" />}
+                                                  {isRevealedPw ? <EyeOff className="w-3.5 h-3.5 text-oj-primary" /> : <Eye className="w-3.5 h-3.5" />}
                                                 </button>
                                               )}
 
                                               <button
                                                 type="button"
                                                 onClick={() => handleCopy(field.value, fieldKey, field.label)}
-                                                className={`h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 shrink-0 transition-all shadow-xs ${
+                                                className={`h-7 px-2.5 rounded-lg text-xs font-bold flex items-center gap-1 shrink-0 transition-all shadow-xs ${
                                                   isCopied
-                                                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700'
-                                                    : 'bg-white dark:bg-oj-dark-surface hover:border-oj-primary text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700/80'
+                                                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-300'
+                                                    : 'bg-white dark:bg-slate-800 hover:border-oj-primary text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
                                                 }`}
                                               >
                                                 {isCopied ? (
                                                   <>
-                                                    <Check className="w-3.5 h-3.5 text-emerald-500" />
+                                                    <Check className="w-3 h-3 text-emerald-500" />
                                                     <span>Copied!</span>
                                                   </>
                                                 ) : (
                                                   <>
-                                                    <Copy className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                                                    <Copy className="w-3 h-3 text-slate-500" />
                                                     <span>Copy</span>
                                                   </>
                                                 )}
@@ -981,11 +1005,11 @@ export const OrdersPage: React.FC = () => {
                                             </div>
                                           </div>
 
-                                          {/* 2FA Helper Banner (Rendered cleanly below the row, preventing mobile button crowding) */}
+                                          {/* 2FA Helper Helper link */}
                                           {field.type === '2fa' && (
-                                            <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-oj-muted dark:text-slate-400 pt-0.5">
-                                              <span className="flex items-center gap-1.5 text-[11px]">
-                                                <Smartphone className="w-3.5 h-3.5 text-oj-cyan shrink-0" />
+                                            <div className="flex items-center justify-between px-1 text-[11px] text-oj-muted dark:text-slate-400 pt-0.5">
+                                              <span className="flex items-center gap-1">
+                                                <Smartphone className="w-3 h-3 text-oj-cyan shrink-0" />
                                                 <span>Need 6-digit TOTP code?</span>
                                               </span>
                                               <a
@@ -993,10 +1017,9 @@ export const OrdersPage: React.FC = () => {
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 onClick={() => handleCopy(field.value, `${fieldKey}_totp`, '2FA Secret')}
-                                                className="inline-flex items-center gap-1 font-bold text-oj-primary dark:text-oj-cyan hover:underline shrink-0 text-xs"
-                                                title="Copy secret & open 2fa.live"
+                                                className="inline-flex items-center gap-1 font-bold text-amber-600 dark:text-amber-400 hover:underline"
                                               >
-                                                <span>Copy & 2fa.live</span>
+                                                <span>Copy & open 2fa.live</span>
                                                 <ExternalLink className="w-3 h-3" />
                                               </a>
                                             </div>
@@ -1006,137 +1029,170 @@ export const OrdersPage: React.FC = () => {
                                     })}
                                   </div>
 
-                                  {/* View Original Supplier Raw Text Dropdown */}
-                                  <div className="pt-2 border-t border-oj-border dark:border-oj-dark-border">
+                                  {/* Action Bar (Download .txt, Direct Platform Login, Print Receipt) */}
+                                  <div className="pt-2 border-t border-oj-border dark:border-oj-dark-border flex items-center justify-between gap-2 flex-wrap text-xs">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDownloadTxt(item.originalOrder, item.accountItem, secretVal, sec.instruction)}
+                                        className="py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 border border-oj-border dark:border-slate-700 text-oj-midnight dark:text-white hover:border-oj-primary font-bold flex items-center gap-1.5 transition-all shadow-xs"
+                                      >
+                                        <Download className="w-3.5 h-3.5 text-oj-primary" />
+                                        <span>Download .TXT</span>
+                                      </button>
+
+                                      <a
+                                        href={getPlatformLoginUrl(item.title)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 border border-oj-border dark:border-slate-700 text-oj-midnight dark:text-white hover:border-oj-primary font-bold flex items-center gap-1.5 transition-all shadow-xs"
+                                      >
+                                        <ExternalLink className="w-3.5 h-3.5 text-amber-500" />
+                                        <span>Direct Login</span>
+                                      </a>
+                                    </div>
+
                                     <button
                                       type="button"
-                                      onClick={() => toggleRaw(itemKey)}
-                                      className="text-xs font-bold text-oj-muted hover:text-oj-midnight dark:hover:text-white flex items-center gap-1 transition-colors"
+                                      onClick={() => window.print()}
+                                      className="py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 border border-oj-border dark:border-slate-700 text-oj-muted hover:text-oj-midnight dark:hover:text-white font-bold flex items-center gap-1.5 transition-all shadow-xs"
+                                      title="Print Receipt"
                                     >
-                                      {isRawOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                                      <span>View Original Supplier Raw Text</span>
+                                      <Printer className="w-3.5 h-3.5" />
+                                      <span>Receipt</span>
                                     </button>
-
-                                    <AnimatePresence>
-                                      {isRawOpen && (
-                                        <motion.div
-                                          initial={{ opacity: 0, height: 0 }}
-                                          animate={{ opacity: 1, height: 'auto' }}
-                                          exit={{ opacity: 0, height: 0 }}
-                                          className="mt-2.5 p-3 rounded-xl bg-black text-slate-200 font-mono text-[11px] break-all select-all relative overflow-hidden"
-                                        >
-                                          <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-white/10">
-                                            <span className="text-[10px] uppercase font-bold text-slate-400">
-                                              Raw Key Envelope
-                                            </span>
-                                            <button
-                                              type="button"
-                                              onClick={() => handleCopy(parsed.raw, `raw_box_${itemKey}`, 'Raw key')}
-                                              className="text-xs text-oj-cyan hover:text-blue-400 flex items-center gap-1 font-bold"
-                                            >
-                                              <Copy className="w-3 h-3" />
-                                              <span>Copy Raw</span>
-                                            </button>
-                                          </div>
-                                          <p className="leading-relaxed">{parsed.raw}</p>
-                                        </motion.div>
-                                      )}
-                                    </AnimatePresence>
                                   </div>
                                 </div>
-
-                                {/* Bottom Help & Status Bar (Matching Clean Action Row) */}
-                                <div className="pt-3 flex flex-wrap items-center justify-between gap-3 border-t border-oj-border/60 dark:border-oj-dark-border/60">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => setSelectedHelpOrder(order)}
-                                      className="py-2 px-3.5 rounded-xl border border-oj-primary/30 hover:border-oj-primary bg-oj-primary/5 dark:bg-oj-primary/10 text-oj-primary dark:text-oj-cyan text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs"
-                                    >
-                                      <HelpCircle className="w-3.5 h-3.5 text-oj-primary dark:text-oj-cyan" />
-                                      <span>Need Help With This Order?</span>
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={() => setSelectedHelpOrder(order)}
-                                      className="py-2 px-3.5 rounded-xl border border-emerald-500/30 hover:border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
-                                    >
-                                      <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                                      <span>Chat on WhatsApp</span>
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleRaw(itemKey)}
-                                      className="py-2 px-3.5 rounded-xl border border-oj-border dark:border-oj-dark-border hover:border-oj-primary bg-white dark:bg-oj-dark-surface text-oj-midnight dark:text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs"
-                                    >
-                                      <Lock className="w-3.5 h-3.5 text-oj-primary dark:text-oj-cyan" />
-                                      <span>Open Delivery Vault</span>
-                                    </button>
-                                  </div>
-
-                                  <div className="flex items-center gap-2">
-                                    <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
-                                      <Check className="w-3.5 h-3.5" />
-                                      <span>DELIVERED</span>
-                                    </span>
-                                  </div>
-                                </div>
-                              </>
-                            )}
+                              );
+                            })}
                           </div>
-                        );
-                          })}
+                        )}
+                      </div>
+                    )}
+
+                    {/* CASE B: SMM Boost Order Details */}
+                    {item.kind === 'smm' && item.smmOrder && (
+                      <div className="space-y-3.5">
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-oj-muted block">
+                            Target Link (Profile / Post URL)
+                          </span>
+                          <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white dark:bg-[#12161f] border border-oj-border dark:border-oj-dark-border text-xs">
+                            <a
+                              href={item.smmOrder.targetLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-mono text-oj-primary dark:text-oj-cyan hover:underline truncate"
+                            >
+                              {item.smmOrder.targetLink}
+                            </a>
+                            <a
+                              href={item.smmOrder.targetLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1 rounded text-oj-muted hover:text-oj-midnight dark:hover:text-white"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
+
+                        {/* Metric Grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                          <div className="p-2.5 rounded-xl bg-white dark:bg-[#12161f] border border-oj-border dark:border-oj-dark-border">
+                            <span className="text-[10px] text-oj-muted block">Quantity</span>
+                            <span className="font-mono font-black text-oj-midnight dark:text-white">
+                              {item.smmOrder.quantity.toLocaleString()} units
+                            </span>
+                          </div>
+                          <div className="p-2.5 rounded-xl bg-white dark:bg-[#12161f] border border-oj-border dark:border-oj-dark-border">
+                            <span className="text-[10px] text-oj-muted block">Start Count</span>
+                            <span className="font-mono font-black text-oj-midnight dark:text-white">
+                              {item.smmOrder.startCount?.toLocaleString() || '0'}
+                            </span>
+                          </div>
+                          <div className="p-2.5 rounded-xl bg-white dark:bg-[#12161f] border border-oj-border dark:border-oj-dark-border">
+                            <span className="text-[10px] text-oj-muted block">Remains</span>
+                            <span className="font-mono font-black text-oj-midnight dark:text-white">
+                              {item.smmOrder.remains !== undefined ? item.smmOrder.remains.toLocaleString() : 'In Delivery'}
+                            </span>
+                          </div>
+                          <div className="p-2.5 rounded-xl bg-white dark:bg-[#12161f] border border-oj-border dark:border-oj-dark-border">
+                            <span className="text-[10px] text-oj-muted block">Status</span>
+                            <span className="font-bold text-amber-500 capitalize">
+                              {item.smmOrder.status.replace('_', ' ')}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Sync & Support Controls */}
+                        <div className="flex items-center justify-between gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => handleSyncSMM(item.smmOrder!.id)}
+                            disabled={syncingSmmId === item.smmOrder.id}
+                            className="py-2 px-3 rounded-xl bg-white dark:bg-slate-800 border border-oj-border dark:border-slate-700 text-xs font-bold text-oj-midnight dark:text-white hover:border-oj-primary flex items-center gap-1.5 transition-all shadow-xs"
+                          >
+                            <RotateCw className={`w-3.5 h-3.5 ${syncingSmmId === item.smmOrder.id ? 'animate-spin text-oj-primary' : ''}`} />
+                            <span>Check Live Progress</span>
+                          </button>
+
+                          <a
+                            href={`https://wa.me/2347069659752?text=${encodeURIComponent(`Hello Ojalogs Operations, checking status for SMM order ${item.reference} (${item.title}).`)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="py-2 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 text-xs font-bold flex items-center gap-1.5 transition-all"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            <span>Support</span>
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })}
+
+        {/* Empty State when zero orders match filter */}
+        {filteredOrders.length === 0 && (
+          <div className="p-10 sm:p-14 text-center bg-white dark:bg-oj-dark-surface rounded-2xl border border-oj-border dark:border-oj-dark-border shadow-soft space-y-3">
+            <PackageCheck className="w-12 h-12 text-oj-muted/40 mx-auto" />
+            <h3 className="font-heading font-black text-base text-oj-midnight dark:text-white">
+              No orders found in this view
+            </h3>
+            <p className="text-xs text-oj-muted max-w-sm mx-auto">
+              {searchQuery
+                ? `No orders matching "${searchQuery}". Clear your search or change status filter.`
+                : 'Your confirmed purchases and active campaign orders will appear here automatically.'}
+            </p>
+            {searchQuery ? (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="py-2 px-4 rounded-xl bg-oj-surface-alt dark:bg-oj-dark-surface-alt text-xs font-bold text-oj-midnight dark:text-white"
+              >
+                Clear Search
+              </button>
+            ) : (
+              <div className="flex items-center justify-center gap-2 pt-2">
+                <Link
+                  to="/storefront"
+                  className="py-2 px-4 rounded-xl bg-oj-primary text-white text-xs font-bold shadow-soft hover:opacity-95 transition-all"
+                >
+                  Explore Storefront
+                </Link>
+                <Link
+                  to="/boost"
+                  className="py-2 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold shadow-soft hover:opacity-95 transition-all"
+                >
+                  Social Boosts
+                </Link>
               </div>
-            </div>
-          ))}
-          {filteredOrders.length === 0 && (
-            <div className="p-8 text-center bg-white dark:bg-oj-dark-surface rounded-2xl border border-oj-border dark:border-oj-dark-border shadow-soft">
-              <KeyRound className="w-8 h-8 text-oj-muted/50 mx-auto mb-2" />
-              <p className="text-xs font-bold text-oj-midnight dark:text-white">No digital accounts orders found.</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Empty State for SMM tab */}
-      {orderTypeFilter === 'smm' && filteredSmmOrders.length === 0 && (
-        <div className="p-10 sm:p-14 text-center bg-white dark:bg-oj-dark-surface rounded-2xl border border-oj-border dark:border-oj-dark-border shadow-soft">
-          <Zap className="w-12 h-12 text-amber-500/40 mx-auto mb-3" />
-          <h3 className="font-heading font-bold text-base text-oj-midnight dark:text-white">
-            No SMM Social Boost Orders Yet
-          </h3>
-          <p className="text-xs text-oj-muted mt-1 max-w-sm mx-auto mb-4">
-            Boost your Instagram, TikTok, YouTube, and X accounts with instant real engagement.
-          </p>
-          <Link
-            to="/boost"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-oj-primary text-white text-xs font-bold hover:opacity-95 shadow-soft transition-all"
-          >
-            <Zap className="w-3.5 h-3.5" />
-            <span>Configure a Social Boost</span>
-          </Link>
-        </div>
-      )}
-
-      {/* Global Empty State for All Orders */}
-      {orderTypeFilter === 'all' && filteredOrders.length === 0 && filteredSmmOrders.length === 0 && (
-        <div className="p-10 sm:p-14 text-center bg-white dark:bg-oj-dark-surface rounded-2xl border border-oj-border dark:border-oj-dark-border shadow-soft">
-          <PackageCheck className="w-12 h-12 text-oj-muted/60 mx-auto mb-3" />
-          <h3 className="font-heading font-bold text-base text-oj-midnight dark:text-white">
-            No orders found
-          </h3>
-          <p className="text-xs text-oj-muted mt-1 max-w-sm mx-auto">
-            Your purchased accounts and social media boost campaigns will appear here automatically.
-          </p>
-        </div>
-      )}
+            )}
+          </div>
+        )}
       </div>
 
       {/* WhatsApp Official Support Modal */}
