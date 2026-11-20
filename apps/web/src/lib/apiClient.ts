@@ -322,6 +322,18 @@ class ApiClient {
     });
   }
 
+  async checkNumberSms(sessionId: string): Promise<VirtualNumberSession> {
+    return this.request<VirtualNumberSession>(`/numbers/${sessionId}/check-sms`, {
+      method: 'POST'
+    });
+  }
+
+  async resendNumberSms(sessionId: string): Promise<{ success: boolean; message: string }> {
+    return this.request<{ success: boolean; message: string }>(`/numbers/${sessionId}/resend`, {
+      method: 'POST'
+    });
+  }
+
   async simulateIncomingSms(sessionId: string, sender?: string, code?: string) {
     return this.request(`/numbers/${sessionId}/simulate-sms`, {
       method: 'POST',

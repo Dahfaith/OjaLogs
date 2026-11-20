@@ -156,6 +156,45 @@ async function runNumbersPricingTests() {
   assert(quotes[2].totalPriceNgn === 4850, 'Concurrent Quote 3 (WhatsApp): ₦4,850');
   assert(quotes[3].totalPriceNgn === 550, 'Concurrent Quote 4 (TikTok): ₦550');
 
+  // --- 11. checkIncomingSms verifies active line status ---
+  console.log('\n--- 11. checkIncomingSms queries active line status ---');
+  const checked = await numbersService.checkIncomingSms(userId, session.id);
+  assert(checked.id === session.id, 'checkIncomingSms returned the session');
+  assert(checked.status === 'active', 'Session remains active waiting for inbound SMS');
+  assert(typeof checked.timeRemainingSeconds === 'number', 'timeRemainingSeconds accurately tracked');
+
+  // --- 12. Cross-user access control on checkIncomingSms ---
+  console.log('\n--- 12. Cross-user access control on checkIncomingSms ---');
+  let crossUserBlocked = false;
+  try {
+    await numbersService.checkIncomingSms('unauthorized_user_999', session.id);
+  } catch (err: any) {
+    if (err.statusCode === 403 || err.message?.includes('Unauthorized') || err.message?.includes('FORBIDDEN')) {
+      crossUserBlocked = true;
+    }
+  }
+  assert(crossUserBlocked, 'Cross-user access blocked with 403 Forbidden');
+
+  // --- 13. Inbound SMS extraction & OTP delivery ---
+  console.log('\n--- 13. Inbound SMS extraction & OTP delivery ---');
+  const incomingMsg = numbersService.receiveIncomingSms(session.id, 'X.com / Twitter', '489201', 'Your X.com verification code is 489201');
+  assert(incomingMsg.code === '489201', 'Extracted OTP code matches 489201');
+  const updatedSession = numbersService.getSession(session.id);
+  assert(updatedSession?.status === 'sms_received', 'Session transitioned to sms_received');
+  assert(updatedSession?.canCancel === false, 'Cancellation locked once SMS is received');
+  assert(updatedSession?.messages?.length === 1, 'Incoming SMS stored in session messages');
+
+  // --- 14. Resend SMS protection ---
+  console.log('\n--- 14. Resend SMS protection ---');
+  let resendNonActiveBlocked = false;
+  try {
+    // Session is now sms_received, so resend should reject
+    await numbersService.resendSms(userId, session.id);
+  } catch (err: any) {
+    resendNonActiveBlocked = true;
+  }
+  assert(resendNonActiveBlocked, 'Resend safely rejects when session is not in active waiting state');
+
   console.log('\n======================================================');
   console.log(`🏁 TEST RESULTS: ${passed} PASSED, ${failed} FAILED`);
   console.log('======================================================\n');

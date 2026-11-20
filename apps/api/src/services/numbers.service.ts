@@ -138,8 +138,13 @@ export class NumbersService {
 
   getUserSessions(userId: string): VirtualNumberSession[] {
     const list: VirtualNumberSession[] = [];
+    const now = Date.now();
     for (const item of this.sessions.values()) {
       if (item.userId === userId) {
+        if (item.session.status === 'active') {
+          const expiry = new Date(item.session.expiresAt).getTime();
+          item.session.timeRemainingSeconds = Math.max(0, Math.floor((expiry - now) / 1000));
+        }
         list.push(item.session);
       }
     }
@@ -489,6 +494,147 @@ export class NumbersService {
     session.messages.unshift(msg);
 
     return msg;
+  }
+
+  /**
+   * Actively queries upstream telephony provider (TextPlug) for the latest SMS status,
+   * verification code, or cancellation/refund state.
+   */
+  async checkIncomingSms(userId: string, sessionId: string): Promise<VirtualNumberSession> {
+    const item = this.sessions.get(sessionId);
+    if (!item) {
+      throw new AppError('Virtual number session not found', 404, 'SESSION_NOT_FOUND');
+    }
+
+    if (item.userId !== userId) {
+      throw new AppError('Unauthorized access to this session', 403, 'FORBIDDEN');
+    }
+
+    const { session } = item;
+
+    // If already received or cancelled or refunded, return as-is
+    if (session.status !== 'active') {
+      return session;
+    }
+
+    // Check expiration
+    const expiry = new Date(session.expiresAt).getTime();
+    if (Date.now() >= expiry) {
+      const refundAmount = session.priceNgn;
+      const refundRef = `ref_rf_${Math.floor(100000 + Math.random() * 900000)}`;
+      walletService.creditWallet(
+        userId,
+        refundAmount,
+        'refund',
+        refundRef,
+        `Automated 100% refund for expired SMS session (${session.phoneNumber})`
+      );
+      session.status = 'refunded';
+      session.canCancel = false;
+      session.timeRemainingSeconds = 0;
+      return session;
+    }
+
+    // Update remaining seconds
+    session.timeRemainingSeconds = Math.max(0, Math.floor((expiry - Date.now()) / 1000));
+
+    // Active Query to Upstream Telephony Provider (TextPlug)
+    const textplug = telephonyRegistry.get('provider-textplug');
+    const apiKey = (textplug?.apiKey || process.env.TEXTPLUG_API_KEY || '').trim();
+    const baseUrl = (textplug?.apiUrl || process.env.TEXTPLUG_BASE_URL || 'https://merchant.textplug.net').replace(/\/+$/, '');
+
+    if (apiKey && apiKey.length > 5 && session.reference) {
+      try {
+        const resp = await fetch(`${baseUrl}/v1/user/transaction/${session.reference}`, {
+          method: 'GET',
+          headers: {
+            'x-api-key': apiKey,
+            'Accept': 'application/json'
+          }
+        });
+
+        if (resp.ok) {
+          const body = (await resp.json().catch(() => null)) as any;
+          const txData = body?.data || body;
+          const smsData = txData?.sms;
+
+          if (smsData && (smsData.code || smsData.fullCode)) {
+            const rawCode = String(smsData.code || '').trim();
+            const extractedCode = rawCode || (smsData.fullCode ? (smsData.fullCode.match(/\b\d{4,8}\b/) || [])[0] : '') || '';
+            const fullText = smsData.fullCode || `Your ${smsData.service || session.service.name} verification code is ${extractedCode}`;
+            const sender = smsData.service || session.service.name || 'TextPlug';
+
+            if (extractedCode) {
+              this.receiveIncomingSms(session.id, sender, extractedCode, fullText);
+              console.log(`[TEXTPLUG_CHECK_SMS] ✓ Fetched code ${extractedCode} for session ${session.id} (${session.phoneNumber})`);
+            }
+          } else if (txData?.status === 'refunded' && session.status === 'active') {
+            console.log(`[TEXTPLUG_CHECK_SMS] Upstream transaction ${session.reference} marked refunded. Crediting customer wallet.`);
+            session.status = 'refunded';
+            session.canCancel = false;
+            session.timeRemainingSeconds = 0;
+            const refundAmount = session.priceNgn;
+            const refundRef = `ref_rf_${Math.floor(100000 + Math.random() * 900000)}`;
+            walletService.creditWallet(
+              userId,
+              refundAmount,
+              'refund',
+              refundRef,
+              `Automated 100% refund for unreceived line (${session.phoneNumber})`
+            );
+          }
+        }
+      } catch (err: any) {
+        console.warn(`[TEXTPLUG_CHECK_SMS_WARN] Error checking status: ${err.message}`);
+      }
+    }
+
+    return session;
+  }
+
+  /**
+   * Request resend SMS from upstream provider
+   */
+  async resendSms(userId: string, sessionId: string): Promise<{ success: boolean; message: string }> {
+    const item = this.sessions.get(sessionId);
+    if (!item) {
+      throw new AppError('Virtual number session not found', 404, 'SESSION_NOT_FOUND');
+    }
+
+    if (item.userId !== userId) {
+      throw new AppError('Unauthorized access to this session', 403, 'FORBIDDEN');
+    }
+
+    const { session } = item;
+    if (session.status !== 'active') {
+      throw new AppError('Session is not currently active', 400, 'SESSION_NOT_ACTIVE');
+    }
+
+    const textplug = telephonyRegistry.get('provider-textplug');
+    const apiKey = (textplug?.apiKey || process.env.TEXTPLUG_API_KEY || '').trim();
+    const baseUrl = (textplug?.apiUrl || process.env.TEXTPLUG_BASE_URL || 'https://merchant.textplug.net').replace(/\/+$/, '');
+
+    if (apiKey && apiKey.length > 5 && session.reference) {
+      try {
+        const resp = await fetch(`${baseUrl}/v1/sms/swift/resend/${session.reference}`, {
+          method: 'POST',
+          headers: {
+            'x-api-key': apiKey,
+            'Accept': 'application/json'
+          }
+        });
+        const data = (await resp.json().catch(() => null)) as any;
+        if (resp.ok && data?.error === false) {
+          return { success: true, message: data?.message || 'SMS resend request submitted successfully' };
+        } else {
+          return { success: false, message: data?.message || 'Upstream provider could not resend SMS yet' };
+        }
+      } catch (err: any) {
+        return { success: false, message: err.message };
+      }
+    }
+
+    return { success: true, message: 'Resend request registered' };
   }
 
   simulateIncomingSms(sessionId: string, sender: string = 'VERIFY', code?: string): SmsMessage {

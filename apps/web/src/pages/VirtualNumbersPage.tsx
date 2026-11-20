@@ -29,7 +29,21 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { mockCountries, mockServices } from '../lib/mockData';
 
 export const VirtualNumbersPage: React.FC = () => {
-  const { activeNumbers, requestNumber, cancelNumber, simulateIncomingSms, wallet, showToast, setIsSupportOpen, formatPrice, user, setIsAuthModalOpen, refreshWallet } = useApp();
+  const {
+    activeNumbers,
+    requestNumber,
+    cancelNumber,
+    checkNumberSms,
+    resendNumberSms,
+    simulateIncomingSms,
+    wallet,
+    showToast,
+    setIsSupportOpen,
+    formatPrice,
+    user,
+    setIsAuthModalOpen,
+    refreshWallet
+  } = useApp();
 
   const [countries, setCountries] = useState<CountryOption[]>(mockCountries);
   const [services, setServices] = useState<ServiceOption[]>(mockServices);
@@ -38,6 +52,10 @@ export const VirtualNumbersPage: React.FC = () => {
   const [rentalType, setRentalType] = useState<'one_time_sms' | 'long_term_rental'>('one_time_sms');
   const [isRequesting, setIsRequesting] = useState(false);
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
+
+  // Upstream verification code polling & resend states
+  const [checkingSmsId, setCheckingSmsId] = useState<string | null>(null);
+  const [isResendingId, setIsResendingId] = useState<string | null>(null);
 
   // Search & Dropdown State (Matching TextPlug Dynamic SMS experience)
   const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false);
@@ -171,6 +189,33 @@ export const VirtualNumbersPage: React.FC = () => {
     setCopiedCodeId(id);
     showToast(`Copied verification code ${code}`);
     setTimeout(() => setCopiedCodeId(null), 2000);
+  };
+
+  const handleGetSms = async (sessionId: string) => {
+    setCheckingSmsId(sessionId);
+    try {
+      const updated = await checkNumberSms(sessionId);
+      if (updated?.status === 'sms_received' && updated.messages && updated.messages.length > 0) {
+        showToast(`SMS code received: ${updated.messages[0].code}!`);
+      } else if (updated?.status === 'refunded') {
+        showToast('Session has ended and was 100% refunded to your wallet.');
+      } else {
+        showToast('Waiting for incoming SMS from provider... Please make sure you entered the number and requested SMS.');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Error checking SMS status');
+    } finally {
+      setCheckingSmsId(null);
+    }
+  };
+
+  const handleResendSms = async (sessionId: string) => {
+    setIsResendingId(sessionId);
+    try {
+      await resendNumberSms(sessionId);
+    } finally {
+      setIsResendingId(null);
+    }
   };
 
   return (
@@ -670,6 +715,67 @@ export const VirtualNumbersPage: React.FC = () => {
                 </div>
               </div>
 
+              {/* Provider Usage Instructions (Matching TextPlug) */}
+              <div className="p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60 text-xs text-blue-900 dark:text-blue-200 flex items-start gap-2.5">
+                <Sparkles className="w-4 h-4 text-oj-primary shrink-0 mt-0.5" />
+                <div className="space-y-0.5 leading-relaxed">
+                  <p className="font-bold text-oj-midnight dark:text-white">SMS Instructions</p>
+                  <p className="text-[11px] text-blue-800 dark:text-blue-300">
+                    Log in into your selected application ({session.service.name}) with the phone number provided (<span className="font-mono font-bold">{session.phoneNumber}</span>) to request for the code, then click <strong>Get SMS</strong> below.
+                  </p>
+                </div>
+              </div>
+
+              {/* Upstream Provider Troubleshooter Guidance (Exact match to TextPlug) */}
+              {session.status === 'active' && (
+                <div className="p-3.5 rounded-xl bg-rose-50/80 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 text-xs text-rose-900 dark:text-rose-200 space-y-2">
+                  <div className="flex items-center gap-2 text-rose-700 dark:text-rose-400 font-bold">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>Having trouble receiving a verification code? Try these steps:</span>
+                  </div>
+                  <ol className="list-decimal list-inside space-y-1 text-[11px] text-rose-800 dark:text-rose-300 pl-1 leading-relaxed">
+                    <li>Use a strong VPN to see if it&apos;s a network issue.</li>
+                    <li>Uninstall and reinstall the app you&apos;re trying to verify (e.g. {session.service.name.split('/')[0].trim()}).</li>
+                    <li>If steps 1 and 2 don&apos;t work, try a different device to see if the issue persists.</li>
+                    <li>If you don&apos;t get codes for any number you purchase, it will be automatically refunded back to your wallet balance within 15 minutes.</li>
+                  </ol>
+                </div>
+              )}
+
+              {/* Action Controls: Get SMS & Resend Code */}
+              {session.status === 'active' && (
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => handleGetSms(session.id)}
+                    disabled={checkingSmsId === session.id}
+                    className="flex-1 py-3 px-5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-700 text-white font-extrabold text-sm shadow-md flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-60"
+                  >
+                    {checkingSmsId === session.id ? (
+                      <>
+                        <RotateCcw className="w-4 h-4 animate-spin" />
+                        <span>Checking Upstream for SMS...</span>
+                      </>
+                    ) : (
+                      <>
+                        <MessageSquare className="w-4 h-4" />
+                        <span>Get SMS</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleResendSms(session.id)}
+                    disabled={isResendingId === session.id}
+                    className="py-3 px-4 rounded-xl border border-oj-border dark:border-oj-dark-border bg-oj-surface-alt/70 dark:bg-oj-dark-surface-alt/70 hover:bg-oj-border dark:hover:bg-oj-dark-border text-oj-midnight dark:text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+                  >
+                    <RotateCcw className={`w-3.5 h-3.5 ${isResendingId === session.id ? 'animate-spin text-oj-primary' : ''}`} />
+                    <span>Resend Code</span>
+                  </button>
+                </div>
+              )}
+
               {/* Incoming SMS Feed */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs text-oj-muted">
@@ -690,36 +796,55 @@ export const VirtualNumbersPage: React.FC = () => {
                   <div className="p-4 rounded-xl border border-dashed border-oj-border dark:border-oj-dark-border text-center text-xs text-oj-muted bg-oj-surface-alt/30 dark:bg-oj-dark-surface-alt/30">
                     <p className="animate-pulse">Waiting for incoming SMS from {session.service.name}...</p>
                     <p className="text-[11px] mt-1 text-slate-400">
-                      Copy the number above and paste it into {session.service.name}. If no SMS arrives within the countdown window, your wallet is 100% refunded automatically.
+                      Copy the number above and paste it into {session.service.name}. Click <strong>&ldquo;Get SMS&rdquo;</strong> to refresh code. If no SMS arrives within the countdown window, your wallet is 100% refunded automatically.
                     </p>
                   </div>
                 ) : (
                   session.messages.map((msg) => (
                     <div
                       key={msg.id}
-                      className="p-3.5 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between gap-3"
+                      className="p-4 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-700/60 shadow-sm space-y-3"
                     >
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                            {msg.sender}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                            Verification Code Received ({msg.sender})
                           </span>
-                          <span className="text-[10px] text-oj-muted">{msg.receivedAt}</span>
                         </div>
-                        <p className="text-xs text-oj-midnight dark:text-white">{msg.fullText}</p>
+                        <span className="text-[10px] text-oj-muted font-mono">{msg.receivedAt}</span>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-base font-extrabold text-emerald-600 dark:text-emerald-400 bg-white dark:bg-oj-dark-surface px-3 py-1 rounded-lg border border-emerald-300 dark:border-emerald-700">
-                          {msg.code}
-                        </span>
+                      <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-white dark:bg-oj-dark-surface border border-emerald-200 dark:border-emerald-800">
+                        <div className="min-w-0">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-oj-muted block">SMS OTP Code</span>
+                          <span className="font-mono text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400 tracking-wider">
+                            {msg.code}
+                          </span>
+                        </div>
+
                         <button
                           onClick={() => handleCopyCode(msg.code, msg.id)}
-                          className="p-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                          className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm active:scale-95 shrink-0"
                           title="Copy Code"
                         >
-                          {copiedCodeId === msg.id ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                          {copiedCodeId === msg.id ? (
+                            <>
+                              <Check className="w-4 h-4" />
+                              <span>Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-4 h-4" />
+                              <span>Copy Code</span>
+                            </>
+                          )}
                         </button>
+                      </div>
+
+                      <div className="text-xs text-oj-midnight dark:text-white bg-emerald-100/40 dark:bg-emerald-950/20 p-2.5 rounded-lg text-[11px] leading-relaxed">
+                        <span className="font-semibold text-emerald-900 dark:text-emerald-200">Full Message: </span>
+                        <span>{msg.fullText}</span>
                       </div>
                     </div>
                   ))

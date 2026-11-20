@@ -82,14 +82,27 @@ router.get('/quote', (req, res, next) => {
 // All routes below require customer authentication
 router.use(authMiddleware);
 
-// Get user's active & past virtual number sessions
-router.get('/', (req, res) => {
-  const sessions = numbersService.getUserSessions(req.user!.id);
-  res.json({
-    success: true,
-    data: sessions,
-    meta: { count: sessions.length, request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
-  });
+// Get user's active & past virtual number sessions with upstream synchronization
+router.get('/', async (req, res, next) => {
+  try {
+    const userId = req.user!.id;
+    const initialSessions = numbersService.getUserSessions(userId);
+
+    // Actively synchronize any active sessions with upstream TextPlug
+    const activeSessions = initialSessions.filter(s => s.status === 'active');
+    if (activeSessions.length > 0) {
+      await Promise.allSettled(activeSessions.map(s => numbersService.checkIncomingSms(userId, s.id)));
+    }
+
+    const sessions = numbersService.getUserSessions(userId);
+    res.json({
+      success: true,
+      data: sessions,
+      meta: { count: sessions.length, request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 const RequestNumberSchema = z.object({
@@ -139,6 +152,38 @@ router.post('/:sessionId/cancel', async (req, res, next) => {
   try {
     const sessionId = Array.isArray(req.params.sessionId) ? req.params.sessionId[0] : req.params.sessionId;
     const result = await numbersService.cancelAndRefund(req.user!.id, sessionId);
+
+    res.json({
+      success: true,
+      data: result,
+      meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Explicit "Get SMS" polling endpoint - queries upstream provider (TextPlug) directly
+router.post('/:sessionId/check-sms', async (req, res, next) => {
+  try {
+    const sessionId = Array.isArray(req.params.sessionId) ? req.params.sessionId[0] : req.params.sessionId;
+    const session = await numbersService.checkIncomingSms(req.user!.id, sessionId);
+
+    res.json({
+      success: true,
+      data: session,
+      meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Resend SMS request to upstream provider
+router.post('/:sessionId/resend', async (req, res, next) => {
+  try {
+    const sessionId = Array.isArray(req.params.sessionId) ? req.params.sessionId[0] : req.params.sessionId;
+    const result = await numbersService.resendSms(req.user!.id, sessionId);
 
     res.json({
       success: true,

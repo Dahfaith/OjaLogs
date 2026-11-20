@@ -103,6 +103,8 @@ interface AppContextType {
     expectedPrice?: number
   ) => Promise<VirtualNumberSession>;
   cancelNumber: (sessionId: string) => Promise<void>;
+  checkNumberSms: (sessionId: string) => Promise<VirtualNumberSession>;
+  resendNumberSms: (sessionId: string) => Promise<{ success: boolean; message: string }>;
   simulateIncomingSms: (sessionId: string) => Promise<void>;
 
   // Support & Toast
@@ -1188,6 +1190,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast(`Allocation cancelled. ${formatPrice(refundAmount)} refunded to your wallet.`);
   };
 
+  const checkNumberSms = async (sessionId: string): Promise<VirtualNumberSession> => {
+    try {
+      const updated = await apiClient.checkNumberSms(sessionId);
+      if (updated) {
+        setActiveNumbers(prev => prev.map(s => (s.id === sessionId || s.reference === updated.reference) ? updated : s));
+        if (updated.status === 'sms_received' && updated.messages && updated.messages.length > 0) {
+          showToast(`SMS code received: ${updated.messages[0].code}!`);
+          confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+        } else if (updated.status === 'refunded') {
+          showToast(`Order has expired or was refunded by upstream provider.`);
+          if (user) refreshWallet(user);
+        }
+        return updated;
+      }
+    } catch (err: any) {
+      console.warn('[CHECK_SMS_ERROR]', err);
+    }
+    const current = activeNumbers.find(s => s.id === sessionId);
+    if (current) return current;
+    throw new Error('Session not found');
+  };
+
+  const resendNumberSms = async (sessionId: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      const res = await apiClient.resendNumberSms(sessionId);
+      showToast(res.message || 'SMS resend request sent');
+      return res;
+    } catch (err: any) {
+      const msg = err.message || 'Could not request SMS resend';
+      showToast(msg);
+      return { success: false, message: msg };
+    }
+  };
+
   const simulateIncomingSms = async (sessionId: string) => {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -1279,6 +1315,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         activeNumbers,
         requestNumber,
         cancelNumber,
+        checkNumberSms,
+        resendNumberSms,
         simulateIncomingSms,
         toastMessage,
         showToast,
