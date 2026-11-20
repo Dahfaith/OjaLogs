@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   PackageCheck,
@@ -22,111 +22,90 @@ import {
   AlertCircle,
   MessageCircle,
   ChevronDown,
-  Shield
+  Shield,
+  FileCode,
+  Mail,
+  Info,
+  Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrandCoverBanner } from '../components/common/BrandCoverBanner';
 import { WhatsAppSupportModal } from '../components/support/WhatsAppSupportModal';
 import { SEO } from '../components/common/SEO';
-import { SMMOrder } from '@ojalogs/shared';
+import { SMMOrder, parseCredentialsPayload, SecretField, StructuredAccountPayload } from '@ojalogs/shared';
 import { apiClient } from '../lib/apiClient';
 import { Link } from 'react-router-dom';
 
-interface ParsedField {
-  label: string;
-  value: string;
-  type: 'uid' | 'password' | '2fa' | 'email' | 'token' | 'key' | 'generic';
-  isSensitive?: boolean;
-}
+function resolveVaultSecretDisplay(
+  sec: any,
+  productTitle: string = '',
+  deliveryFormat: string = ''
+): {
+  isStructured: boolean;
+  accounts: StructuredAccountPayload[];
+  raw: string;
+} {
+  if (!sec) {
+    return { isStructured: false, accounts: [], raw: '' };
+  }
 
-function parseSecretValue(secret: string): { isStructured: boolean; fields: ParsedField[]; raw: string } {
-  if (!secret) return { isStructured: false, fields: [], raw: '' };
-  const raw = secret.trim();
+  // 1. If backend already supplied structured accounts
+  if (Array.isArray(sec.accounts) && sec.accounts.length > 0) {
+    const raw = sec.rawString || sec.value || '';
+    return {
+      isStructured: true,
+      accounts: sec.accounts,
+      raw
+    };
+  }
 
-  // Colon-separated credential parsing (e.g. UID:Password:2FA:Email:EmailPass)
-  if (raw.includes(':') && !raw.startsWith('http://') && !raw.startsWith('https://')) {
-    const parts = raw.split(':').map(p => p.trim()).filter(Boolean);
-    if (parts.length >= 2) {
-      const fields: ParsedField[] = [];
-
-      // Part 1: Typically UID or Username or Email
-      if (parts[0].includes('@')) {
-        fields.push({ label: 'LOGIN EMAIL', value: parts[0], type: 'email' });
-      } else {
-        fields.push({ label: 'USERNAME', value: parts[0], type: 'uid' });
-      }
-
-      // Part 2: Password
-      if (parts[1]) {
-        fields.push({ label: 'PASSWORD', value: parts[1], type: 'password', isSensitive: true });
-      }
-
-      // Part 3: 2FA Secret Key or Recovery Email
-      if (parts[2]) {
-        if (parts[2].includes('@')) {
-          fields.push({ label: 'RECOVERY EMAIL', value: parts[2], type: 'email' });
-        } else {
-          fields.push({ label: '2FA SECRET / RECOVERY', value: parts[2], type: '2fa', isSensitive: true });
+  // 2. If backend supplied structured fields
+  if (Array.isArray(sec.structuredFields) && sec.structuredFields.length > 0) {
+    const raw = sec.rawString || sec.value || '';
+    return {
+      isStructured: true,
+      accounts: [
+        {
+          accountNumber: 1,
+          title: 'Account Credentials',
+          fields: sec.structuredFields,
+          raw
         }
-      }
-
-      // Part 4: Recovery Email or 2FA or Token
-      if (parts[3]) {
-        if (parts[3].includes('@')) {
-          fields.push({ label: 'RECOVERY EMAIL', value: parts[3], type: 'email' });
-        } else if (fields.some(f => f.type === 'email')) {
-          fields.push({ label: 'EMAIL PASSWORD', value: parts[3], type: 'password', isSensitive: true });
-        } else {
-          fields.push({ label: 'EXTRA INFO / TOKEN', value: parts[3], type: 'token' });
-        }
-      }
-
-      // Part 5: Email Password / Session Cookies
-      if (parts[4]) {
-        fields.push({ label: 'SESSION COOKIES / EMAIL PASS', value: parts[4], type: 'password', isSensitive: true });
-      }
-
-      // Extra fields
-      for (let i = 5; i < parts.length; i++) {
-        fields.push({ label: `FIELD ${i + 1}`, value: parts[i], type: 'generic' });
-      }
-
-      return { isStructured: true, fields, raw };
-    }
+      ],
+      raw
+    };
   }
 
-  // Pipe-separated credential parsing (e.g. Username|Password|2FA)
-  if (raw.includes('|')) {
-    const parts = raw.split('|').map(p => p.trim()).filter(Boolean);
-    if (parts.length >= 2) {
-      const fields: ParsedField[] = [
-        { label: 'USERNAME', value: parts[0], type: 'uid' },
-        { label: 'PASSWORD', value: parts[1], type: 'password', isSensitive: true }
-      ];
-      if (parts[2]) fields.push({ label: '2FA SECRET / RECOVERY', value: parts[2], type: '2fa', isSensitive: true });
-      if (parts[3]) fields.push({ label: 'RECOVERY EMAIL', value: parts[3], type: 'email' });
-      return { isStructured: true, fields, raw };
-    }
+  // 3. Fallback: Parse raw payload using shared robust credential parser
+  const rawCandidate = sec.rawString || sec.value || '';
+  if (rawCandidate && !/^[•*.]+$/.test(rawCandidate.trim())) {
+    const parsed = parseCredentialsPayload(rawCandidate, productTitle, deliveryFormat);
+    return {
+      isStructured: parsed.isStructured,
+      accounts: parsed.accounts,
+      raw: parsed.raw
+    };
   }
 
-  // Tab-separated credential parsing (common in bulk exports)
-  if (raw.includes('\t')) {
-    const parts = raw.split('\t').map(p => p.trim()).filter(Boolean);
-    if (parts.length >= 2) {
-      const fields: ParsedField[] = [
-        { label: 'USERNAME', value: parts[0], type: 'uid' },
-        { label: 'PASSWORD', value: parts[1], type: 'password', isSensitive: true }
-      ];
-      if (parts[2]) fields.push({ label: '2FA SECRET / RECOVERY', value: parts[2], type: '2fa', isSensitive: true });
-      if (parts[3]) fields.push({ label: 'RECOVERY EMAIL', value: parts[3], type: 'email' });
-      return { isStructured: true, fields, raw };
-    }
-  }
-
+  // 4. Truly unrevealed dots
   return {
     isStructured: false,
-    fields: [{ label: 'LICENSE / VAULT KEY', value: raw, type: 'key' }],
-    raw
+    accounts: [
+      {
+        accountNumber: 1,
+        title: 'Access Credentials',
+        fields: [
+          {
+            label: 'VAULT KEY / CREDENTIAL',
+            value: rawCandidate || '••••••••••••••••••••••••••••••',
+            type: 'key',
+            isSensitive: true
+          }
+        ],
+        raw: rawCandidate
+      }
+    ],
+    raw: rawCandidate
   };
 }
 
@@ -151,7 +130,7 @@ interface UnifiedOrderItem {
 }
 
 export const OrdersPage: React.FC = () => {
-  const { orders, showToast, formatPrice, currency, user, setIsAuthModalOpen, reloadOrders } = useApp();
+  const { orders, showToast, formatPrice, currency, user, setIsAuthModalOpen, reloadOrders, revealSecret } = useApp();
   
   // Status Filter Tabs (All Orders, Completed, Pending, Failed / Cancelled)
   const [statusTab, setStatusTab] = useState<'all' | 'completed' | 'pending' | 'failed'>('all');
@@ -245,9 +224,15 @@ export const OrdersPage: React.FC = () => {
     setRawOpen(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const toggleExpand = (itemId: string) => {
-    setExpandedOrders(prev => ({ ...prev, [itemId]: !prev[itemId] }));
-  };
+  const toggleExpand = useCallback((itemId: string, orderId?: string, orderItemId?: string, hasDots?: boolean) => {
+    setExpandedOrders(prev => {
+      const nextState = !prev[itemId];
+      if (nextState && hasDots && orderId && orderItemId && typeof revealSecret === 'function') {
+        revealSecret(orderId, orderItemId).catch(() => {});
+      }
+      return { ...prev, [itemId]: nextState };
+    });
+  }, [revealSecret]);
 
   // -------------------------------------------------------------
   // Build Unified Stream of All Orders (Chronologically Sorted)
@@ -373,8 +358,28 @@ export const OrdersPage: React.FC = () => {
     });
   }, [unifiedOrders, statusTab, categoryFilter, searchQuery]);
 
-  const handleDownloadTxt = (order: any, item: any, secretVal: string, instruction?: string) => {
-    const parsed = parseSecretValue(secretVal);
+  const handleCopyAccount = (acc: StructuredAccountPayload, copyId: string) => {
+    const text = acc.fields.map(f => `${f.label}: ${f.value}`).join('\n');
+    handleCopy(text, copyId, 'Account credentials');
+  };
+
+  const handleCopyAll = (order: any, item: any, payload: { accounts: StructuredAccountPayload[]; raw: string }, copyId: string) => {
+    let content = `[OJALOGS ORDER ${order.reference}] - ${item.product?.title || item.title}\n`;
+    payload.accounts.forEach((acc, idx) => {
+      if (payload.accounts.length > 1) {
+        content += `\n--- ${acc.title || `Account #${idx + 1}`} ---\n`;
+      }
+      acc.fields.forEach(f => {
+        content += `${f.label}: ${f.value}\n`;
+      });
+    });
+    if (payload.raw) {
+      content += `\nRaw: ${payload.raw}`;
+    }
+    handleCopy(content.trim(), copyId, 'All credentials');
+  };
+
+  const handleDownloadTxt = (order: any, item: any, payload: { accounts: StructuredAccountPayload[]; raw: string }, instruction?: string) => {
     let content = `=======================================================\n`;
     content += `OJALOGS DIGITAL DELIVERY VAULT & RECEIPT\n`;
     content += `Order Reference:   ${order.reference}\n`;
@@ -386,22 +391,25 @@ export const OrdersPage: React.FC = () => {
     content += `Payment Method:    ${order.paymentMethod === 'wallet' ? 'NGN Wallet' : 'BACH Gateway'}\n`;
     content += `Amount Paid:       NGN ${item.totalNgn || order.totalNgn}\n\n`;
     content += `-------------------------------------------------------\n`;
-    content += `ACCOUNT CREDENTIALS & ACCESS:\n`;
+    content += `DIGITAL CREDENTIALS & ACCESS DETAILS:\n`;
     content += `-------------------------------------------------------\n`;
 
-    if (parsed.isStructured) {
-      parsed.fields.forEach(f => {
+    payload.accounts.forEach((acc, idx) => {
+      if (payload.accounts.length > 1) {
+        content += `\n[ACCOUNT ${idx + 1}: ${acc.title || 'Credentials'}]\n`;
+      }
+      acc.fields.forEach(f => {
         content += `${f.label.padEnd(25)}: ${f.value}\n`;
       });
-      content += `\nFULL RAW SUPPLIER STRING:\n${parsed.raw}\n`;
-    } else {
-      content += `SECRET / KEY:\n${parsed.raw}\n`;
+    });
+
+    if (payload.raw) {
+      content += `\nRAW SUPPLIER PAYLOAD:\n${payload.raw}\n`;
     }
 
     if (instruction) {
       content += `\n-------------------------------------------------------\n`;
-      content += `USAGE INSTRUCTIONS:\n`;
-      content += `${instruction}\n`;
+      content += `USAGE INSTRUCTIONS:\n${instruction}\n`;
     }
 
     content += `\nHOW TO USE 2FA (TWO-FACTOR AUTH):\n`;
@@ -423,18 +431,6 @@ export const OrdersPage: React.FC = () => {
     URL.revokeObjectURL(url);
 
     showToast('Downloaded credentials backup file (.txt)!');
-  };
-
-  const getCopyAllText = (order: any, item: any, secretVal: string): string => {
-    const parsed = parseSecretValue(secretVal);
-    if (!parsed.isStructured) return parsed.raw;
-
-    const lines = [
-      `[OJALOGS ORDER ${order.reference}] - ${item.product?.title || item.title}`,
-      ...parsed.fields.map(f => `${f.label}: ${f.value}`),
-      `Raw: ${parsed.raw}`
-    ];
-    return lines.join('\n');
   };
 
   const getPlatformLoginUrl = (title: string): string => {
@@ -758,7 +754,11 @@ export const OrdersPage: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => toggleExpand(item.id)}
+                    onClick={() => {
+                      const sec0 = item.accountItem?.deliveredSecrets?.[0];
+                      const hasDots = Boolean(sec0 && (!sec0.rawString || /^[•*.]+$/.test(sec0.rawString || sec0.value || '')));
+                      toggleExpand(item.id, item.orderId, item.accountItem?.id, hasDots);
+                    }}
                     className="px-4 py-2 rounded-btn bg-oj-primary hover:bg-oj-primary-hover text-white text-xs font-bold transition-all shadow-glow-primary/40 flex items-center gap-1.5"
                   >
                     <span>{isExpanded ? 'Hide Details' : 'View Details'}</span>
@@ -846,116 +846,248 @@ export const OrdersPage: React.FC = () => {
                         {/* Delivered Digital Vault (When Completed) */}
                         {item.accountItem.deliveredSecrets && item.accountItem.deliveredSecrets.length > 0 && (
                           <div className="space-y-4">
+                            {/* Section Category Header */}
+                            <div className="flex items-center justify-between px-1">
+                              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-oj-primary dark:text-oj-cyan flex items-center gap-1.5">
+                                <ShieldCheck className="w-3.5 h-3.5 text-oj-primary dark:text-oj-cyan" />
+                                Digital Credentials & Access Details
+                              </span>
+                              <span className="text-[11px] font-mono text-oj-muted dark:text-oj-dark-muted">
+                                {item.quantity > 1 ? `${item.quantity} Accounts Allocated` : '1 Account Allocated'}
+                              </span>
+                            </div>
+
                             {item.accountItem.deliveredSecrets.map((sec: any, secIdx: number) => {
                               const secretVal = sec.value || '';
                               if (secretVal === 'PENDING_DISPATCH') return null;
 
-                              const parsed = parseSecretValue(secretVal);
+                              const display = resolveVaultSecretDisplay(sec, item.title, item.accountItem?.product?.deliveryFormat);
                               const itemKey = `${item.id}_sec_${secIdx}`;
                               const isGuideOpen = guidesOpen[itemKey] !== false;
                               const isRawOpen = !!rawOpen[itemKey];
+                              const isTrulyDots = Boolean(!display.raw || /^[•*.]+$/.test(display.raw.trim()));
+                              const instructionText = sec.instruction || (sec.accounts?.[0]?.instructions?.join('\n'));
 
                               return (
                                 <div
                                   key={secIdx}
-                                  className="rounded-xl bg-white dark:bg-[#12161f] border border-oj-border dark:border-oj-dark-border p-4 sm:p-5 shadow-sm space-y-4"
+                                  className="rounded-2xl bg-white dark:bg-[#12161f] border border-oj-border dark:border-oj-dark-border p-4 sm:p-5 shadow-sm space-y-4"
                                 >
-                                  {/* Vault Header */}
-                                  <div className="flex items-center justify-between gap-2 pb-2 border-b border-oj-border dark:border-oj-dark-border">
-                                    <div className="flex items-center gap-2.5">
-                                      <div className="w-8 h-8 rounded-lg bg-oj-primary/10 text-oj-primary dark:bg-oj-cyan/15 dark:text-oj-cyan flex items-center justify-center shrink-0">
-                                        <Shield className="w-4 h-4" />
+                                  {/* Vault Header Bar */}
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-oj-border dark:border-oj-dark-border">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-10 h-10 rounded-xl bg-oj-primary/10 text-oj-primary dark:bg-oj-cyan/15 dark:text-oj-cyan flex items-center justify-center shrink-0 border border-oj-primary/20 dark:border-oj-cyan/30">
+                                        <Shield className="w-5 h-5" />
                                       </div>
                                       <div>
-                                        <h4 className="font-heading font-black text-sm text-oj-midnight dark:text-white">
+                                        <h4 className="font-heading font-black text-sm sm:text-base text-oj-midnight dark:text-white">
                                           Digital Delivery Vault
                                         </h4>
-                                        <p className="text-[10px] text-oj-muted dark:text-oj-dark-muted">
+                                        <p className="text-[11px] text-oj-muted dark:text-oj-dark-muted">
                                           Verified Secure Access · Sensitive details masked by default
                                         </p>
                                       </div>
                                     </div>
 
-                                    <button
-                                      type="button"
-                                      onClick={() => handleCopy(getCopyAllText(item.originalOrder, item.accountItem, secretVal), `sub_all_${itemKey}`, 'Account credentials')}
-                                      className="py-1 px-2.5 rounded-lg bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-primary hover:text-white border border-oj-border dark:border-oj-dark-border text-xs font-bold text-oj-midnight dark:text-white flex items-center gap-1.5 transition-all shadow-xs"
-                                    >
-                                      {copiedId === `sub_all_${itemKey}` ? (
-                                        <>
-                                          <Check className="w-3.5 h-3.5 text-emerald-500" />
-                                          <span>Copied!</span>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <Copy className="w-3.5 h-3.5" />
-                                          <span>Copy All</span>
-                                        </>
+                                    {/* Top Action Toolbar */}
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      {instructionText && (
+                                        <button
+                                          type="button"
+                                          onClick={() => toggleGuide(itemKey)}
+                                          className={`py-1.5 px-3 rounded-btn text-xs font-bold transition-all flex items-center gap-1.5 border shadow-xs ${
+                                            isGuideOpen
+                                              ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                                              : 'bg-white dark:bg-oj-dark-surface text-oj-muted hover:text-oj-midnight dark:hover:text-white border-oj-border dark:border-oj-dark-border'
+                                          }`}
+                                        >
+                                          <Info className="w-3.5 h-3.5" />
+                                          <span>Usage Guide</span>
+                                        </button>
                                       )}
-                                    </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDownloadTxt(item.originalOrder, item.accountItem, display, instructionText)}
+                                        className="py-1.5 px-3 rounded-btn bg-white dark:bg-oj-dark-surface hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border text-xs font-bold text-oj-midnight dark:text-white flex items-center gap-1.5 transition-all shadow-xs"
+                                      >
+                                        <Download className="w-3.5 h-3.5 text-oj-muted" />
+                                        <span>Download .txt</span>
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => handleCopyAll(item.originalOrder, item.accountItem, display, `copy_all_${itemKey}`)}
+                                        className="py-1.5 px-3.5 rounded-btn bg-oj-primary hover:bg-oj-primary-hover text-white text-xs font-bold transition-all shadow-glow-primary flex items-center gap-1.5"
+                                      >
+                                        {copiedId === `copy_all_${itemKey}` ? (
+                                          <>
+                                            <Check className="w-3.5 h-3.5" />
+                                            <span>Copied All!</span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Copy className="w-3.5 h-3.5" />
+                                            <span>Copy All</span>
+                                          </>
+                                        )}
+                                      </button>
+                                    </div>
                                   </div>
 
-                                  {/* Fields Breakdown */}
-                                  <div className="space-y-2.5">
-                                    {parsed.fields.map((field, fIdx) => {
-                                      const fieldKey = `${itemKey}_${fIdx}`;
-                                      const isPassword = field.isSensitive || field.type === 'password' || field.type === '2fa';
-                                      const isRevealedPw = revealedPasswords[fieldKey];
-                                      const isCopied = copiedId === fieldKey;
+                                  {/* Usage Guide Box (Collapsible) */}
+                                  {isGuideOpen && instructionText && (
+                                    <div className="p-3.5 rounded-xl bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200/70 dark:border-blue-900/60 text-xs text-blue-950 dark:text-blue-200 space-y-1.5">
+                                      <div className="flex items-center gap-2 font-bold text-blue-800 dark:text-blue-300">
+                                        <Info className="w-4 h-4 shrink-0" />
+                                        <span>Fulfillment Guidance & Setup</span>
+                                      </div>
+                                      <p className="text-[11px] leading-relaxed whitespace-pre-line text-blue-900/90 dark:text-blue-300/90 pl-6">
+                                        {instructionText}
+                                      </p>
+                                    </div>
+                                  )}
 
-                                      return (
-                                        <div key={fIdx} className="space-y-1">
-                                          <div className="flex items-center gap-1.5 px-1">
-                                            {field.type === 'uid' && <User className="w-3 h-3 text-oj-primary" />}
-                                            {field.type === 'password' && <KeyRound className="w-3 h-3 text-amber-500" />}
-                                            {field.type === '2fa' && <ShieldCheck className="w-3 h-3 text-emerald-500" />}
-                                            <span className="text-[10px] font-mono font-bold tracking-wider text-oj-muted uppercase">
-                                              {field.label}
-                                            </span>
-                                          </div>
-
-                                          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-oj-surface-alt/60 dark:bg-oj-dark-surface-alt/60 border border-oj-border/80 dark:border-oj-dark-border/80">
-                                            <span className="flex-1 font-mono text-xs font-bold select-all text-oj-midnight dark:text-white truncate">
-                                              {isPassword && !isRevealedPw ? '••••••••••••••••' : field.value}
-                                            </span>
-
-                                            <div className="flex items-center gap-1 shrink-0">
-                                              {isPassword && (
-                                                <button
-                                                  type="button"
-                                                  onClick={() => togglePasswordVisibility(fieldKey)}
-                                                  className="p-1 rounded text-oj-muted hover:text-oj-primary transition-colors"
-                                                  title={isRevealedPw ? 'Mask' : 'Reveal'}
-                                                >
-                                                  {isRevealedPw ? (
-                                                    <EyeOff className="w-3.5 h-3.5" />
-                                                  ) : (
-                                                    <Eye className="w-3.5 h-3.5" />
-                                                  )}
-                                                </button>
-                                              )}
-
-                                              <button
-                                                type="button"
-                                                onClick={() => handleCopy(field.value, fieldKey, field.label)}
-                                                className="p-1 rounded text-oj-muted hover:text-oj-primary transition-colors"
-                                                title={`Copy ${field.label}`}
-                                              >
-                                                {isCopied ? (
-                                                  <Check className="w-3.5 h-3.5 text-emerald-500" />
-                                                ) : (
-                                                  <Copy className="w-3.5 h-3.5" />
-                                                )}
-                                              </button>
+                                  {/* Accounts Breakdown */}
+                                  {isTrulyDots ? (
+                                    <div className="p-5 rounded-xl bg-oj-surface-alt dark:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border text-center space-y-3">
+                                      <Lock className="w-8 h-8 text-oj-primary dark:text-oj-cyan mx-auto" />
+                                      <div className="space-y-1">
+                                        <h5 className="font-heading font-black text-sm text-oj-midnight dark:text-white">
+                                          Credentials Encrypted with AES-256-GCM
+                                        </h5>
+                                        <p className="text-xs text-oj-muted dark:text-oj-dark-muted max-w-sm mx-auto">
+                                          Click below to decrypt and load your verified email, password, and recovery keys directly into your vault.
+                                        </p>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (typeof revealSecret === 'function') {
+                                            revealSecret(item.orderId, item.accountItem.id);
+                                          }
+                                        }}
+                                        className="px-5 py-2.5 rounded-btn bg-oj-primary hover:bg-oj-primary-hover text-white text-xs font-bold shadow-glow-primary transition-all inline-flex items-center gap-2"
+                                      >
+                                        <KeyRound className="w-4 h-4" />
+                                        <span>Decrypt & View Credentials</span>
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-4">
+                                      {display.accounts.map((acc, aIdx) => (
+                                        <div
+                                          key={aIdx}
+                                          className="rounded-xl border border-oj-border/80 dark:border-oj-dark-border/80 bg-oj-surface-alt/40 dark:bg-oj-dark-surface-alt/30 p-3.5 sm:p-4 space-y-3"
+                                        >
+                                          {/* Account Header */}
+                                          <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-oj-border/60 dark:border-oj-dark-border/60">
+                                            <div className="flex items-center gap-2">
+                                              <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-oj-primary/10 dark:bg-oj-cyan/15 text-oj-primary dark:text-oj-cyan border border-oj-primary/20 dark:border-oj-cyan/30">
+                                                CREDENTIALS & ACCESS
+                                              </span>
+                                              <span className="text-xs font-bold text-oj-midnight dark:text-white">
+                                                {acc.title || `Account Credentials ${display.accounts.length > 1 ? `#${aIdx + 1}` : ''}`}
+                                              </span>
                                             </div>
+
+                                            <button
+                                              type="button"
+                                              onClick={() => handleCopyAccount(acc, `copy_acc_${itemKey}_${aIdx}`)}
+                                              className="py-1 px-2.5 rounded-md bg-white dark:bg-oj-dark-surface border border-oj-border dark:border-oj-dark-border hover:border-oj-primary dark:hover:border-oj-cyan text-[11px] font-bold text-oj-midnight dark:text-white flex items-center gap-1.5 transition-all shadow-xs"
+                                            >
+                                              {copiedId === `copy_acc_${itemKey}_${aIdx}` ? (
+                                                <>
+                                                  <Check className="w-3 h-3 text-emerald-500" />
+                                                  <span>Copied!</span>
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <Copy className="w-3 h-3 text-oj-muted" />
+                                                  <span>Copy Account</span>
+                                                </>
+                                              )}
+                                            </button>
                                           </div>
 
-                                          {/* 2FA Helper Live Button */}
-                                          {field.type === '2fa' && (
-                                            <div className="pt-1 flex items-center justify-between text-[11px] px-1">
-                                              <span className="text-oj-muted">Need a 6-digit verification code?</span>
+                                          {/* Discrete Labeled Credential Rows */}
+                                          <div className="space-y-2">
+                                            {acc.fields.map((field, fIdx) => {
+                                              const fieldKey = `${itemKey}_${aIdx}_${fIdx}`;
+                                              const isSensitive = field.isSensitive ?? (field.type === 'password' || field.type === 'recovery_email' || field.type === 'backup_codes' || field.type === '2fa');
+                                              const isRevealed = revealedPasswords[fieldKey];
+                                              const isCopied = copiedId === fieldKey;
+
+                                              return (
+                                                <div
+                                                  key={fIdx}
+                                                  className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 sm:p-3 rounded-lg bg-white dark:bg-oj-dark-surface border border-oj-border/80 dark:border-oj-dark-border/80 gap-2 sm:gap-3 transition-colors hover:border-oj-primary/30"
+                                                >
+                                                  {/* Label & Icon */}
+                                                  <div className="flex items-center gap-2 sm:w-44 shrink-0">
+                                                    <span className="text-oj-primary dark:text-oj-cyan">
+                                                      {field.type === 'email' && <Mail className="w-3.5 h-3.5" />}
+                                                      {field.type === 'uid' && <User className="w-3.5 h-3.5" />}
+                                                      {field.type === 'password' && <KeyRound className="w-3.5 h-3.5 text-amber-500" />}
+                                                      {field.type === 'recovery_email' && <ShieldCheck className="w-3.5 h-3.5 text-blue-500" />}
+                                                      {field.type === 'backup_codes' && <FileCode className="w-3.5 h-3.5 text-purple-500" />}
+                                                      {field.type === '2fa' && <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />}
+                                                      {field.type === 'token' && <KeyRound className="w-3.5 h-3.5 text-indigo-500" />}
+                                                      {field.type === 'key' && <KeyRound className="w-3.5 h-3.5 text-amber-500" />}
+                                                    </span>
+                                                    <span className="text-[10px] sm:text-[11px] font-mono font-bold tracking-wider text-oj-muted dark:text-oj-dark-muted uppercase">
+                                                      {field.label}
+                                                    </span>
+                                                  </div>
+
+                                                  {/* Value */}
+                                                  <div className="flex-1 min-w-0 px-1 font-mono text-xs font-bold select-all text-oj-midnight dark:text-white truncate">
+                                                    {isSensitive && !isRevealed ? '••••••••••••••••••••••••••••••' : field.value}
+                                                  </div>
+
+                                                  {/* Individual Actions */}
+                                                  <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                                                    {isSensitive && (
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => togglePasswordVisibility(fieldKey)}
+                                                        className="p-1.5 rounded-md hover:bg-oj-surface-alt dark:hover:bg-oj-dark-surface-alt text-oj-muted hover:text-oj-midnight dark:hover:text-white transition-colors"
+                                                        title={isRevealed ? 'Mask' : 'Reveal'}
+                                                      >
+                                                        {isRevealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                                      </button>
+                                                    )}
+
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => handleCopy(field.value, fieldKey, field.label)}
+                                                      className="px-2.5 py-1 rounded-md bg-oj-surface-alt/80 dark:bg-oj-dark-surface-alt/80 hover:bg-oj-primary hover:text-white text-[11px] font-bold text-oj-midnight dark:text-white border border-oj-border/60 dark:border-oj-dark-border/60 flex items-center gap-1 transition-all"
+                                                      title={`Copy ${field.label}`}
+                                                    >
+                                                      {isCopied ? (
+                                                        <>
+                                                          <Check className="w-3 h-3 text-emerald-500" />
+                                                          <span className="text-emerald-600 dark:text-emerald-400">Copied</span>
+                                                        </>
+                                                      ) : (
+                                                        <>
+                                                          <Copy className="w-3 h-3 text-oj-muted" />
+                                                          <span>Copy</span>
+                                                        </>
+                                                      )}
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+
+                                          {/* 2FA Live Helper */}
+                                          {acc.fields.some(f => f.type === '2fa') && (
+                                            <div className="pt-1 flex items-center justify-between text-[11px] px-1 text-oj-muted dark:text-oj-dark-muted">
+                                              <span>Need a 6-digit verification code?</span>
                                               <a
-                                                href={`https://2fa.live`}
+                                                href="https://2fa.live"
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="inline-flex items-center gap-1 font-bold text-oj-primary dark:text-oj-cyan hover:underline"
@@ -966,24 +1098,39 @@ export const OrdersPage: React.FC = () => {
                                             </div>
                                           )}
                                         </div>
-                                      );
-                                    })}
-                                  </div>
+                                      ))}
+                                    </div>
+                                  )}
 
-                                  {/* Raw String Fallback */}
-                                  <div className="pt-2 border-t border-oj-border/60 dark:border-oj-dark-border/60">
+                                  {/* Collapsible Original Supplier Raw Text */}
+                                  <div className="pt-2 border-t border-oj-border dark:border-oj-dark-border">
                                     <button
                                       type="button"
                                       onClick={() => toggleRaw(itemKey)}
-                                      className="text-[11px] font-bold text-oj-muted hover:text-oj-midnight dark:hover:text-white flex items-center gap-1"
+                                      className="text-[11px] font-bold text-oj-muted hover:text-oj-midnight dark:hover:text-white flex items-center gap-1.5 transition-colors"
                                     >
-                                      <span>{isRawOpen ? 'Hide Complete Raw String' : 'View Complete Raw String'}</span>
-                                      <ChevronDown className={`w-3 h-3 transition-transform ${isRawOpen ? 'rotate-180' : ''}`} />
+                                      <span>{isRawOpen ? 'Hide Original Supplier Raw Text' : 'View Original Supplier Raw Text'}</span>
+                                      <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isRawOpen ? 'rotate-180' : ''}`} />
                                     </button>
 
                                     {isRawOpen && (
-                                      <div className="mt-2 p-2.5 rounded-lg bg-oj-surface-alt dark:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border font-mono text-xs text-oj-midnight dark:text-white break-all select-all">
-                                        {parsed.raw}
+                                      <div className="mt-2.5 p-3 rounded-xl bg-oj-surface-alt dark:bg-oj-dark-surface-alt border border-oj-border dark:border-oj-dark-border space-y-2">
+                                        <div className="flex items-center justify-between gap-2">
+                                          <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-oj-muted">
+                                            Raw Delimited Fulfillment String
+                                          </span>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleCopy(display.raw, `raw_copy_${itemKey}`, 'Raw string')}
+                                            className="text-[10px] font-bold text-oj-primary dark:text-oj-cyan hover:underline flex items-center gap-1"
+                                          >
+                                            <Copy className="w-3 h-3" />
+                                            <span>Copy Raw</span>
+                                          </button>
+                                        </div>
+                                        <div className="font-mono text-xs text-oj-midnight dark:text-white break-all select-all bg-white dark:bg-[#0c0f14] p-2.5 rounded-lg border border-oj-border/60 dark:border-oj-dark-border/60">
+                                          {display.raw}
+                                        </div>
                                       </div>
                                     )}
                                   </div>
@@ -993,7 +1140,7 @@ export const OrdersPage: React.FC = () => {
                                     <div className="flex items-center gap-2">
                                       <button
                                         type="button"
-                                        onClick={() => handleDownloadTxt(item.originalOrder, item.accountItem, secretVal, sec.instruction)}
+                                        onClick={() => handleDownloadTxt(item.originalOrder, item.accountItem, display, instructionText)}
                                         className="py-1.5 px-3 rounded-btn bg-oj-surface-alt dark:bg-oj-dark-surface-alt hover:bg-oj-primary hover:text-white border border-oj-border dark:border-oj-dark-border font-bold text-oj-midnight dark:text-white flex items-center gap-1.5 transition-all shadow-xs"
                                         title="Download .txt"
                                       >

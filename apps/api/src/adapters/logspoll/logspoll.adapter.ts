@@ -1,4 +1,5 @@
 import { env } from '../../config/env.js';
+import { SecretField, StructuredAccountPayload } from '@ojalogs/shared';
 
 export interface LogsPollProduct {
   id: string;
@@ -31,6 +32,9 @@ export interface LogsPollOrderResult {
   secretKey?: string;
   deliveryFormat?: string;
   instructions?: string;
+  structuredAccounts?: StructuredAccountPayload[];
+  structuredFields?: SecretField[];
+  rawString?: string;
   error?: string;
 }
 
@@ -419,6 +423,25 @@ export class LogsPollAdapter {
         let credentials = data.secretKey || data.credentials || data.key || data.account || data.code;
         let deliveryFormat = 'Credentials / 2FA Token';
         let instructions = 'Delivered via LogsPoll automated upstream API.';
+        let structuredAccounts: StructuredAccountPayload[] | undefined;
+        let structuredFields: SecretField[] | undefined;
+        let rawString: string | undefined;
+
+        // Check if direct response has entitlement
+        const directEnt = data.product_entitlements || data.entitlement || data.order_items?.[0]?.product_entitlements;
+        if (directEnt) {
+          credentials = directEnt.raw || directEnt.instructions || directEnt.structured?.accounts?.[0]?.raw || directEnt.structured?.raw || (typeof directEnt === 'string' ? directEnt : credentials);
+          rawString = directEnt.raw || directEnt.instructions || credentials;
+          if (directEnt.structured?.accounts && Array.isArray(directEnt.structured.accounts) && directEnt.structured.accounts.length > 0) {
+            structuredAccounts = directEnt.structured.accounts;
+            structuredFields = directEnt.structured.accounts[0]?.fields;
+          }
+          if (Array.isArray(directEnt.structured?.instructions) && directEnt.structured.instructions.length > 0) {
+            instructions = directEnt.structured.instructions.join('\n');
+          } else if (typeof directEnt.instructions === 'string' && directEnt.instructions.length > 0) {
+            instructions = directEnt.instructions;
+          }
+        }
 
         if (!credentials && orderId) {
           try {
@@ -473,6 +496,11 @@ export class LogsPollAdapter {
                 const ent = itemWithEntitlement?.product_entitlements || itemWithEntitlement?.entitlement || match?.product_entitlements;
                 if (ent) {
                   credentials = ent.raw || ent.instructions || ent.structured?.accounts?.[0]?.raw || ent.structured?.raw || (typeof ent === 'string' ? ent : credentials);
+                  rawString = ent.raw || ent.instructions || ent.structured?.accounts?.[0]?.raw || credentials;
+                  if (ent.structured?.accounts && Array.isArray(ent.structured.accounts) && ent.structured.accounts.length > 0) {
+                    structuredAccounts = ent.structured.accounts;
+                    structuredFields = ent.structured.accounts[0]?.fields;
+                  }
                   if (Array.isArray(ent.structured?.instructions) && ent.structured.instructions.length > 0) {
                     instructions = ent.structured.instructions.join('\n');
                   } else if (typeof ent.instructions === 'string' && ent.instructions.length > 0) {
@@ -484,6 +512,7 @@ export class LogsPollAdapter {
                   if (credentials) break;
                 } else if (itemWithEntitlement?.secretKey || itemWithEntitlement?.credentials) {
                   credentials = itemWithEntitlement.secretKey || itemWithEntitlement.credentials;
+                  rawString = credentials;
                   if (credentials) break;
                 }
               }
@@ -512,7 +541,10 @@ export class LogsPollAdapter {
           status: 'completed',
           secretKey: credentials,
           deliveryFormat,
-          instructions
+          instructions,
+          structuredAccounts,
+          structuredFields,
+          rawString: rawString || credentials
         };
       } else {
         const text = await resp.text();

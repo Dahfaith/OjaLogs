@@ -2,10 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { walletService } from './wallet.service.js';
 import { serverApiRegistry } from '../adapters/server/server.registry.js';
+import { ProvisionResult } from '../adapters/server/server.interface.js';
 import { logspollAdapter } from '../adapters/logspoll/logspoll.adapter.js';
 import { encryptPayload, decryptPayload } from '../utils/crypto.js';
 import { AppError } from '../middleware/errorHandler.js';
-import { Order, OrderItem } from '@ojalogs/shared';
+import { Order, OrderItem, parseCredentialsPayload, SecretField, StructuredAccountPayload } from '@ojalogs/shared';
 import { bachGateway } from '../gateways/bach.gateway.js';
 import { notificationService } from './notification.service.js';
 import { supabaseAdmin } from '../config/supabase.js';
@@ -33,6 +34,9 @@ interface StoredSecret {
   value: string;
   encryptedPayload: string;
   instruction: string;
+  structuredFields?: SecretField[];
+  accounts?: StructuredAccountPayload[];
+  rawString?: string;
   revealCount?: number;
   lastRevealedAt?: string;
 }
@@ -323,7 +327,7 @@ export class OrderService {
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      let provisioned: { secretKey: string; deliveryFormat: string; instructions: string } | null = null;
+      let provisioned: ProvisionResult | null = null;
 
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.productId.replace(/^lp_/, ''));
       const isLogsPollSku = item.productId.startsWith('lp_') || isUuid;
@@ -446,7 +450,11 @@ export class OrderService {
             provisioned = {
               secretKey: lpRes.secretKey,
               deliveryFormat: lpRes.deliveryFormat || 'Encrypted Account Credentials & 2FA Token',
-              instructions: lpRes.instructions || 'Delivered via LogsPoll automated upstream API.'
+              instructions: lpRes.instructions || 'Delivered via LogsPoll automated upstream API.',
+              externalTransactionId: `lp_${lpRes.orderId || Date.now()}`,
+              structuredFields: lpRes.structuredFields,
+              structuredAccounts: lpRes.structuredAccounts,
+              rawString: lpRes.rawString
             };
           } else {
             upstreamError = lpRes.error || null;
@@ -490,6 +498,23 @@ export class OrderService {
         // Encrypt payload with AES-256-GCM before saving to delivery vault
         const encryptedSecret = encryptPayload(provisioned.secretKey);
 
+        // Extract structured credentials or parse raw payload accurately
+        const parsed = (provisioned.structuredFields && provisioned.structuredFields.length > 0)
+          ? {
+              isStructured: true,
+              fields: provisioned.structuredFields,
+              accounts: provisioned.structuredAccounts || [
+                {
+                  accountNumber: 1,
+                  title: 'Account Credentials',
+                  fields: provisioned.structuredFields,
+                  raw: provisioned.rawString || provisioned.secretKey
+                }
+              ],
+              raw: provisioned.rawString || provisioned.secretKey
+            }
+          : parseCredentialsPayload(provisioned.secretKey, item.title, provisioned.deliveryFormat);
+
         orderItems.push({
           id: `ord_item_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
           product: {
@@ -522,7 +547,10 @@ export class OrderService {
               revealed: false,
               encryptedPayload: encryptedSecret,
               value: '••••••••••••••••••••••••••••••',
-              instruction: provisioned.instructions
+              rawString: provisioned.secretKey,
+              instruction: provisioned.instructions,
+              structuredFields: parsed.fields,
+              accounts: parsed.accounts
             } as any
           ]
         });
@@ -650,10 +678,25 @@ export class OrderService {
               val = decryptPayload(sec.encryptedPayload);
             } catch {}
           }
+
+          let structuredFields = sec.structuredFields;
+          let accounts = sec.accounts;
+          let rawString = sec.rawString || val;
+          if ((!structuredFields || structuredFields.length === 0) && val && !val.includes('••••')) {
+            const parsed = parseCredentialsPayload(val, item.product?.title || '', item.product?.deliveryFormat || '');
+            structuredFields = parsed.fields;
+            accounts = parsed.accounts;
+            rawString = parsed.raw;
+          }
+
           return {
             ...sec,
+            type: structuredFields?.some((f: any) => f.type === 'email' || f.type === 'uid') ? 'account' : (sec.type || 'license_key'),
             revealed: true,
-            value: val || sec.value
+            value: val || sec.value,
+            rawString: rawString || val,
+            structuredFields,
+            accounts
           };
         })
       }))
@@ -672,10 +715,25 @@ export class OrderService {
               val = decryptPayload(sec.encryptedPayload);
             } catch {}
           }
+
+          let structuredFields = sec.structuredFields;
+          let accounts = sec.accounts;
+          let rawString = sec.rawString || val;
+          if ((!structuredFields || structuredFields.length === 0) && val && !val.includes('••••')) {
+            const parsed = parseCredentialsPayload(val, item.product?.title || '', item.product?.deliveryFormat || '');
+            structuredFields = parsed.fields;
+            accounts = parsed.accounts;
+            rawString = parsed.raw;
+          }
+
           return {
             ...sec,
+            type: structuredFields?.some((f: any) => f.type === 'email' || f.type === 'uid') ? 'account' : (sec.type || 'license_key'),
             revealed: true,
-            value: val || sec.value
+            value: val || sec.value,
+            rawString: rawString || val,
+            structuredFields,
+            accounts
           };
         })
       }))
@@ -746,13 +804,19 @@ export class OrderService {
       throw new AppError('Order item not found', 404, 'ITEM_NOT_FOUND');
     }
 
-    const encryptedSecret = encryptPayload(secretValue.trim());
+    const trimmedSecret = secretValue.trim();
+    const encryptedSecret = encryptPayload(trimmedSecret);
+    const parsed = parseCredentialsPayload(trimmedSecret, item.product?.title || '', item.product?.deliveryFormat || '');
+
     item.deliveredSecrets = [
       {
-        type: 'license_key',
+        type: parsed.fields.some(f => f.type === 'email' || f.type === 'uid') ? 'account' : 'license_key',
         revealed: false,
         encryptedPayload: encryptedSecret,
-        value: '••••••••••••••••••••••••••••••',
+        value: trimmedSecret,
+        rawString: trimmedSecret,
+        structuredFields: parsed.fields,
+        accounts: parsed.accounts,
         instruction: instructions || 'Dispatched by Ojalogs Operations Team. Secure with 2FA.'
       } as any
     ];
@@ -827,9 +891,24 @@ export class OrderService {
       }
     }
 
+    // Hydrate structured fields if missing
+    let structuredFields = (secretObj as any).structuredFields;
+    let accounts = (secretObj as any).accounts;
+    let rawString = (secretObj as any).rawString || decryptedValue;
+    if ((!structuredFields || structuredFields.length === 0) && decryptedValue && !decryptedValue.includes('••••')) {
+      const parsed = parseCredentialsPayload(decryptedValue, item.product?.title || '', item.product?.deliveryFormat || '');
+      structuredFields = parsed.fields;
+      accounts = parsed.accounts;
+      rawString = parsed.raw;
+    }
+
     // Audit and update reveal metadata
     secretObj.revealed = true;
     secretObj.value = decryptedValue;
+    secretObj.type = structuredFields?.some((f: any) => f.type === 'email' || f.type === 'uid') ? 'account' : (secretObj.type || 'license_key');
+    (secretObj as any).structuredFields = structuredFields;
+    (secretObj as any).accounts = accounts;
+    (secretObj as any).rawString = rawString;
     secretObj.revealCount = (secretObj.revealCount || 0) + 1;
     secretObj.lastRevealedAt = new Date().toISOString();
 
@@ -839,6 +918,9 @@ export class OrderService {
     return {
       revealed: true,
       secret: decryptedValue,
+      rawString,
+      structuredFields,
+      accounts,
       instruction: secretObj.instruction,
       revealCount: secretObj.revealCount,
       lastRevealedAt: secretObj.lastRevealedAt

@@ -516,11 +516,230 @@ export interface CartState {
 
 export type OrderStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'refunded' | 'cancelled';
 
+export interface SecretField {
+  label: string;
+  value: string;
+  type: 'email' | 'password' | 'recovery_email' | 'backup_codes' | 'uid' | '2fa' | 'token' | 'key' | 'generic' | string;
+  isSensitive?: boolean;
+}
+
+export interface StructuredAccountPayload {
+  accountNumber?: number;
+  title?: string;
+  fields: SecretField[];
+  raw?: string;
+  instructions?: string[];
+}
+
 export interface DeliveredSecret {
-  type: 'license_key' | 'subscription_voucher' | 'login_credentials_prohibited';
+  type: 'license_key' | 'subscription_voucher' | 'login_credentials_prohibited' | 'account' | string;
   revealed: boolean;
   value: string;
-  instruction: string;
+  instruction?: string;
+  encryptedPayload?: string;
+  structuredFields?: SecretField[];
+  accounts?: StructuredAccountPayload[];
+  rawString?: string;
+  revealCount?: number;
+  lastRevealedAt?: string;
+}
+
+/**
+ * Robust, production-grade parser for digital credentials and delivery vaults.
+ * Extracts discrete fields (Email, Password, Recovery Details, Backup Details, 2FA, Token)
+ * without misclassifying account products as license keys.
+ */
+export function parseCredentialsPayload(
+  rawSecret: string,
+  productTitle: string = '',
+  deliveryFormat: string = ''
+): {
+  isStructured: boolean;
+  fields: SecretField[];
+  accounts: StructuredAccountPayload[];
+  raw: string;
+} {
+  if (!rawSecret || !rawSecret.trim()) {
+    return { isStructured: false, fields: [], accounts: [], raw: '' };
+  }
+
+  const cleanRaw = rawSecret.trim();
+  const titleLower = (productTitle || '').toLowerCase();
+  const isEmailProduct = /\b(hotmail|outlook|live\.com|msn\.com|gmail|google\s*mail|yahoo|ymail|proton|protonmail|mail\.ru|webmail|zoho)\b/i.test(titleLower);
+  const isSocialProduct = /\b(twitter|x\.com|aged\s*x|instagram|facebook|fb|threads|tiktok|reddit|snapchat|telegram|discord|linkedin)\b/i.test(titleLower);
+  const isVpnProduct = /\b(vpn|nordvpn|surfshark|expressvpn|cyberghost|protonvpn)\b/i.test(titleLower);
+
+  // If payload consists of multiple account lines (e.g. bulk quantity purchase)
+  const lines = cleanRaw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const parseSingleLine = (line: string, accNum: number = 1): StructuredAccountPayload => {
+    // 1. Pipe-delimited (highest priority for LogsPoll & account resellers)
+    if (line.includes('|')) {
+      const parts = line.split('|').map(p => p.trim());
+      if (parts.length >= 2) {
+        const fields: SecretField[] = [];
+
+        // Part 0: Email or Username
+        if (parts[0].includes('@') || isEmailProduct) {
+          fields.push({ label: 'EMAIL ADDRESS', value: parts[0], type: 'email', isSensitive: false });
+        } else {
+          fields.push({ label: 'USERNAME', value: parts[0], type: 'uid', isSensitive: false });
+        }
+
+        // Part 1: Password
+        if (parts[1] !== undefined) {
+          fields.push({ label: 'PASSWORD', value: parts[1], type: 'password', isSensitive: true });
+        }
+
+        // Part 2: Recovery Details / 2FA / OAuth2 Token
+        if (parts[2] !== undefined && parts[2].length > 0) {
+          if (parts[2].includes('@')) {
+            fields.push({ label: 'RECOVERY EMAIL', value: parts[2], type: 'recovery_email', isSensitive: true });
+          } else if (isEmailProduct || parts[2].startsWith('M.') || parts[2].length > 30) {
+            fields.push({ label: 'RECOVERY DETAILS', value: parts[2], type: 'recovery_email', isSensitive: true });
+          } else if (isSocialProduct && /^[A-Z0-9]{16,32}$/i.test(parts[2])) {
+            fields.push({ label: '2FA SECRET', value: parts[2], type: '2fa', isSensitive: true });
+          } else {
+            fields.push({ label: 'RECOVERY DETAILS', value: parts[2], type: 'recovery_email', isSensitive: true });
+          }
+        }
+
+        // Part 3: Backup Details / Client ID / Secondary Secret
+        if (parts[3] !== undefined && parts[3].length > 0) {
+          if (parts[3].includes('@')) {
+            fields.push({ label: 'BACKUP EMAIL', value: parts[3], type: 'email', isSensitive: true });
+          } else if (isEmailProduct || /^[0-9a-f-]{30,}$/i.test(parts[3]) || parts[3].includes(',')) {
+            fields.push({ label: 'BACKUP DETAILS', value: parts[3], type: 'backup_codes', isSensitive: true });
+          } else {
+            fields.push({ label: 'ADDITIONAL INFORMATION', value: parts[3], type: 'token', isSensitive: true });
+          }
+        }
+
+        // Part 4+: Extra tokens or session cookies
+        for (let i = 4; i < parts.length; i++) {
+          if (parts[i]) {
+            fields.push({ label: `EXTRA PARAMETER ${i + 1}`, value: parts[i], type: 'token', isSensitive: true });
+          }
+        }
+
+        return {
+          accountNumber: accNum,
+          title: `Account Credentials ${lines.length > 1 ? `#${accNum}` : ''}`.trim(),
+          fields,
+          raw: line
+        };
+      }
+    }
+
+    // 2. Colon-delimited
+    if (line.includes(':') && !line.startsWith('http://') && !line.startsWith('https://')) {
+      const parts = line.split(':').map(p => p.trim());
+      if (parts.length >= 2) {
+        const fields: SecretField[] = [];
+
+        // Part 0
+        if (parts[0].includes('@') || isEmailProduct) {
+          fields.push({ label: 'EMAIL ADDRESS', value: parts[0], type: 'email', isSensitive: false });
+        } else if (isVpnProduct) {
+          fields.push({ label: 'VPN USERNAME', value: parts[0], type: 'uid', isSensitive: false });
+        } else {
+          fields.push({ label: 'USERNAME', value: parts[0], type: 'uid', isSensitive: false });
+        }
+
+        // Part 1: Password
+        if (parts[1] !== undefined) {
+          fields.push({ label: 'PASSWORD', value: parts[1], type: 'password', isSensitive: true });
+        }
+
+        // Part 2: 2FA or Recovery Email / Details
+        if (parts[2] !== undefined && parts[2].length > 0) {
+          if (parts[2].includes('@')) {
+            fields.push({ label: 'RECOVERY EMAIL', value: parts[2], type: 'recovery_email', isSensitive: true });
+          } else if (isSocialProduct && /^[A-Z0-9]{16,32}$/i.test(parts[2])) {
+            fields.push({ label: '2FA SECRET', value: parts[2], type: '2fa', isSensitive: true });
+          } else if (isEmailProduct) {
+            fields.push({ label: 'RECOVERY DETAILS', value: parts[2], type: 'recovery_email', isSensitive: true });
+          } else {
+            fields.push({ label: '2FA / RECOVERY KEY', value: parts[2], type: '2fa', isSensitive: true });
+          }
+        }
+
+        // Part 3: Backup Details or Secondary Token
+        if (parts[3] !== undefined && parts[3].length > 0) {
+          if (parts[3].includes('@')) {
+            fields.push({ label: 'RECOVERY EMAIL', value: parts[3], type: 'email', isSensitive: true });
+          } else if (isEmailProduct) {
+            fields.push({ label: 'BACKUP DETAILS', value: parts[3], type: 'backup_codes', isSensitive: true });
+          } else {
+            fields.push({ label: 'ADDITIONAL INFORMATION', value: parts[3], type: 'token', isSensitive: true });
+          }
+        }
+
+        // Part 4+: Extra fields
+        for (let i = 4; i < parts.length; i++) {
+          if (parts[i]) {
+            fields.push({ label: `EXTRA PARAMETER ${i + 1}`, value: parts[i], type: 'generic', isSensitive: true });
+          }
+        }
+
+        return {
+          accountNumber: accNum,
+          title: `Account Credentials ${lines.length > 1 ? `#${accNum}` : ''}`.trim(),
+          fields,
+          raw: line
+        };
+      }
+    }
+
+    // 3. Tab-delimited
+    if (line.includes('\t')) {
+      const parts = line.split('\t').map(p => p.trim());
+      if (parts.length >= 2) {
+        const fields: SecretField[] = [
+          { label: parts[0].includes('@') ? 'EMAIL ADDRESS' : 'USERNAME', value: parts[0], type: parts[0].includes('@') ? 'email' : 'uid', isSensitive: false },
+          { label: 'PASSWORD', value: parts[1], type: 'password', isSensitive: true }
+        ];
+        if (parts[2]) fields.push({ label: 'RECOVERY DETAILS', value: parts[2], type: 'recovery_email', isSensitive: true });
+        if (parts[3]) fields.push({ label: 'BACKUP DETAILS', value: parts[3], type: 'backup_codes', isSensitive: true });
+
+        return {
+          accountNumber: accNum,
+          title: `Account Credentials ${lines.length > 1 ? `#${accNum}` : ''}`.trim(),
+          fields,
+          raw: line
+        };
+      }
+    }
+
+    // 4. Single token, voucher, license key, or masked dots
+    const isMaskedDots = /^[•*.]+$/.test(line);
+    const label = isMaskedDots
+      ? 'VAULT CREDENTIAL'
+      : titleLower.includes('token') || titleLower.includes('session')
+      ? 'AUTHENTICATION TOKEN'
+      : titleLower.includes('voucher')
+      ? 'SUBSCRIPTION VOUCHER'
+      : titleLower.includes('key') || titleLower.includes('license')
+      ? 'LICENSE / ACTIVATION KEY'
+      : 'LICENSE / VAULT KEY';
+
+    return {
+      accountNumber: accNum,
+      title: `Access Details ${lines.length > 1 ? `#${accNum}` : ''}`.trim(),
+      fields: [{ label, value: line, type: 'key', isSensitive: true }],
+      raw: line
+    };
+  };
+
+  const parsedAccounts: StructuredAccountPayload[] = lines.map((l, idx) => parseSingleLine(l, idx + 1));
+  const allFields = parsedAccounts.flatMap(a => a.fields);
+  const isStructured = allFields.length > 1 || (parsedAccounts.length > 0 && parsedAccounts[0].fields[0]?.type !== 'key');
+
+  return {
+    isStructured,
+    fields: allFields,
+    accounts: parsedAccounts,
+    raw: cleanRaw
+  };
 }
 
 export interface OrderItem {

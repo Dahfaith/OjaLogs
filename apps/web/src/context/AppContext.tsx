@@ -916,33 +916,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const revealSecret = async (orderId: string, itemId: string) => {
     let revealedSecret: string | undefined;
     let instruction: string | undefined;
+    let structuredFields: any[] | undefined;
+    let accounts: any[] | undefined;
+    let rawString: string | undefined;
 
     try {
       const res = await apiClient.revealSecret(orderId, itemId);
       revealedSecret = res.secret;
       instruction = res.instruction;
+      structuredFields = res.structuredFields;
+      accounts = res.accounts;
+      rawString = res.rawString;
     } catch {
       // Fallback reveal
     }
 
-    setOrders(prev => prev.map(order => {
-      if (order.id !== orderId) return order;
-      return {
-        ...order,
-        items: order.items.map(item => {
-          if (item.id !== itemId) return item;
-          return {
-            ...item,
-            deliveredSecrets: item.deliveredSecrets?.map(sec => ({
-              ...sec,
-              revealed: true,
-              value: revealedSecret || sec.value,
-              instruction: instruction || sec.instruction
-            }))
-          };
-        })
-      };
-    }));
+    setOrders(prev => {
+      const updated = prev.map(order => {
+        if (order.id !== orderId) return order;
+        return {
+          ...order,
+          items: order.items.map(item => {
+            if (item.id !== itemId) return item;
+            return {
+              ...item,
+              deliveredSecrets: item.deliveredSecrets?.map((sec: any) => ({
+                ...sec,
+                revealed: true,
+                value: revealedSecret || sec.value,
+                instruction: instruction || sec.instruction,
+                structuredFields: structuredFields || sec.structuredFields,
+                accounts: accounts || sec.accounts,
+                rawString: rawString || revealedSecret || sec.rawString
+              }))
+            };
+          })
+        };
+      });
+      try { localStorage.setItem('oj_orders', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
 
     showToast('Vault secret decrypted with AES-256 and audited.');
   };

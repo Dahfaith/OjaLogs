@@ -40,7 +40,10 @@ export class Server2ApiAdapter implements IServerApiAdapter {
             secretKey: orderResult.secretKey,
             deliveryFormat: orderResult.deliveryFormat || 'Username:Password:Email:2FA_Secret',
             instructions: orderResult.instructions || 'Redeem and secure your account credentials with 2FA.',
-            externalTransactionId: `lp_${orderResult.orderId || Date.now()}`
+            externalTransactionId: `lp_${orderResult.orderId || Date.now()}`,
+            structuredFields: orderResult.structuredFields,
+            structuredAccounts: orderResult.structuredAccounts,
+            rawString: orderResult.rawString
           };
         } else {
           const errMsg = orderResult.error || 'LogsPoll upstream rejected order (insufficient provider balance or out of stock)';

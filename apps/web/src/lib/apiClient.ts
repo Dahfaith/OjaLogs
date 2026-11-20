@@ -261,6 +261,9 @@ class ApiClient {
   async revealSecret(orderId: string, orderItemId: string): Promise<{
     revealed: boolean;
     secret: string;
+    rawString?: string;
+    structuredFields?: any[];
+    accounts?: any[];
     instruction: string;
     revealCount?: number;
     lastRevealedAt?: string;

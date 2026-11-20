@@ -1,10 +1,13 @@
-import { Product } from '@ojalogs/shared';
+import { Product, SecretField, StructuredAccountPayload } from '@ojalogs/shared';
 
 export interface ProvisionResult {
   secretKey: string;
   deliveryFormat: string;
   instructions: string;
   externalTransactionId: string;
+  structuredFields?: SecretField[];
+  structuredAccounts?: StructuredAccountPayload[];
+  rawString?: string;
 }
 
 export interface IServerApiAdapter {
