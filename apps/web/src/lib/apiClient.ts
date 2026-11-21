@@ -14,7 +14,8 @@ import {
   SMMService,
   SMMOrder,
   SMMProviderConfig,
-  DedicatedVirtualAccount
+  DedicatedVirtualAccount,
+  AdminAuditEntry
 } from '@ojalogs/shared';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'https://api.ojalogs.com.ng/api/v1';
@@ -436,6 +437,13 @@ class ApiClient {
     });
   }
 
+  async encryptBatchInventory(productId: string, rawKeysPayload: string): Promise<any> {
+    return this.request('/admin/inventory/encrypt-batch', {
+      method: 'POST',
+      body: JSON.stringify({ productId, rawKeysPayload })
+    });
+  }
+
   // Admin Metrics & Upstream Balances
   async getAdminBalances(): Promise<Array<{
     id: string;
@@ -511,6 +519,10 @@ class ApiClient {
 
   async getAdminOrders(): Promise<Order[]> {
     return this.request<Order[]>('/admin/orders');
+  }
+
+  async getAdminAuditLogs(limit = 100): Promise<AdminAuditEntry[]> {
+    return this.request<AdminAuditEntry[]>(`/admin/audit?limit=${limit}`);
   }
 
   async refundAdminOrder(orderId: string, reason?: string): Promise<Order> {

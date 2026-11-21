@@ -18,7 +18,8 @@ import { z } from 'zod';
 import { env } from '../config/env.js';
 import { bachGateway } from '../gateways/bach.gateway.js';
 import { configService } from '../services/config.service.js';
-import { PaymentGatewayConfig, TelephonyProviderConfig, AdminManagedUser, AdminNotification } from '@ojalogs/shared';
+import { PaymentGatewayConfig, TelephonyProviderConfig, AdminManagedUser, AdminNotification, AdminAuditEntry } from '@ojalogs/shared';
+import { auditService } from '../services/audit.service.js';
 
 const router = Router();
 
@@ -283,6 +284,29 @@ router.patch('/servers/:clusterName', validateBody(UpdateServerConfigSchema), (r
     const rawCluster = Array.isArray(req.params.clusterName) ? req.params.clusterName[0] : req.params.clusterName;
     const clusterName = decodeURIComponent(rawCluster);
     const updated = serverApiRegistry.updateConfig(clusterName, req.body);
+
+    if (typeof req.body.markupPercent === 'number') {
+      catalogService.applyClusterMarkup(clusterName, req.body.markupPercent);
+      auditService.recordEvent({
+        action: 'MARKUP_CHANGED',
+        category: 'pricing',
+        actorEmail: (req as any).user?.email || 'admin@ojalogs.com.ng',
+        target: `${clusterName} API`,
+        details: `Configured global profit markup to ${req.body.markupPercent}% for ${clusterName}.`,
+        metadata: { cluster: clusterName, markupPercent: req.body.markupPercent }
+      });
+    }
+
+    if (req.body.apiUrl || req.body.apiKey) {
+      auditService.recordEvent({
+        action: 'API_CONFIG_UPDATED',
+        category: 'apis',
+        actorEmail: (req as any).user?.email || 'admin@ojalogs.com.ng',
+        target: `${clusterName} API`,
+        details: `Updated API credentials and endpoint settings for ${clusterName}.`
+      });
+    }
+
     configService.syncToSupabase().catch(() => {});
     res.json({
       success: true,
@@ -466,6 +490,18 @@ router.patch('/numbers/configs/:id', validateBody(UpdateTelephonyConfigSchema), 
   try {
     const updated = telephonyRegistry.update(rawId, req.body);
     configService.syncToSupabase().catch(() => {});
+
+    if (typeof req.body.markupPercent === 'number') {
+      auditService.recordEvent({
+        action: 'MARKUP_CHANGED',
+        category: 'pricing',
+        actorEmail: (req as any).user?.email || 'admin@ojalogs.com.ng',
+        target: updated.name || rawId,
+        details: `Configured virtual number markup to ${req.body.markupPercent}% on raw telephony rates.`,
+        metadata: { providerId: rawId, markupPercent: req.body.markupPercent }
+      });
+    }
+
     res.json({
       success: true,
       data: updated,
@@ -587,10 +623,20 @@ const AdjustBalanceSchema = z.object({
 router.post('/users/:userId/adjust-balance', validateBody(AdjustBalanceSchema), (req, res) => {
   const rawId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
   const { amountNgn, type, reason } = req.body;
+  const adminEmail = (req as any).user?.email || 'admin@ojalogs.com.ng';
   const user = notificationService.adjustBalance(rawId, amountNgn, type);
   if (!user) {
     return res.status(404).json({ success: false, error: { message: 'User not found' } });
   }
+
+  auditService.recordEvent({
+    action: 'WALLET_ADJUSTMENT',
+    category: 'wallets',
+    actorEmail: adminEmail,
+    target: `Customer ${user.email}`,
+    details: `Manually ${type}ed ₦${amountNgn.toLocaleString()} for ${user.email}. Reason: ${reason}`,
+    metadata: { userId: user.id, userEmail: user.email, amountNgn, type, reason }
+  });
 
   console.log(`[ADMIN_BALANCE_ADJUSTMENT] Admin ${type}ed ₦${amountNgn} for user ${user.email}. Reason: ${reason}`);
 
@@ -741,6 +787,16 @@ router.post('/smm/markup', validateBody(MarkupSchema), (req, res) => {
   const { markupPercent } = req.body;
   const result = smmService.setGlobalMarkup(markupPercent);
   configService.syncToSupabase().catch(() => {});
+
+  auditService.recordEvent({
+    action: 'MARKUP_CHANGED',
+    category: 'pricing',
+    actorEmail: (req as any).user?.email || 'admin@ojalogs.com.ng',
+    target: 'Linkocial SMM Engine',
+    details: `Configured global profit markup to ${markupPercent}% across all ${result.updatedCount} SMM services.`,
+    metadata: { providerId: 'linkocial', markupPercent }
+  });
+
   res.json({
     success: true,
     data: result,
@@ -844,6 +900,15 @@ router.post('/smm/test-connection', validateBody(TestConnectionSchema), async (r
   } catch (err) {
     next(err);
   }
+});
+
+router.get('/audit', (req, res) => {
+  const limit = req.query.limit ? Number(req.query.limit) : 100;
+  res.json({
+    success: true,
+    data: auditService.getEvents(limit),
+    meta: { request_id: `req_${Date.now()}`, timestamp: new Date().toISOString() }
+  });
 });
 
 export const adminRouter = router;

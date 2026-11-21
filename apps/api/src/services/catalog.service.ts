@@ -5,14 +5,19 @@ import { INITIAL_PRODUCTS } from '../data/products.js';
 import { logspollAdapter } from '../adapters/logspoll/logspoll.adapter.js';
 import { serverApiRegistry } from '../adapters/server/server.registry.js';
 
-function getLogsPollMargin(): number {
+function getServerMargin(cluster?: string): number {
   try {
-    const srv2 = serverApiRegistry.getConfig('Server 2');
-    if (srv2 && typeof srv2.markupPercent === 'number' && srv2.markupPercent >= 0) {
-      return 1 + (srv2.markupPercent / 100);
+    const target = normalizeServerCluster(cluster);
+    const srv = serverApiRegistry.getConfig(target);
+    if (srv && typeof srv.markupPercent === 'number' && srv.markupPercent >= 0) {
+      return 1 + (srv.markupPercent / 100);
     }
   } catch {}
   return 1.20; // Default 20%
+}
+
+function getLogsPollMargin(cluster?: string): number {
+  return getServerMargin(cluster);
 }
 
 export function resolveProductImage(title: string, category: string = '', description: string = ''): string {
@@ -260,8 +265,9 @@ export class CatalogService {
         for (const u of upstream) {
           const lpId = `lp_${u.id}`;
           if (!existingIds.has(lpId)) {
-            const retailNgn = Math.ceil(u.priceNgn * getLogsPollMargin());
             const { category: resolvedCat, categoryId: resolvedCatId } = resolveProductCategory(u.title, u.category, u.description);
+            const cluster = resolveServerCluster(u.title, resolvedCatId, u.serverCluster);
+            const retailNgn = Math.ceil(u.priceNgn * getServerMargin(cluster));
             const prodObj: Product = {
               id: lpId,
               slug: `lp-${u.id.slice(0, 8)}`,
@@ -269,7 +275,7 @@ export class CatalogService {
               category: resolvedCat,
               categoryId: resolvedCatId,
               division: 'A',
-              serverCluster: resolveServerCluster(u.title, resolvedCatId, u.serverCluster),
+              serverCluster: cluster,
               priceNgn: retailNgn,
               inStock: u.stockCount > 0,
               stockCount: u.stockCount,
@@ -281,7 +287,7 @@ export class CatalogService {
               specifications: {
                 title: u.title,
                 category: resolvedCat,
-                serverOrigin: `${u.serverCluster || 'Server 2'} (Ojalogs Enterprise Fleet)`,
+                serverOrigin: `${u.serverCluster || cluster} (Ojalogs Enterprise Fleet)`,
                 deliveryType: 'instant_automated',
                 validityDuration: 'Permanent Access',
                 fulfillmentSpeed: 'Instant Automated (Under 10s)',
@@ -294,6 +300,7 @@ export class CatalogService {
               region: 'Global',
               featured: false
             };
+            (prodObj as any).costPriceNgn = u.priceNgn;
             this.products.push(prodObj);
             this.productDetailsCache.set(lpId, prodObj);
             existingIds.add(lpId);
@@ -303,7 +310,10 @@ export class CatalogService {
             if (existing) {
               existing.stockCount = u.stockCount;
               existing.inStock = u.stockCount > 0;
-              existing.priceNgn = Math.ceil(u.priceNgn * getLogsPollMargin());
+              (existing as any).costPriceNgn = u.priceNgn;
+              if (!(existing as any).customPriceOverride) {
+                existing.priceNgn = Math.ceil(u.priceNgn * getServerMargin(existing.serverCluster));
+              }
               if (u.deliveryFormat) {
                 existing.deliveryFormat = u.deliveryFormat;
               }
@@ -700,6 +710,51 @@ export class CatalogService {
       productId,
       ingestedCount: encryptedItems.length
     };
+  }
+
+  /**
+   * Retrieves the configured markup percentage for a server cluster.
+   */
+  getServerMargin(cluster?: string): number {
+    try {
+      const target = normalizeServerCluster(cluster);
+      const srv = serverApiRegistry.getConfig(target);
+      if (srv && typeof srv.markupPercent === 'number' && srv.markupPercent >= 0) {
+        return srv.markupPercent;
+      }
+    } catch {}
+    return 20; // Default 20%
+  }
+
+  /**
+   * Applies a global profit markup percentage to all products belonging to a server cluster.
+   * Preserves explicitly configured product-level overrides and historical integrity.
+   */
+  applyClusterMarkup(cluster: string, markupPercent: number): { updatedCount: number; cluster: string; markupPercent: number } {
+    const targetCluster = normalizeServerCluster(cluster);
+    const multiplier = 1 + Math.max(0, markupPercent) / 100;
+    let updatedCount = 0;
+
+    for (const p of this.products) {
+      if (p.serverCluster === targetCluster) {
+        // Compute effective base cost (original supplier cost)
+        const supplierCost = (p as any).costPriceNgn || Math.round(p.priceNgn / 1.20);
+        (p as any).costPriceNgn = supplierCost;
+
+        if (!(p as any).customPriceOverride) {
+          p.priceNgn = Math.ceil(supplierCost * multiplier);
+          updatedCount++;
+        }
+      }
+    }
+
+    this.cache.clear();
+    const srv = serverApiRegistry.getConfig(targetCluster);
+    if (srv) {
+      srv.markupPercent = markupPercent;
+    }
+    console.log(`[CATALOG_MARKUP] Applied ${markupPercent}% markup to ${updatedCount} products in ${targetCluster}.`);
+    return { updatedCount, cluster: targetCluster, markupPercent };
   }
 }
 

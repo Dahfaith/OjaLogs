@@ -935,4 +935,16 @@ export const SMMStandardApiRequestSchema = z.object({
   order: z.union([z.string(), z.number()]).optional()
 });
 
+export interface AdminAuditEntry {
+  id: string;
+  action: 'MARKUP_CHANGED' | 'WALLET_ADJUSTMENT' | 'API_CONFIG_UPDATED' | 'CONNECTIVITY_TESTED' | 'MANUAL_DISPATCH' | 'ORDER_REFUND' | 'SYSTEM_EVENT';
+  category: 'pricing' | 'wallets' | 'apis' | 'orders' | 'security';
+  actorEmail: string;
+  target: string;
+  details: string;
+  timestamp: string;
+  metadata?: Record<string, any>;
+}
+
+
 
